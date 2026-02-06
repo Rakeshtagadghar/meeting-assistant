@@ -16,6 +16,7 @@ src-tauri/target/
 # Environment files
 .env
 .env.local
+.env.test
 .env.*.local
 
 # IDE

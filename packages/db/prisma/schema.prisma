@@ -1,0 +1,234 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ───
+
+enum NoteType {
+  FREEFORM
+  MEETING
+}
+
+enum MeetingSessionSource {
+  MANUAL
+  CALENDAR
+}
+
+enum MeetingSessionStatus {
+  IDLE
+  RECORDING
+  PAUSED
+  STOPPED
+}
+
+enum AISummaryKind {
+  SUMMARY
+  ACTION_ITEMS
+  DECISIONS
+  RISKS
+  KEY_POINTS
+}
+
+enum ShareVisibility {
+  PRIVATE
+  RESTRICTED
+}
+
+enum ProcessingJobKind {
+  SUMMARIZE
+  EXTRACT_ACTIONS
+  GENERATE_HTML
+  EXPORT_PDF
+  EXPORT_DOCX
+}
+
+enum ProcessingJobStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum ArtifactType {
+  MARKDOWN_SUMMARY
+  HTML_SUMMARY
+  PDF
+  DOCX
+}
+
+enum ArtifactStatus {
+  NOT_READY
+  GENERATING
+  READY
+  FAILED
+}
+
+// ─── Models ───
+
+model User {
+  id          String   @id @default(uuid()) @db.Uuid
+  email       String   @unique
+  displayName String   @map("display_name")
+  avatarUrl   String?  @map("avatar_url")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  notes           Note[]
+  meetingSessions MeetingSession[]
+  shareLinks      ShareLink[]
+  processingJobs  NoteProcessingJob[]
+
+  @@map("users")
+}
+
+model Note {
+  id           String    @id @default(uuid()) @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  title        String
+  contentRich  Json      @default("{}") @map("content_rich")
+  contentPlain String    @default("") @map("content_plain")
+  type         NoteType  @default(FREEFORM)
+  tags         String[]  @default([])
+  pinned       Boolean   @default(false)
+  folderId     String?   @map("folder_id") @db.Uuid
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  meetingSessions MeetingSession[]
+  summaries       AISummary[]
+  shareLinks      ShareLink[]
+  processingJobs  NoteProcessingJob[]
+  artifacts       NoteArtifact[]
+
+  @@index([userId])
+  @@index([userId, deletedAt])
+  @@index([userId, pinned])
+  @@index([userId, updatedAt])
+  @@index([userId, folderId])
+  @@map("notes")
+}
+
+model MeetingSession {
+  id               String               @id @default(uuid()) @db.Uuid
+  userId           String               @map("user_id") @db.Uuid
+  noteId           String               @map("note_id") @db.Uuid
+  source           MeetingSessionSource @default(MANUAL)
+  startedAt        DateTime             @default(now()) @map("started_at")
+  endedAt          DateTime?            @map("ended_at")
+  consentConfirmed Boolean              @default(false) @map("consent_confirmed")
+  consentText      String?              @map("consent_text")
+  audioStored      Boolean              @default(false) @map("audio_stored")
+  status           MeetingSessionStatus @default(IDLE)
+
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  note             Note              @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  transcriptChunks TranscriptChunk[]
+  summaries        AISummary[]
+
+  @@index([userId])
+  @@index([noteId])
+  @@map("meeting_sessions")
+}
+
+model TranscriptChunk {
+  id               String   @id @default(uuid()) @db.Uuid
+  meetingSessionId String   @map("meeting_session_id") @db.Uuid
+  tStartMs         Int      @map("t_start_ms")
+  tEndMs           Int      @map("t_end_ms")
+  speaker          String?
+  text             String
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  meetingSession MeetingSession @relation(fields: [meetingSessionId], references: [id], onDelete: Cascade)
+
+  @@index([meetingSessionId])
+  @@index([meetingSessionId, tStartMs])
+  @@map("transcript_chunks")
+}
+
+model AISummary {
+  id               String        @id @default(uuid()) @db.Uuid
+  noteId           String        @map("note_id") @db.Uuid
+  meetingSessionId String?       @map("meeting_session_id") @db.Uuid
+  kind             AISummaryKind
+  payload          Json
+  modelInfo        Json          @default("{}") @map("model_info")
+  createdAt        DateTime      @default(now()) @map("created_at")
+
+  note           Note            @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  meetingSession MeetingSession? @relation(fields: [meetingSessionId], references: [id], onDelete: SetNull)
+
+  @@index([noteId])
+  @@index([noteId, kind])
+  @@map("ai_summaries")
+}
+
+model ShareLink {
+  id              String          @id @default(uuid()) @db.Uuid
+  noteId          String          @map("note_id") @db.Uuid
+  createdByUserId String          @map("created_by_user_id") @db.Uuid
+  visibility      ShareVisibility @default(PRIVATE)
+  allowedEmails   String[]        @default([]) @map("allowed_emails")
+  token           String          @unique
+  expiresAt       DateTime?       @map("expires_at")
+  createdAt       DateTime        @default(now()) @map("created_at")
+
+  note      Note @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  createdBy User @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
+
+  @@index([noteId])
+  @@index([token])
+  @@map("share_links")
+}
+
+model NoteProcessingJob {
+  id          String              @id @default(uuid()) @db.Uuid
+  noteId      String              @map("note_id") @db.Uuid
+  userId      String              @map("user_id") @db.Uuid
+  kind        ProcessingJobKind
+  status      ProcessingJobStatus @default(QUEUED)
+  progressPct Int                 @default(0) @map("progress_pct")
+  message     String?
+  startedAt   DateTime?           @map("started_at")
+  endedAt     DateTime?           @map("ended_at")
+  error       String?
+  createdAt   DateTime            @default(now()) @map("created_at")
+  updatedAt   DateTime            @updatedAt @map("updated_at")
+
+  note      Note           @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  artifacts NoteArtifact[]
+
+  @@index([noteId])
+  @@index([userId])
+  @@index([userId, status])
+  @@map("note_processing_jobs")
+}
+
+model NoteArtifact {
+  id          String         @id @default(uuid()) @db.Uuid
+  noteId      String         @map("note_id") @db.Uuid
+  jobId       String         @map("job_id") @db.Uuid
+  type        ArtifactType
+  status      ArtifactStatus @default(NOT_READY)
+  storagePath String?        @map("storage_path")
+  hash        String?
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  note Note              @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  job  NoteProcessingJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([noteId])
+  @@index([jobId])
+  @@index([noteId, type])
+  @@map("note_artifacts")
+}

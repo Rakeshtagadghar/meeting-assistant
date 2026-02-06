@@ -1,0 +1,12 @@
+export { prisma } from "./client";
+export { createNotesRepository } from "./repositories/notes.repo";
+export type { NotesRepository } from "./repositories/notes.repo";
+export { createShareLinksRepository } from "./repositories/share-links.repo";
+export type { ShareLinksRepository } from "./repositories/share-links.repo";
+export { createAISummariesRepository } from "./repositories/ai-summaries.repo";
+export type { AISummariesRepository } from "./repositories/ai-summaries.repo";
+export { createProcessingJobsRepository } from "./repositories/processing-jobs.repo";
+export type { ProcessingJobsRepository } from "./repositories/processing-jobs.repo";
+export { createArtifactsRepository } from "./repositories/artifacts.repo";
+export type { ArtifactsRepository } from "./repositories/artifacts.repo";
+export type { PrismaClient } from "@prisma/client";

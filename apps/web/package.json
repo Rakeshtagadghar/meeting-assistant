@@ -16,7 +16,9 @@
     "clean": "rm -rf .next dist coverage .turbo"
   },
   "dependencies": {
+    "@ainotes/api": "workspace:*",
     "@ainotes/core": "workspace:*",
+    "@ainotes/db": "workspace:*",
     "@ainotes/ui": "workspace:*",
     "next": "^16.0.0",
     "react": "^19.0.0",

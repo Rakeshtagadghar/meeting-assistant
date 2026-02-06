@@ -16,6 +16,12 @@
     "test:e2e": "turbo run test:e2e",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,css}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,css}\"",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:reset": "docker compose down -v && docker compose up -d",
+    "db:generate": "pnpm --filter @ainotes/db db:generate",
+    "db:migrate:dev": "pnpm --filter @ainotes/db db:migrate:dev",
+    "db:seed": "pnpm --filter @ainotes/db db:seed",
     "prepare": "husky"
   },
   "devDependencies": {
