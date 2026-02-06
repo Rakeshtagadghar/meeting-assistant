@@ -27,6 +27,7 @@ function makeNote(overrides?: Partial<Note>): Note {
     type: "FREEFORM",
     tags: [],
     pinned: false,
+    folderId: null,
     createdAt: "2025-01-01T00:00:00.000Z" as ISODateString,
     updatedAt: "2025-01-01T00:00:00.000Z" as ISODateString,
     deletedAt: null,
@@ -435,5 +436,64 @@ describe("unpinNote", () => {
 
     expect(result.pinned).toBe(false);
     expect(result.updatedAt).toBe(NOW);
+  });
+});
+
+// ─── folderId ───
+
+describe("folderId", () => {
+  it("createNote defaults folderId to null when not provided", () => {
+    const note = createNote(
+      {
+        title: "T",
+        contentRich: null,
+        contentPlain: "",
+        type: "FREEFORM",
+        tags: [],
+      },
+      "660e8400-e29b-41d4-a716-446655440000" as UUID,
+      "550e8400-e29b-41d4-a716-446655440000" as UUID,
+      NOW,
+    );
+    expect(note.folderId).toBeNull();
+  });
+
+  it("createNote accepts a folderId", () => {
+    const folderId = "fld00000-0000-0000-0000-000000000000" as UUID;
+    const note = createNote(
+      {
+        title: "T",
+        contentRich: null,
+        contentPlain: "",
+        type: "FREEFORM",
+        tags: [],
+        folderId,
+      },
+      "660e8400-e29b-41d4-a716-446655440000" as UUID,
+      "550e8400-e29b-41d4-a716-446655440000" as UUID,
+      NOW,
+    );
+    expect(note.folderId).toBe(folderId);
+  });
+
+  it("updateNote can change folderId", () => {
+    const note = makeNote();
+    const folderId = "fld00000-0000-0000-0000-000000000000" as UUID;
+    const updated = updateNote(note, { folderId }, NOW);
+    expect(updated.folderId).toBe(folderId);
+  });
+
+  it("updateNote can clear folderId to null", () => {
+    const folderId = "fld00000-0000-0000-0000-000000000000" as UUID;
+    const note = makeNote({ folderId });
+    const updated = updateNote(note, { folderId: null }, NOW);
+    expect(updated.folderId).toBeNull();
+  });
+
+  it("serializeNote includes folderId", () => {
+    const folderId = "fld00000-0000-0000-0000-000000000000" as UUID;
+    const note = makeNote({ folderId });
+    const serialized = serializeNote(note);
+    expect(serialized["folderId"]).toBe(folderId);
   });
 });

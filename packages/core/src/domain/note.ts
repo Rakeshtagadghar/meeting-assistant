@@ -25,6 +25,7 @@ export function createNote(
     type: input.type,
     tags: normalizeTags(input.tags),
     pinned: false,
+    folderId: input.folderId ?? null,
     createdAt: now,
     updatedAt: now,
     deletedAt: null,
@@ -47,6 +48,9 @@ export function updateNote(
     }),
     ...(changes.tags !== undefined && { tags: normalizeTags(changes.tags) }),
     ...(changes.pinned !== undefined && { pinned: changes.pinned }),
+    ...(changes.folderId !== undefined && {
+      folderId: changes.folderId ?? null,
+    }),
     updatedAt: now,
   };
 }
@@ -69,6 +73,7 @@ export function serializeNote(note: Note): Record<string, JsonValue> {
     type: note.type,
     tags: [...note.tags],
     pinned: note.pinned,
+    folderId: note.folderId,
     createdAt: note.createdAt,
     updatedAt: note.updatedAt,
     deletedAt: note.deletedAt,

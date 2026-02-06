@@ -5,6 +5,10 @@ export {
   MeetingSessionStatus,
   AISummaryKind,
   ShareVisibility,
+  ProcessingJobKind,
+  ProcessingJobStatus,
+  ArtifactType,
+  ArtifactStatus,
 } from "./types";
 
 export type {
@@ -24,10 +28,14 @@ export type {
   AISummaryByKind,
   AISummary,
   ShareLink,
+  NoteProcessingJob,
+  NoteArtifact,
   CreateNoteInput,
   UpdateNoteInput,
   CreateShareLinkInput,
   CreateMeetingSessionInput,
+  CreateProcessingJobInput,
+  CreateArtifactInput,
 } from "./types";
 
 // ─── Note ───
@@ -84,3 +92,26 @@ export {
   isValidChunkTiming,
   chunksInRange,
 } from "./transcript";
+
+// ─── Processing Job ───
+export {
+  createProcessingJob,
+  startJob,
+  updateJobProgress,
+  completeJob,
+  failJob,
+  cancelJob,
+  isValidJobTransition,
+  isTerminalStatus,
+} from "./processing-job";
+
+// ─── Artifact ───
+export {
+  createArtifact,
+  startGeneratingArtifact,
+  completeArtifact,
+  failArtifact,
+  canDownload,
+  isExportAllowed,
+  isValidArtifactTransition,
+} from "./artifact";

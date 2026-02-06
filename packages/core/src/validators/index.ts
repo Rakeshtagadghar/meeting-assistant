@@ -3,11 +3,15 @@ import type {
   UpdateNoteInput,
   CreateShareLinkInput,
   CreateMeetingSessionInput,
+  CreateProcessingJobInput,
+  CreateArtifactInput,
 } from "../domain/types";
 import {
   NoteType,
   ShareVisibility,
   MeetingSessionSource,
+  ProcessingJobKind,
+  ArtifactType,
 } from "../domain/types";
 
 interface ValidationResult {
@@ -106,6 +110,48 @@ export function validateCreateMeetingSessionInput(
   const validSources = Object.values(MeetingSessionSource);
   if (!validSources.includes(input.source)) {
     errors.push(`source must be one of: ${validSources.join(", ")}`);
+  }
+
+  return { valid: errors.length === 0, errors };
+}
+
+export function validateCreateProcessingJobInput(
+  input: CreateProcessingJobInput,
+): ValidationResult {
+  const errors: string[] = [];
+
+  const validKinds = Object.values(ProcessingJobKind);
+  if (!validKinds.includes(input.kind)) {
+    errors.push(`kind must be one of: ${validKinds.join(", ")}`);
+  }
+
+  if (!input.noteId || input.noteId.trim().length === 0) {
+    errors.push("noteId is required");
+  }
+
+  if (!input.userId || input.userId.trim().length === 0) {
+    errors.push("userId is required");
+  }
+
+  return { valid: errors.length === 0, errors };
+}
+
+export function validateCreateArtifactInput(
+  input: CreateArtifactInput,
+): ValidationResult {
+  const errors: string[] = [];
+
+  const validTypes = Object.values(ArtifactType);
+  if (!validTypes.includes(input.type)) {
+    errors.push(`type must be one of: ${validTypes.join(", ")}`);
+  }
+
+  if (!input.noteId || input.noteId.trim().length === 0) {
+    errors.push("noteId is required");
+  }
+
+  if (!input.jobId || input.jobId.trim().length === 0) {
+    errors.push("jobId is required");
   }
 
   return { valid: errors.length === 0, errors };

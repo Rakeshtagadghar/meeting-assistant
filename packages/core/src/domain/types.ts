@@ -55,6 +55,43 @@ export const ShareVisibility = {
 export type ShareVisibility =
   (typeof ShareVisibility)[keyof typeof ShareVisibility];
 
+export const ProcessingJobKind = {
+  SUMMARIZE: "SUMMARIZE",
+  EXTRACT_ACTIONS: "EXTRACT_ACTIONS",
+  GENERATE_HTML: "GENERATE_HTML",
+  EXPORT_PDF: "EXPORT_PDF",
+  EXPORT_DOCX: "EXPORT_DOCX",
+} as const;
+export type ProcessingJobKind =
+  (typeof ProcessingJobKind)[keyof typeof ProcessingJobKind];
+
+export const ProcessingJobStatus = {
+  QUEUED: "QUEUED",
+  RUNNING: "RUNNING",
+  COMPLETED: "COMPLETED",
+  FAILED: "FAILED",
+  CANCELLED: "CANCELLED",
+} as const;
+export type ProcessingJobStatus =
+  (typeof ProcessingJobStatus)[keyof typeof ProcessingJobStatus];
+
+export const ArtifactType = {
+  MARKDOWN_SUMMARY: "MARKDOWN_SUMMARY",
+  HTML_SUMMARY: "HTML_SUMMARY",
+  PDF: "PDF",
+  DOCX: "DOCX",
+} as const;
+export type ArtifactType = (typeof ArtifactType)[keyof typeof ArtifactType];
+
+export const ArtifactStatus = {
+  NOT_READY: "NOT_READY",
+  GENERATING: "GENERATING",
+  READY: "READY",
+  FAILED: "FAILED",
+} as const;
+export type ArtifactStatus =
+  (typeof ArtifactStatus)[keyof typeof ArtifactStatus];
+
 // ─── Entity: User ───
 
 export interface User {
@@ -77,6 +114,7 @@ export interface Note {
   readonly type: NoteType;
   readonly tags: readonly string[];
   readonly pinned: boolean;
+  readonly folderId: UUID | null;
   readonly createdAt: ISODateString;
   readonly updatedAt: ISODateString;
   readonly deletedAt: ISODateString | null;
@@ -171,6 +209,37 @@ export interface ShareLink {
   readonly createdAt: ISODateString;
 }
 
+// ─── Entity: NoteProcessingJob ───
+
+export interface NoteProcessingJob {
+  readonly id: UUID;
+  readonly noteId: UUID;
+  readonly userId: UUID;
+  readonly kind: ProcessingJobKind;
+  readonly status: ProcessingJobStatus;
+  readonly progressPct: number;
+  readonly message: string | null;
+  readonly startedAt: ISODateString | null;
+  readonly endedAt: ISODateString | null;
+  readonly error: string | null;
+  readonly createdAt: ISODateString;
+  readonly updatedAt: ISODateString;
+}
+
+// ─── Entity: NoteArtifact ───
+
+export interface NoteArtifact {
+  readonly id: UUID;
+  readonly noteId: UUID;
+  readonly jobId: UUID;
+  readonly type: ArtifactType;
+  readonly status: ArtifactStatus;
+  readonly storagePath: string | null;
+  readonly hash: string | null;
+  readonly createdAt: ISODateString;
+  readonly updatedAt: ISODateString;
+}
+
 // ─── Input DTOs ───
 
 export interface CreateNoteInput {
@@ -179,6 +248,7 @@ export interface CreateNoteInput {
   readonly contentPlain: string;
   readonly type: NoteType;
   readonly tags: readonly string[];
+  readonly folderId?: UUID | null;
 }
 
 export interface UpdateNoteInput {
@@ -187,6 +257,7 @@ export interface UpdateNoteInput {
   readonly contentPlain?: string;
   readonly tags?: readonly string[];
   readonly pinned?: boolean;
+  readonly folderId?: UUID | null;
 }
 
 export interface CreateShareLinkInput {
@@ -201,4 +272,16 @@ export interface CreateMeetingSessionInput {
   readonly noteId: UUID;
   readonly userId: UUID;
   readonly source: MeetingSessionSource;
+}
+
+export interface CreateProcessingJobInput {
+  readonly noteId: UUID;
+  readonly userId: UUID;
+  readonly kind: ProcessingJobKind;
+}
+
+export interface CreateArtifactInput {
+  readonly noteId: UUID;
+  readonly jobId: UUID;
+  readonly type: ArtifactType;
 }

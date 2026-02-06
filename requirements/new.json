@@ -1,0 +1,708 @@
+{
+  "meta": {
+    "product_name": "AINotes",
+    "version": "1.0.0-mvp-tdd-seo-gdpr-cmp",
+    "principles": [
+      "Desktop-first for live meeting capture; web-first for library and sharing",
+      "Real-time transcript first, AI later (post-processing after Stop/Generate)",
+      "Notes private by default; sharing is explicit",
+      "No audio storage by default (store transcript + summaries only)",
+      "Zero-cost resources: local OSS + free tiers"
+    ]
+  },
+
+  "delivery_targets": {
+    "apps": [
+      {
+        "name": "web",
+        "type": "browser",
+        "tech_stack": {
+          "framework": "Next.js (App Router)",
+          "language": "TypeScript (strict)",
+          "ui": "MUI v5",
+          "editor": "TipTap",
+          "auth": "NextAuth (Google OAuth)",
+          "db": "Supabase Postgres (free tier)",
+          "storage": "Supabase Storage (free tier, exports only)",
+          "search": "Postgres Full Text Search (MVP)",
+          "hosting": "Cloudflare Pages or Vercel (free tier)",
+          "analytics": "Google Analytics (only after CMP consent)"
+        }
+      },
+      {
+        "name": "desktop",
+        "type": "desktop",
+        "tech_stack": {
+          "framework": "Tauri",
+          "language": "TypeScript + Rust (thin shell)",
+          "ui": "Shared Next.js UI via webview",
+          "audio_capture": "MVP: microphone capture; Phase2: system-audio loopback",
+          "asr": "whisper.cpp local (default) with optional Cloudflare Workers AI fallback",
+          "transport": "WebSocket (local or remote) for transcript streaming"
+        }
+      }
+    ],
+    "monorepo": {
+      "tooling": "pnpm + Turborepo",
+      "packages": [
+        "apps/web",
+        "apps/desktop",
+        "packages/ui",
+        "packages/core",
+        "packages/api",
+        "packages/ai",
+        "packages/config"
+      ]
+    }
+  },
+
+  "public_pages": {
+    "goal": "SEO-first public site + legally compliant pages",
+    "routes": [
+      {
+        "route": "/",
+        "name": "Landing",
+        "rendering": "SSG",
+        "sections": [
+          "Hero + CTA",
+          "How it works",
+          "Features (Quick Note, Generate Summary, Export)",
+          "Privacy & consent stance",
+          "FAQ",
+          "Footer links"
+        ],
+        "cta": [{ "label": "Sign in with Google", "action": "AUTH_GOOGLE" }]
+      },
+      { "route": "/pricing", "name": "Pricing", "rendering": "SSG" },
+      {
+        "route": "/privacy",
+        "name": "Privacy Policy",
+        "rendering": "SSG",
+        "legal_required": true
+      },
+      {
+        "route": "/terms",
+        "name": "Terms & Conditions",
+        "rendering": "SSG",
+        "legal_required": true
+      },
+      {
+        "route": "/cookies",
+        "name": "Cookie Policy",
+        "rendering": "SSG",
+        "legal_required": true
+      },
+      { "route": "/contact", "name": "Contact Us", "rendering": "SSG" }
+    ]
+  },
+
+  "seo": {
+    "requirements": {
+      "ssr_ssg_for_public_pages": true,
+      "metadata": {
+        "title_template": "%page% | AINotes",
+        "og_tags": true,
+        "twitter_cards": true,
+        "canonical_urls": true
+      },
+      "indexing": { "robots_txt": true, "sitemap_xml": true },
+      "structured_data": {
+        "enabled": true,
+        "schemas": [
+          "SoftwareApplication",
+          "Organization",
+          "FAQPage_if_faq_present"
+        ]
+      },
+      "performance_targets_lighthouse": {
+        "performance": 90,
+        "accessibility": 90,
+        "seo": 90
+      }
+    }
+  },
+
+  "gdpr_cmp": {
+    "gdpr": {
+      "lawful_basis": ["consent", "contractual_necessity"],
+      "data_categories": [
+        "email",
+        "name",
+        "notes",
+        "transcripts",
+        "ai_summaries"
+      ],
+      "audio_storage_default": "off",
+      "user_controls": [
+        "export_my_data",
+        "delete_account",
+        "delete_note",
+        "revoke_share_links",
+        "withdraw_consent"
+      ],
+      "retention_defaults": {
+        "notes": "until_deleted",
+        "transcripts_days": 365,
+        "exports_days": 30
+      }
+    },
+    "cmp_v2_google": {
+      "mode": "explicit_opt_in",
+      "implementation": {
+        "provider": "Google CMP v2 compliant (Funding Choices or IAB TCF v2 compatible CMP)",
+        "geo_rules": {
+          "EEA_UK": "opt_in_required",
+          "non_EEA": "banner_optional"
+        }
+      },
+      "cookie_categories": [
+        { "category": "Necessary", "default": "enabled", "editable": false },
+        { "category": "Analytics", "default": "disabled", "editable": true },
+        { "category": "Marketing", "default": "disabled", "editable": true }
+      ],
+      "enforcement": {
+        "no_analytics_before_consent": true,
+        "consent_string_logged": true,
+        "consent_versioned": true
+      }
+    }
+  },
+
+  "domain_model": {
+    "entities": [
+      {
+        "name": "User",
+        "fields": {
+          "id": "uuid",
+          "email": "string",
+          "displayName": "string",
+          "avatarUrl": "string|null",
+          "createdAt": "datetime",
+          "updatedAt": "datetime"
+        }
+      },
+      {
+        "name": "Note",
+        "fields": {
+          "id": "uuid",
+          "userId": "uuid",
+          "title": "string",
+          "contentRich": "json",
+          "contentPlain": "string",
+          "type": "enum:FREEFORM|MEETING",
+          "tags": "string[]",
+          "pinned": "boolean",
+          "folderId": "uuid|null",
+          "createdAt": "datetime",
+          "updatedAt": "datetime",
+          "deletedAt": "datetime|null"
+        }
+      },
+      {
+        "name": "NoteProcessingJob",
+        "fields": {
+          "id": "uuid",
+          "noteId": "uuid",
+          "userId": "uuid",
+          "kind": "enum:SUMMARIZE|EXTRACT_ACTIONS|GENERATE_HTML|EXPORT_PDF|EXPORT_DOCX",
+          "status": "enum:QUEUED|RUNNING|COMPLETED|FAILED|CANCELLED",
+          "progressPct": "int(0..100)",
+          "message": "string|null",
+          "startedAt": "datetime|null",
+          "endedAt": "datetime|null",
+          "error": "string|null",
+          "createdAt": "datetime"
+        }
+      },
+      {
+        "name": "MeetingSession",
+        "fields": {
+          "id": "uuid",
+          "userId": "uuid",
+          "noteId": "uuid",
+          "startedAt": "datetime",
+          "endedAt": "datetime|null",
+          "consentConfirmed": "boolean",
+          "consentText": "string|null",
+          "audioStored": "boolean",
+          "status": "enum:IDLE|RECORDING|PAUSED|STOPPED"
+        }
+      },
+      {
+        "name": "TranscriptChunk",
+        "fields": {
+          "id": "uuid",
+          "meetingSessionId": "uuid",
+          "tStartMs": "int",
+          "tEndMs": "int",
+          "speaker": "string|null",
+          "text": "string",
+          "createdAt": "datetime"
+        }
+      },
+      {
+        "name": "AISummary",
+        "fields": {
+          "id": "uuid",
+          "noteId": "uuid",
+          "meetingSessionId": "uuid|null",
+          "kind": "enum:SUMMARY|ACTION_ITEMS|DECISIONS|RISKS|KEY_POINTS",
+          "payload": "json",
+          "modelInfo": "json",
+          "createdAt": "datetime"
+        }
+      },
+      {
+        "name": "NoteArtifact",
+        "fields": {
+          "id": "uuid",
+          "noteId": "uuid",
+          "type": "enum:MARKDOWN_SUMMARY|HTML_SUMMARY|PDF|DOCX",
+          "status": "enum:NOT_READY|GENERATING|READY|FAILED",
+          "storagePath": "string|null",
+          "hash": "string|null",
+          "createdAt": "datetime",
+          "updatedAt": "datetime"
+        }
+      },
+      {
+        "name": "ShareLink",
+        "fields": {
+          "id": "uuid",
+          "noteId": "uuid",
+          "createdByUserId": "uuid",
+          "visibility": "enum:PRIVATE|RESTRICTED",
+          "allowedEmails": "string[]",
+          "token": "string",
+          "expiresAt": "datetime|null",
+          "createdAt": "datetime"
+        }
+      }
+    ]
+  },
+
+  "features": {
+    "mvp": [
+      {
+        "id": "AUTH_001",
+        "name": "Google OAuth Login",
+        "acceptance_criteria": [
+          "Sign in with Google",
+          "Session persists",
+          "Sign out"
+        ]
+      },
+      {
+        "id": "NOTES_001",
+        "name": "Notes CRUD + folders + tags",
+        "acceptance_criteria": [
+          "Create/update/delete",
+          "Autosave",
+          "Add to folder",
+          "Tag and pin",
+          "Search"
+        ]
+      },
+      {
+        "id": "MEET_001",
+        "name": "Quick Note Live Window (Desktop)",
+        "acceptance_criteria": [
+          "Floating always-on-top window",
+          "Consent checkbox required",
+          "Transcript appears live",
+          "Stop ends capture and returns to note"
+        ]
+      },
+      {
+        "id": "AI_002",
+        "name": "Generate Button (Post-session processing)",
+        "description": "After note-taking ends, user clicks Generate; AI produces markdown summary + marks HTML summary ready; export conversion on-demand with progress UI.",
+        "acceptance_criteria": [
+          "Generate triggers a NoteProcessingJob with progress updates",
+          "UI shows progress banner/loader like reference image",
+          "User can cancel generation",
+          "On completion: markdown summary saved and shown in note",
+          "HTML summary artifact status becomes READY",
+          "Download button appears only when HTML summary is READY"
+        ]
+      },
+      {
+        "id": "EXPORT_002",
+        "name": "Download menu (PDF/DOCX) + progress state",
+        "acceptance_criteria": [
+          "Download menu shows PDF/DOCX options",
+          "On click: synchronous request starts generation and shows progress message",
+          "Download icon hidden/disabled while processing",
+          "File downloads when ready"
+        ]
+      },
+      {
+        "id": "SHARE_001",
+        "name": "Restricted share link",
+        "acceptance_criteria": [
+          "Allow list by email",
+          "Revoke",
+          "Forbidden for others"
+        ]
+      },
+      {
+        "id": "SEO_CMP_001",
+        "name": "SEO + CMP v2 baseline",
+        "acceptance_criteria": [
+          "Robots + sitemap present",
+          "Structured data present",
+          "Analytics blocked until consent in EEA/UK"
+        ]
+      }
+    ]
+  },
+
+  "quick_note_mode": {
+    "goal": "Live transcription during speaking; AI runs only after Stop/Generate",
+    "window": {
+      "type": "floating",
+      "always_on_top": true,
+      "states": ["idle", "listening", "paused", "processing", "completed"],
+      "elements": [
+        "timer",
+        "transcript_list",
+        "pause_resume",
+        "stop",
+        "language_selector",
+        "consent_reminder"
+      ]
+    },
+    "live_transcription": {
+      "latency_target_ms": 2000,
+      "editable_during_live": false,
+      "storage": "append_only_chunks"
+    },
+    "generate_flow": {
+      "trigger": "Generate button (after meeting stop OR manual note end)",
+      "ui_reference": "Show bottom progress strip + Cancel button; show 'Writing notes' then 'Generating summary' then 'Ready'",
+      "progress_messages": [
+        "Finalizing transcript",
+        "Generating markdown summary",
+        "Generating HTML summary",
+        "Preparing download"
+      ],
+      "cancellable": true
+    }
+  },
+
+  "download_export_flow": {
+    "requirements": [
+      "Backend generates HTML summary after markdown processing",
+      "HTML-to-PDF conversion happens on-demand when user clicks Download",
+      "No background async queue required for export in MVP (synchronous call with progress UI)",
+      "Download button only visible when HTML summary status is COMPLETED/READY"
+    ],
+    "ui_rules": {
+      "download_icon": {
+        "visible_if": "NoteArtifact(HTML_SUMMARY).status == READY",
+        "hidden_if": "processing_running == true"
+      },
+      "progress_banner": {
+        "show_when": "NoteProcessingJob.status in [QUEUED,RUNNING]",
+        "text": "Your report is being generated",
+        "location": "header_or_bottom_strip",
+        "show_cancel": true
+      }
+    }
+  },
+
+  "api_spec": {
+    "style": "REST + SSE (progress) + WebSocket (meeting transcript)",
+    "endpoints": [
+      {
+        "method": "POST",
+        "path": "/api/ai/generate",
+        "body": {
+          "noteId": "uuid",
+          "generate": ["MARKDOWN_SUMMARY", "HTML_SUMMARY"],
+          "mode": "enum:SHORT|MEDIUM|DETAILED"
+        },
+        "returns": { "jobId": "uuid" }
+      },
+      {
+        "method": "GET",
+        "path": "/api/jobs/:jobId",
+        "returns": {
+          "job": "NoteProcessingJob",
+          "artifacts": "NoteArtifact[]"
+        }
+      },
+      {
+        "method": "GET",
+        "path": "/api/jobs/:jobId/stream",
+        "type": "SSE",
+        "events": [
+          {
+            "event": "progress",
+            "payload": { "progressPct": "int", "message": "string" }
+          },
+          { "event": "completed", "payload": { "status": "COMPLETED" } },
+          {
+            "event": "failed",
+            "payload": { "status": "FAILED", "error": "string" }
+          }
+        ]
+      },
+      {
+        "method": "POST",
+        "path": "/api/jobs/:jobId/cancel",
+        "returns": { "ok": true }
+      },
+      {
+        "method": "POST",
+        "path": "/api/export/pdf",
+        "body": { "noteId": "uuid" },
+        "returns": { "artifactId": "uuid", "downloadUrl": "string" }
+      },
+      {
+        "method": "POST",
+        "path": "/api/export/docx",
+        "body": { "noteId": "uuid" },
+        "returns": { "artifactId": "uuid", "downloadUrl": "string" }
+      }
+    ],
+    "websocket_meeting": {
+      "path": "/ws/meeting/:meetingSessionId",
+      "messages": [
+        {
+          "type": "CLIENT_START",
+          "payload": { "consentConfirmed": "boolean", "noteId": "uuid" }
+        },
+        {
+          "type": "CLIENT_AUDIO_CHUNK",
+          "payload": {
+            "format": "pcm16",
+            "sampleRate": 16000,
+            "dataB64": "string"
+          }
+        },
+        {
+          "type": "SERVER_TRANSCRIPT_CHUNK",
+          "payload": {
+            "tStartMs": "int",
+            "tEndMs": "int",
+            "speaker": "string|null",
+            "text": "string"
+          }
+        },
+        { "type": "CLIENT_STOP", "payload": {} }
+      ]
+    }
+  },
+
+  "ai_pipeline": {
+    "rule": "No LLM work during live capture; only after Generate/Stop",
+    "providers": [
+      {
+        "name": "whisper_cpp",
+        "purpose": "ASR",
+        "default": true,
+        "cost": "free_local"
+      },
+      {
+        "name": "extractive_summarizer",
+        "purpose": "summary baseline",
+        "default": true,
+        "cost": "free_local"
+      },
+      {
+        "name": "cloudflare_workers_ai",
+        "purpose": "optional improved summary",
+        "default": false,
+        "cost": "free_tier"
+      }
+    ],
+    "outputs": {
+      "markdown_summary": {
+        "template": [
+          "# {{title}}",
+          "## Summary",
+          "- ...",
+          "## Key Points",
+          "- ...",
+          "## Action Items",
+          "- [ ] ...",
+          "## Decisions",
+          "- ..."
+        ]
+      },
+      "html_summary": {
+        "source": "render markdown -> HTML using markdown renderer + safe sanitizer",
+        "must_sanitize": true
+      }
+    }
+  },
+
+  "tdd_and_quality_gate": {
+    "approach": "Strict TDD for domain + API; component tests for critical UI; E2E for core flows",
+    "coverage_thresholds": {
+      "statements": 85,
+      "branches": 75,
+      "functions": 85,
+      "lines": 85
+    },
+    "ci": {
+      "platform": "GitHub Actions (free)",
+      "jobs": [
+        "lint",
+        "typecheck",
+        "unit_tests",
+        "integration_tests",
+        "e2e_tests",
+        "lighthouse_ci",
+        "build_web",
+        "build_desktop"
+      ]
+    }
+  },
+
+  "coding_standards": {
+    "rules": [
+      "TypeScript strict, no any",
+      "No business logic in UI; move to packages/core",
+      "All network calls through typed client",
+      "SSE used for progress updates",
+      "Sanitize any HTML output (XSS safe)",
+      "No analytics scripts before CMP consent"
+    ],
+    "tooling": {
+      "formatter": "Prettier",
+      "linter": "ESLint",
+      "commits": "Conventional Commits",
+      "hooks": "Husky + lint-staged"
+    }
+  },
+
+  "test_suite": {
+    "frameworks": {
+      "unit": "Vitest",
+      "component": "React Testing Library",
+      "e2e": "Playwright",
+      "seo": "Lighthouse CI"
+    },
+    "required_tests": [
+      {
+        "id": "GEN_001",
+        "name": "Generate job creates artifacts",
+        "given": "Note has transcript or content",
+        "when": "POST /api/ai/generate",
+        "then": [
+          "Job status becomes RUNNING",
+          "Markdown artifact becomes READY",
+          "HTML artifact becomes READY"
+        ]
+      },
+      {
+        "id": "GEN_002",
+        "name": "Download button gating",
+        "given": "HTML summary NOT READY",
+        "then": ["Download icon not shown"]
+      },
+      {
+        "id": "GEN_003",
+        "name": "Progress UI updates via SSE",
+        "given": "Job running",
+        "then": ["UI shows message updates", "Cancel works"]
+      },
+      {
+        "id": "EXP_001",
+        "name": "PDF export synchronous progress",
+        "given": "User clicks PDF",
+        "then": ["Progress displayed", "Download starts when ready"]
+      },
+      {
+        "id": "CMP_001",
+        "name": "Analytics blocked before consent (EEA/UK)",
+        "then": ["No analytics cookies", "No tracking scripts executed"]
+      },
+      {
+        "id": "SEO_001",
+        "name": "Public pages SEO basics",
+        "then": [
+          "Canonical present",
+          "Title+description present",
+          "Sitemap and robots exist"
+        ]
+      }
+    ]
+  },
+
+  "ui_pages": {
+    "web_app": [
+      { "route": "/app", "name": "Notes List" },
+      { "route": "/app/note/:id", "name": "Editor + Generate + Download Menu" },
+      { "route": "/shared/:token", "name": "Shared Note Viewer" },
+      { "route": "/settings", "name": "Settings (privacy/retention/ai)" }
+    ],
+    "desktop_app": [
+      { "route": "tauri://quick-note", "name": "Quick Note Floating Window" }
+    ],
+    "public_site": [
+      { "route": "/", "name": "Landing" },
+      { "route": "/pricing", "name": "Pricing" },
+      { "route": "/privacy", "name": "Privacy Policy" },
+      { "route": "/terms", "name": "Terms & Conditions" },
+      { "route": "/cookies", "name": "Cookie Policy" },
+      { "route": "/contact", "name": "Contact" }
+    ]
+  },
+
+  "implementation_plan_tdd_order": {
+    "sequence": [
+      {
+        "step": 1,
+        "name": "Bootstrap repo + quality gates",
+        "tests_first": ["CI pipeline test", "lint/typecheck test"]
+      },
+      {
+        "step": 2,
+        "name": "Domain entities + artifact state machine",
+        "tests_first": [
+          "NoteArtifact state transitions",
+          "NoteProcessingJob progress rules"
+        ]
+      },
+      {
+        "step": 3,
+        "name": "Generate pipeline + SSE progress",
+        "tests_first": [
+          "Generate creates job",
+          "SSE emits progress",
+          "Cancel stops job"
+        ]
+      },
+      {
+        "step": 4,
+        "name": "Editor UI + Generate progress banner like screenshot",
+        "tests_first": [
+          "Progress strip renders",
+          "Download gating works",
+          "Cancel button works"
+        ]
+      },
+      {
+        "step": 5,
+        "name": "Desktop Quick Note live transcript",
+        "tests_first": [
+          "Consent gate",
+          "Live chunks render",
+          "Stop triggers generate"
+        ]
+      },
+      {
+        "step": 6,
+        "name": "Public pages + SEO + CMP v2",
+        "tests_first": [
+          "SEO tests",
+          "CMP cookie blocking tests",
+          "Lighthouse CI"
+        ]
+      }
+    ]
+  }
+}
