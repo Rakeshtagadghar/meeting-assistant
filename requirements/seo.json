@@ -1,0 +1,270 @@
+{
+  "public_pages": {
+    "goal": "SEO-first, legally compliant, conversion-focused public website",
+    "framework": "Next.js (App Router, SSR + SSG)",
+    "routes": [
+      {
+        "route": "/",
+        "name": "Landing Page",
+        "purpose": "Explain value proposition, drive signups",
+        "sections": [
+          "Hero (clear value prop + CTA)",
+          "How it works",
+          "Key features",
+          "Privacy-first messaging",
+          "Desktop + Web support",
+          "FAQ",
+          "Final CTA"
+        ],
+        "cta": [
+          {
+            "label": "Sign in with Google",
+            "action": "AUTH_GOOGLE"
+          }
+        ]
+      },
+      {
+        "route": "/pricing",
+        "name": "Pricing",
+        "purpose": "Transparent pricing (Free-first)",
+        "sections": [
+          "Free tier explanation",
+          "What is local vs cloud AI",
+          "Roadmap tiers (not purchasable yet)",
+          "FAQ"
+        ]
+      },
+      {
+        "route": "/privacy",
+        "name": "Privacy Policy",
+        "purpose": "GDPR compliance + trust",
+        "legal_required": true
+      },
+      {
+        "route": "/terms",
+        "name": "Terms and Conditions",
+        "purpose": "Legal usage terms",
+        "legal_required": true
+      },
+      {
+        "route": "/cookies",
+        "name": "Cookie Policy",
+        "purpose": "CMP v2 compliance",
+        "legal_required": true
+      },
+      {
+        "route": "/contact",
+        "name": "Contact Us",
+        "purpose": "User support + trust",
+        "sections": ["Contact form", "Support email", "Company info"]
+      }
+    ]
+  },
+
+  "seo": {
+    "strategy": "Technical SEO + Content SEO + Structured Data",
+    "requirements": {
+      "rendering": "Server-side rendering for all public pages",
+      "indexing": {
+        "robots_txt": true,
+        "sitemap_xml": true,
+        "canonical_urls": true
+      },
+      "meta": {
+        "title_template": "%page% | AINotes – AI-powered private notes",
+        "description_max_length": 160,
+        "og_tags": true,
+        "twitter_cards": true
+      },
+      "performance": {
+        "lighthouse_score_target": {
+          "performance": 90,
+          "accessibility": 90,
+          "seo": 90
+        }
+      }
+    },
+    "structured_data": {
+      "schemas": [
+        {
+          "type": "SoftwareApplication",
+          "fields": ["name", "applicationCategory", "operatingSystem", "offers"]
+        },
+        {
+          "type": "Organization",
+          "fields": ["name", "url", "logo", "contactPoint"]
+        },
+        {
+          "type": "FAQPage",
+          "condition": "If FAQ section exists"
+        }
+      ]
+    }
+  },
+
+  "gdpr_compliance": {
+    "lawful_basis": ["User consent", "Contractual necessity"],
+    "user_rights": [
+      "Right to access",
+      "Right to rectification",
+      "Right to erasure (right to be forgotten)",
+      "Right to data portability",
+      "Right to restrict processing"
+    ],
+    "data_processing": {
+      "personal_data": [
+        "email",
+        "name",
+        "notes content",
+        "meeting transcripts"
+      ],
+      "sensitive_data_policy": "No intentional processing of special category data",
+      "audio_storage": "disabled_by_default",
+      "transcripts": "stored with user ownership"
+    },
+    "controls": {
+      "delete_account": true,
+      "export_user_data": true,
+      "revoke_consent": true
+    },
+    "retention_policy_ui": {
+      "visible_to_user": true,
+      "editable_by_user": true
+    }
+  },
+
+  "cmp_v2_google": {
+    "provider": "Google CMP v2 compliant",
+    "implementation": {
+      "library": "Google Funding Choices OR open-source CMP compatible with IAB TCF v2",
+      "mode": "Explicit opt-in",
+      "geo_rules": {
+        "EEA_UK": "Consent required before cookies",
+        "Non_EEA": "Informational banner allowed"
+      }
+    },
+    "cookie_categories": [
+      {
+        "category": "Necessary",
+        "default": "enabled",
+        "editable": false
+      },
+      {
+        "category": "Analytics",
+        "default": "disabled",
+        "editable": true
+      },
+      {
+        "category": "Marketing",
+        "default": "disabled",
+        "editable": true
+      }
+    ],
+    "google_services": {
+      "google_analytics": {
+        "enabled_only_after_consent": true,
+        "anonymize_ip": true
+      },
+      "google_oauth": {
+        "allowed_without_marketing_consent": true,
+        "purpose": "Authentication"
+      }
+    },
+    "audit": {
+      "consent_string_logged": true,
+      "timestamp_logged": true,
+      "versioned_policy": true
+    }
+  },
+
+  "legal_content_requirements": {
+    "privacy_policy": {
+      "must_include": [
+        "Who we are",
+        "What data we collect",
+        "Why we collect it",
+        "How long we store it",
+        "Who we share it with",
+        "User rights",
+        "Contact for data requests"
+      ]
+    },
+    "terms_conditions": {
+      "must_include": [
+        "Service description",
+        "User responsibilities",
+        "AI limitations disclaimer",
+        "Meeting recording consent responsibility",
+        "Limitation of liability",
+        "Governing law (UK/EU)"
+      ]
+    },
+    "cookie_policy": {
+      "must_include": [
+        "What cookies are",
+        "Which cookies are used",
+        "How to withdraw consent"
+      ]
+    }
+  },
+
+  "seo_test_suite": {
+    "tools": [
+      "Lighthouse CI",
+      "Playwright SEO assertions",
+      "Structured data validator"
+    ],
+    "required_tests": [
+      {
+        "id": "SEO_001",
+        "name": "All public pages indexable",
+        "assert": [
+          "No noindex meta tag",
+          "Canonical present",
+          "Valid title and description"
+        ]
+      },
+      {
+        "id": "SEO_002",
+        "name": "Structured data valid",
+        "assert": ["JSON-LD present", "No schema validation errors"]
+      },
+      {
+        "id": "SEO_003",
+        "name": "Consent blocks analytics",
+        "assert": [
+          "No analytics cookies before consent",
+          "Analytics enabled only after opt-in"
+        ]
+      }
+    ]
+  },
+
+  "tdd_extension_public_pages": {
+    "test_first_rules": [
+      "SEO metadata tests written before page code",
+      "CMP consent tests written before analytics integration",
+      "Accessibility tests required (WCAG AA baseline)"
+    ],
+    "required_test_cases": [
+      {
+        "id": "TC_CMP_001",
+        "name": "Analytics blocked before consent",
+        "given": "User lands on site from EEA",
+        "when": "User has not given consent",
+        "then": ["No analytics cookies set", "No tracking scripts executed"]
+      },
+      {
+        "id": "TC_GDPR_001",
+        "name": "User data export",
+        "given": "User requests data export",
+        "when": "Export completes",
+        "then": [
+          "All notes included",
+          "All transcripts included",
+          "Export is machine readable"
+        ]
+      }
+    ]
+  }
+}

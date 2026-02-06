@@ -1,0 +1,22 @@
+{
+  "name": "@ainotes/config",
+  "version": "0.0.0",
+  "private": true,
+  "exports": {
+    "./eslint-base": "./eslint-base.mjs",
+    "./eslint-next": "./eslint-next.mjs",
+    "./prettier": "./prettier.mjs",
+    "./vitest-shared": "./vitest.shared.ts",
+    "./tsconfig/base": "./tsconfig/base.json",
+    "./tsconfig/next": "./tsconfig/next.json",
+    "./tsconfig/library": "./tsconfig/library.json"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.20.0",
+    "@typescript-eslint/parser": "^8.20.0",
+    "eslint": "^9.18.0",
+    "eslint-config-prettier": "^10.0.1",
+    "typescript": "^5.7.3",
+    "vitest": "^2.1.8"
+  }
+}

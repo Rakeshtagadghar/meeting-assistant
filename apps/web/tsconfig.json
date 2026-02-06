@@ -1,0 +1,10 @@
+{
+  "extends": "@ainotes/config/tsconfig/next",
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["next-env.d.ts", "src", "**/*.ts", "**/*.tsx"],
+  "exclude": ["node_modules", ".next", "coverage", "e2e"]
+}

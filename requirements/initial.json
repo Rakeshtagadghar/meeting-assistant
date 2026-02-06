@@ -1,0 +1,734 @@
+{
+  "meta": {
+    "product_name": "AINotes",
+    "version": "1.0.0-mvp-tdd",
+    "timezone": "Europe/London",
+    "principles": [
+      "Desktop-first meeting capture, web-first notes management",
+      "Notes are private by default",
+      "No audio recording stored by default (store transcript + metadata only)",
+      "Use only free/zero-cost resources for MVP (open-source + free tiers)"
+    ],
+    "non_goals_mvp": [
+      "Video recording/storage",
+      "Always-on background recording without explicit user action",
+      "Enterprise SSO/SAML",
+      "Deep CRM integrations"
+    ]
+  },
+
+  "delivery_targets": {
+    "apps": [
+      {
+        "name": "web",
+        "type": "browser",
+        "tech_stack": {
+          "framework": "Next.js",
+          "language": "TypeScript",
+          "ui": "MUI v7",
+          "editor": "TipTap",
+          "state": "React Query",
+          "auth": "NextAuth (Google OAuth)",
+          "db": "Supabase Postgres (free tier)",
+          "storage": "Supabase Storage (free tier, for exports only)",
+          "search": "Postgres FTS (MVP)"
+        }
+      },
+      {
+        "name": "desktop",
+        "type": "desktop",
+        "tech_stack": {
+          "framework": "Tauri",
+          "language": "TypeScript + Rust (minimal Rust, mostly shell commands)",
+          "ui": "Next.js (shared UI via webview)",
+          "audio_capture": "OS device capture (MVP: microphone only; Phase 2: system audio loopback)",
+          "asr": "Whisper.cpp local OR Cloudflare Workers AI (free tier) fallback",
+          "streaming": "WebSocket to local service (Tauri plugin) OR in-process"
+        }
+      }
+    ],
+    "monorepo": {
+      "tooling": "pnpm + Turborepo",
+      "packages": [
+        "apps/web",
+        "apps/desktop",
+        "packages/ui",
+        "packages/core",
+        "packages/api",
+        "packages/ai",
+        "packages/config"
+      ]
+    }
+  },
+
+  "free_cost_resources_policy": {
+    "rule": "Must use free tiers or local open-source by default; no paid APIs required for MVP.",
+    "allowed_services": [
+      {
+        "name": "Supabase",
+        "usage": ["auth adapter storage", "database", "row-level security"],
+        "cost": "free-tier"
+      },
+      {
+        "name": "Cloudflare",
+        "usage": ["Pages (hosting)", "Workers (API)", "Workers AI (optional)"],
+        "cost": "free-tier"
+      },
+      {
+        "name": "Vercel",
+        "usage": ["Next.js hosting alternative"],
+        "cost": "free-tier"
+      }
+    ],
+    "local_ai_options": [
+      {
+        "name": "whisper.cpp",
+        "usage": ["speech-to-text"],
+        "cost": "free",
+        "notes": "Desktop preferred; choose small model for speed."
+      },
+      {
+        "name": "Ollama (optional)",
+        "usage": ["summarization locally"],
+        "cost": "free",
+        "notes": "If local LLM is too heavy, use simple extractive summarizer + Workers AI fallback."
+      }
+    ],
+    "fallback_ai_options_free_tier": [
+      {
+        "name": "Cloudflare Workers AI",
+        "usage": ["summarize", "extract action items"],
+        "cost": "free-tier",
+        "notes": "Use only when local is unavailable or user opts in."
+      }
+    ]
+  },
+
+  "domain_model": {
+    "entities": [
+      {
+        "name": "User",
+        "fields": {
+          "id": "uuid",
+          "email": "string",
+          "displayName": "string",
+          "avatarUrl": "string|null",
+          "createdAt": "datetime",
+          "updatedAt": "datetime"
+        }
+      },
+      {
+        "name": "Note",
+        "fields": {
+          "id": "uuid",
+          "userId": "uuid",
+          "title": "string",
+          "contentRich": "json",
+          "contentPlain": "string",
+          "type": "enum:FREEFORM|MEETING",
+          "tags": "string[]",
+          "pinned": "boolean",
+          "createdAt": "datetime",
+          "updatedAt": "datetime",
+          "deletedAt": "datetime|null"
+        }
+      },
+      {
+        "name": "MeetingSession",
+        "fields": {
+          "id": "uuid",
+          "userId": "uuid",
+          "noteId": "uuid",
+          "source": "enum:MANUAL|CALENDAR",
+          "startedAt": "datetime",
+          "endedAt": "datetime|null",
+          "consentConfirmed": "boolean",
+          "consentText": "string|null",
+          "audioStored": "boolean",
+          "status": "enum:IDLE|RECORDING|PAUSED|STOPPED"
+        }
+      },
+      {
+        "name": "TranscriptChunk",
+        "fields": {
+          "id": "uuid",
+          "meetingSessionId": "uuid",
+          "tStartMs": "int",
+          "tEndMs": "int",
+          "speaker": "string|null",
+          "text": "string",
+          "createdAt": "datetime"
+        }
+      },
+      {
+        "name": "AISummary",
+        "fields": {
+          "id": "uuid",
+          "noteId": "uuid",
+          "meetingSessionId": "uuid|null",
+          "kind": "enum:SUMMARY|ACTION_ITEMS|DECISIONS|RISKS|KEY_POINTS",
+          "payload": "json",
+          "modelInfo": "json",
+          "createdAt": "datetime"
+        }
+      },
+      {
+        "name": "ShareLink",
+        "fields": {
+          "id": "uuid",
+          "noteId": "uuid",
+          "createdByUserId": "uuid",
+          "visibility": "enum:PRIVATE|RESTRICTED",
+          "allowedEmails": "string[]",
+          "token": "string",
+          "expiresAt": "datetime|null",
+          "createdAt": "datetime"
+        }
+      }
+    ]
+  },
+
+  "security_privacy": {
+    "defaults": {
+      "notes_private_by_default": true,
+      "audio_recording_storage": "disabled_by_default",
+      "store_transcript_only": true,
+      "external_sharing": "disabled_by_default"
+    },
+    "data_retention": {
+      "transcripts_days": 365,
+      "notes_days": "indefinite_until_deleted",
+      "exports_days": 30
+    },
+    "controls": [
+      "Delete note permanently (soft-delete + hard-delete job)",
+      "Delete meeting transcript separately",
+      "Revoke share links",
+      "Logout all sessions"
+    ]
+  },
+
+  "features": {
+    "mvp": [
+      {
+        "id": "AUTH_001",
+        "name": "Google OAuth Login",
+        "acceptance_criteria": [
+          "User can sign in with Google",
+          "User session persists across refresh",
+          "User can sign out"
+        ]
+      },
+      {
+        "id": "NOTES_001",
+        "name": "Notes CRUD",
+        "acceptance_criteria": [
+          "Create, read, update, delete notes",
+          "Autosave triggers within 1s of inactivity",
+          "List notes sorted by updatedAt",
+          "Basic tags + pin"
+        ]
+      },
+      {
+        "id": "AI_001",
+        "name": "Summarize Note",
+        "acceptance_criteria": [
+          "User clicks Summarize and gets: short summary + key points + action items",
+          "User can insert summary into note or keep separate",
+          "Regenerate works and creates a new AISummary record"
+        ]
+      },
+      {
+        "id": "MEET_001",
+        "name": "Desktop Meeting Mode (manual start)",
+        "acceptance_criteria": [
+          "User starts meeting mode from desktop",
+          "App requires consent checkbox before starting transcription",
+          "Transcript chunks appear in the meeting note within 3s latency target",
+          "Stop produces final summary and action items"
+        ]
+      },
+      {
+        "id": "SHARE_001",
+        "name": "Restricted share link",
+        "acceptance_criteria": [
+          "User can create a share link restricted to emails",
+          "Only allowed emails can view",
+          "Owner can revoke"
+        ]
+      },
+      {
+        "id": "EXPORT_001",
+        "name": "Export note",
+        "acceptance_criteria": [
+          "Export Markdown",
+          "Export PDF (web)",
+          "Exports contain title, date, summary blocks, transcript blocks (if meeting note)"
+        ]
+      }
+    ],
+    "phase_2": [
+      "Calendar integration (Google Calendar) to auto-create meeting notes",
+      "System audio loopback capture per OS",
+      "Speaker diarization improvements",
+      "Workspace/team spaces",
+      "Integrations: Slack/Notion/Confluence/Jira",
+      "Offline-first advanced sync"
+    ]
+  },
+
+  "ui_pages": {
+    "web": [
+      {
+        "route": "/",
+        "name": "Notes List",
+        "components": [
+          "SearchBar",
+          "TagFilter",
+          "NotesTable",
+          "CreateNoteButton"
+        ]
+      },
+      {
+        "route": "/note/:id",
+        "name": "Note Editor",
+        "components": ["RichEditor", "AIPanel", "ShareButton", "ExportButton"]
+      },
+      {
+        "route": "/shared/:token",
+        "name": "Shared Note Viewer",
+        "components": ["ReadOnlyRenderer", "AccessGate"]
+      },
+      {
+        "route": "/settings",
+        "name": "Settings",
+        "components": [
+          "PrivacyControls",
+          "RetentionControls",
+          "AIProviderControls"
+        ]
+      }
+    ],
+    "desktop": [
+      {
+        "route": "tauri://meeting",
+        "name": "Meeting HUD",
+        "components": [
+          "ConsentGate",
+          "LiveTranscript",
+          "RollingSummary",
+          "ActionItemsLive",
+          "ControlsStartPauseStop"
+        ]
+      }
+    ]
+  },
+
+  "api_spec": {
+    "style": "REST (MVP) + WebSocket for meeting transcript streaming",
+    "base_url": "/api",
+    "endpoints": [
+      {
+        "method": "POST",
+        "path": "/notes",
+        "body": {
+          "title": "string",
+          "contentRich": "json",
+          "tags": "string[]"
+        },
+        "returns": { "noteId": "uuid" }
+      },
+      {
+        "method": "GET",
+        "path": "/notes",
+        "query": { "q": "string?", "tag": "string?", "pinned": "boolean?" },
+        "returns": { "notes": "Note[]" }
+      },
+      {
+        "method": "GET",
+        "path": "/notes/:id",
+        "returns": { "note": "Note", "summaries": "AISummary[]" }
+      },
+      {
+        "method": "PATCH",
+        "path": "/notes/:id",
+        "body": {
+          "title": "string?",
+          "contentRich": "json?",
+          "tags": "string[]?",
+          "pinned": "boolean?"
+        },
+        "returns": { "ok": true }
+      },
+      {
+        "method": "DELETE",
+        "path": "/notes/:id",
+        "returns": { "ok": true }
+      },
+      {
+        "method": "POST",
+        "path": "/ai/summarize",
+        "body": { "noteId": "uuid", "mode": "enum:SHORT|MEDIUM|DETAILED" },
+        "returns": { "summaryId": "uuid", "payload": "json" }
+      },
+      {
+        "method": "POST",
+        "path": "/share-links",
+        "body": {
+          "noteId": "uuid",
+          "visibility": "RESTRICTED",
+          "allowedEmails": "string[]",
+          "expiresAt": "datetime|null"
+        },
+        "returns": { "token": "string" }
+      },
+      {
+        "method": "GET",
+        "path": "/shared/:token",
+        "returns": { "noteReadOnly": "Note", "summaries": "AISummary[]" }
+      }
+    ],
+    "websocket": [
+      {
+        "path": "/ws/meeting/:meetingSessionId",
+        "messages": [
+          {
+            "type": "CLIENT_START",
+            "payload": {
+              "consentConfirmed": "boolean",
+              "consentText": "string|null",
+              "noteId": "uuid"
+            }
+          },
+          {
+            "type": "CLIENT_AUDIO_CHUNK",
+            "payload": {
+              "format": "pcm16",
+              "sampleRate": 16000,
+              "dataB64": "string"
+            }
+          },
+          {
+            "type": "SERVER_TRANSCRIPT_CHUNK",
+            "payload": {
+              "tStartMs": "int",
+              "tEndMs": "int",
+              "speaker": "string|null",
+              "text": "string"
+            }
+          },
+          {
+            "type": "SERVER_ROLLING_SUMMARY",
+            "payload": { "bullets": "string[]", "actionItems": "string[]" }
+          },
+          {
+            "type": "CLIENT_STOP",
+            "payload": {}
+          }
+        ]
+      }
+    ]
+  },
+
+  "ai_pipeline": {
+    "providers": [
+      {
+        "name": "local_whisper_cpp",
+        "purpose": "ASR",
+        "default": true,
+        "constraints": ["desktop_only", "no_gpu_required"]
+      },
+      {
+        "name": "extractive_summarizer",
+        "purpose": "Summarize (MVP free)",
+        "default": true,
+        "constraints": ["lower_quality_than_LLM", "fast"]
+      },
+      {
+        "name": "cloudflare_workers_ai",
+        "purpose": "Summarize / Action items (fallback)",
+        "default": false,
+        "constraints": ["requires network", "free-tier limits"]
+      }
+    ],
+    "summaries": [
+      {
+        "kind": "SUMMARY",
+        "output_schema": {
+          "title": "string",
+          "bullets": "string[]",
+          "one_liner": "string"
+        }
+      },
+      {
+        "kind": "ACTION_ITEMS",
+        "output_schema": {
+          "items": [
+            {
+              "text": "string",
+              "owner": "string|null",
+              "due": "string|null",
+              "confidence": "0..1"
+            }
+          ]
+        }
+      },
+      {
+        "kind": "DECISIONS",
+        "output_schema": { "decisions": ["string"] }
+      },
+      {
+        "kind": "RISKS",
+        "output_schema": { "risks": ["string"] }
+      }
+    ],
+    "grounding": {
+      "transcript_timestamp_links": true,
+      "rule": "When summarizing meeting notes, include references to transcript chunk ids when possible."
+    }
+  },
+
+  "tdd_and_quality_gate": {
+    "approach": "Strict TDD for core domain + API; UI uses component tests first for critical flows.",
+    "definition_of_done": [
+      "Unit tests written BEFORE implementation for each module",
+      "All tests green in CI",
+      "Coverage thresholds met",
+      "Lint + typecheck clean",
+      "Security checks pass (dependency audit)",
+      "PR includes updated docs and changelog entry"
+    ],
+    "ci": {
+      "platform": "GitHub Actions (free)",
+      "jobs": [
+        "install",
+        "lint",
+        "typecheck",
+        "unit_tests",
+        "integration_tests",
+        "e2e_tests_web",
+        "build_web",
+        "build_desktop"
+      ]
+    },
+    "coverage_thresholds": {
+      "statements": 85,
+      "branches": 75,
+      "functions": 85,
+      "lines": 85
+    }
+  },
+
+  "coding_standards": {
+    "language": "TypeScript (strict)",
+    "rules": [
+      "No any (use unknown + narrowing)",
+      "Functional core, imperative shell",
+      "Pure functions for domain logic",
+      "No direct DB calls inside React components",
+      "All network calls via typed API client",
+      "No business logic in UI (move to packages/core)",
+      "Use feature-folder structure",
+      "Prefer composition over inheritance",
+      "All new features require tests first"
+    ],
+    "tooling": {
+      "formatter": "Prettier",
+      "linter": "ESLint",
+      "typecheck": "tsc --noEmit",
+      "commit_convention": "Conventional Commits",
+      "hooks": "Husky + lint-staged"
+    },
+    "security_baseline": [
+      "OWASP Top 10 awareness",
+      "Sanitize HTML in note rendering",
+      "CSRF protection for write endpoints",
+      "RLS enforced in DB",
+      "No secrets in client code"
+    ]
+  },
+
+  "test_suite": {
+    "frameworks": {
+      "unit": "Vitest",
+      "component": "React Testing Library",
+      "integration_api": "Vitest + supertest (if node API) OR fetch-mock (if Next API)",
+      "e2e_web": "Playwright",
+      "desktop_smoke": "Tauri build + minimal launch test (scripted)"
+    },
+    "test_layers": [
+      {
+        "layer": "Unit",
+        "scope": [
+          "Note domain functions (create/update/serialize)",
+          "Summarization schema validation",
+          "Transcript chunk ordering + merge logic",
+          "Share link permission checks"
+        ]
+      },
+      {
+        "layer": "Integration",
+        "scope": [
+          "Notes CRUD API with DB",
+          "RLS policy tests",
+          "AI summarize endpoint (mock providers)",
+          "Share link access gate"
+        ]
+      },
+      {
+        "layer": "E2E",
+        "scope": [
+          "Login -> create note -> summarize -> insert -> export",
+          "Create restricted share link -> allowed email can view -> disallowed cannot",
+          "Desktop: start meeting mode -> consent -> receive transcript -> stop -> summary appears"
+        ]
+      }
+    ],
+    "required_test_cases": [
+      {
+        "id": "TC_AUTH_001",
+        "name": "Google login success",
+        "given": "User clicks Login with Google",
+        "when": "OAuth callback completes",
+        "then": ["User is redirected to notes list", "Session cookie exists"]
+      },
+      {
+        "id": "TC_NOTES_001",
+        "name": "Autosave creates update",
+        "given": "User edits note content",
+        "when": "User stops typing for 1s",
+        "then": [
+          "PATCH called once",
+          "updatedAt changes",
+          "No data loss on refresh"
+        ]
+      },
+      {
+        "id": "TC_AI_001",
+        "name": "Summarize inserts into note",
+        "given": "Note has >= 200 words",
+        "when": "User clicks Summarize and then Insert",
+        "then": ["AISummary stored", "Note content includes summary block"]
+      },
+      {
+        "id": "TC_MEET_001",
+        "name": "Meeting requires consent",
+        "given": "User opens Meeting HUD",
+        "when": "User tries Start without consent",
+        "then": ["Start blocked", "Consent UI error shown"]
+      },
+      {
+        "id": "TC_SHARE_001",
+        "name": "Restricted share gate",
+        "given": "Share link restricted to allowedEmails",
+        "when": "Non-allowed user opens link",
+        "then": ["Access denied"]
+      }
+    ]
+  },
+
+  "implementation_plan_tdd_order": {
+    "sequence": [
+      {
+        "step": 1,
+        "name": "Repo bootstrap + quality gate",
+        "tdd_tasks": [
+          "Add ESLint/Prettier/tsconfig strict",
+          "Add Vitest + RTL + Playwright",
+          "Add CI workflow that fails on lint/typecheck/test",
+          "Write first dummy tests that assert pipeline works"
+        ]
+      },
+      {
+        "step": 2,
+        "name": "Domain layer (packages/core) with tests first",
+        "tdd_tasks": [
+          "Write tests for Note serialization + content blocks",
+          "Write tests for tag/pin rules",
+          "Write tests for share permissions logic"
+        ]
+      },
+      {
+        "step": 3,
+        "name": "DB + API endpoints with integration tests first",
+        "tdd_tasks": [
+          "Spin test DB (Supabase local or docker Postgres)",
+          "Write integration tests for notes CRUD + RLS",
+          "Implement endpoints to satisfy tests"
+        ]
+      },
+      {
+        "step": 4,
+        "name": "Web UI critical flows with component tests first",
+        "tdd_tasks": [
+          "Notes list renders from mocked API",
+          "Editor autosave behavior",
+          "AI summarize UI interactions"
+        ]
+      },
+      {
+        "step": 5,
+        "name": "AI summarize endpoint with provider mocks",
+        "tdd_tasks": [
+          "Contract tests for output schemas",
+          "Implement extractive summarizer baseline",
+          "Add optional Workers AI provider behind flag"
+        ]
+      },
+      {
+        "step": 6,
+        "name": "Desktop meeting HUD (manual start) with smoke tests",
+        "tdd_tasks": [
+          "Consent gate tests",
+          "WebSocket protocol contract tests",
+          "Simulated transcript chunk stream test"
+        ]
+      },
+      {
+        "step": 7,
+        "name": "E2E tests for MVP flows",
+        "tdd_tasks": [
+          "Playwright: login->note->summarize->export",
+          "Share link gate tests"
+        ]
+      }
+    ]
+  },
+
+  "folder_structure": {
+    "apps/web": [
+      "src/app",
+      "src/components",
+      "src/features/notes",
+      "src/features/ai",
+      "src/features/share",
+      "src/lib/api",
+      "src/lib/auth",
+      "src/lib/db"
+    ],
+    "apps/desktop": [
+      "src-ui (shared Next UI)",
+      "src-tauri (tauri rust shell)",
+      "src/features/meeting"
+    ],
+    "packages/core": ["src/domain", "src/validators", "src/utils"],
+    "packages/api": ["src/client", "src/contracts"],
+    "packages/ai": ["src/providers", "src/schemas", "src/summarizers"]
+  },
+
+  "acceptance_exit_criteria_mvp": {
+    "must_pass": [
+      "All required_test_cases pass",
+      "CI green on main",
+      "User can create notes and summarize",
+      "Desktop meeting mode can produce transcript + summary into a meeting note",
+      "Share link restricted works",
+      "Export works"
+    ],
+    "nice_to_have": [
+      "Basic offline cache for web",
+      "Keyboard shortcuts for notes",
+      "Templates"
+    ]
+  }
+}
