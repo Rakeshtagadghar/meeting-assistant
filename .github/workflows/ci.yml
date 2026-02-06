@@ -72,6 +72,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Generate Prisma Client
+        run: pnpm --filter @ainotes/db db:generate
+
       - name: Lint
         run: pnpm lint
 
@@ -106,6 +109,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma Client
+        run: pnpm --filter @ainotes/db db:generate
 
       - name: Type check
         run: pnpm typecheck
@@ -239,6 +245,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma Client
+        run: pnpm --filter @ainotes/db db:generate
 
       - name: Build
         run: pnpm build

@@ -5,6 +5,7 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "scripts": {
+    "postinstall": "prisma generate",
     "build": "tsc --project tsconfig.build.json",
     "db:generate": "prisma generate",
     "db:migrate:dev": "prisma migrate dev",
