@@ -196,3 +196,9 @@ export interface CreateShareLinkInput {
   readonly allowedEmails: readonly string[];
   readonly expiresAt: ISODateString | null;
 }
+
+export interface CreateMeetingSessionInput {
+  readonly noteId: UUID;
+  readonly userId: UUID;
+  readonly source: MeetingSessionSource;
+}

@@ -27,6 +27,7 @@ export type {
   CreateNoteInput,
   UpdateNoteInput,
   CreateShareLinkInput,
+  CreateMeetingSessionInput,
 } from "./types";
 
 // ─── Note ───
@@ -64,6 +65,16 @@ export {
   isKeyPointsPayload,
   validateSummaryPayload,
 } from "./summary";
+
+// ─── Meeting ───
+export {
+  createMeetingSession,
+  startRecording,
+  pauseRecording,
+  stopRecording,
+  isValidTransition,
+  requiresConsent,
+} from "./meeting";
 
 // ─── Transcript ───
 export {
