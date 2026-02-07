@@ -25,13 +25,22 @@ export function Hero() {
               </Button>
             </Link>
           ) : (
-            <Button
-              size="lg"
-              variant="primary"
-              onClick={() => signIn(undefined, { callbackUrl: "/notes" })}
-            >
-              Get Started
-            </Button>
+            <div className="flex gap-x-4">
+              <Button
+                size="lg"
+                variant="primary"
+                onClick={() => signIn(undefined, { callbackUrl: "/notes" })}
+              >
+                Sign up
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                onClick={() => signIn(undefined, { callbackUrl: "/notes" })}
+              >
+                Log in
+              </Button>
+            </div>
           )}
           <Link
             href="https://github.com/Rakeshtagadghar/meeting-assistant"

@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSession, signOut } from "next-auth/react";
 
 const NAV_ITEMS = [
   { href: "/notes", label: "Notes", icon: NotesIcon },
@@ -11,6 +12,7 @@ const NAV_ITEMS = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { data: session, status } = useSession();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const toggleMobile = useCallback(() => {
@@ -88,14 +90,65 @@ export function Sidebar() {
             })}
           </nav>
 
-          {/* User placeholder */}
+          {/* User section */}
           <div className="border-t border-gray-200 p-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 text-sm font-medium text-gray-600">
-                U
+            {status === "loading" ? (
+              <div className="flex animate-pulse items-center gap-3">
+                <div className="h-8 w-8 rounded-full bg-gray-200" />
+                <div className="h-4 w-20 rounded bg-gray-200" />
               </div>
-              <span className="text-sm text-gray-700">User</span>
-            </div>
+            ) : session?.user ? (
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3 overflow-hidden">
+                  {session.user.image ? (
+                    <img
+                      src={session.user.image}
+                      alt={session.user.name || "User"}
+                      className="h-8 w-8 rounded-full"
+                    />
+                  ) : (
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 text-sm font-medium text-gray-600">
+                      {session.user.name?.[0] || session.user.email?.[0] || "U"}
+                    </div>
+                  )}
+                  <div className="flex flex-col truncate">
+                    <span className="truncate text-sm font-medium text-gray-900">
+                      {session.user.name}
+                    </span>
+                    <span className="truncate text-xs text-gray-500">
+                      {session.user.email}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => signOut()}
+                  className="ml-2 rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-500"
+                  title="Sign out"
+                  aria-label="Sign out"
+                >
+                  <svg
+                    className="h-5 w-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth={1.5}
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15M12 9l-3 3m0 0 3 3m-3-3h12.75"
+                    />
+                  </svg>
+                </button>
+              </div>
+            ) : (
+              <Link
+                href="/api/auth/signin"
+                className="flex w-full items-center justify-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+              >
+                Sign in
+              </Link>
+            )}
           </div>
         </div>
       </aside>

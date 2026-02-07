@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Navbar } from "@/features/marketing/components/Navbar";
 import { Hero } from "@/features/marketing/components/Hero";
 import { FeatureGrid } from "@/features/marketing/components/FeatureGrid";
 import { Footer } from "@/features/marketing/components/Footer";
@@ -12,6 +13,7 @@ export const metadata: Metadata = {
 export default function HomePage() {
   return (
     <main className="flex min-h-screen flex-col bg-white">
+      <Navbar />
       <Hero />
       <FeatureGrid />
       <Footer />
