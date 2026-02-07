@@ -10,7 +10,7 @@ const shareRepo = createShareLinksRepository(prisma);
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    const userId = getAuthUserId(request);
+    const userId = await getAuthUserId();
     if (!userId) return apiError(ApiErrorCode.UNAUTHORIZED);
 
     const body = (await request.json()) as Record<string, unknown>;

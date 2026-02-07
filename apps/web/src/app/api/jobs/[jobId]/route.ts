@@ -16,7 +16,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ jobId: string }> },
 ): Promise<NextResponse> {
-  const userId = getAuthUserId(request);
+  const userId = await getAuthUserId();
   if (!userId) return apiError(ApiErrorCode.UNAUTHORIZED);
 
   try {

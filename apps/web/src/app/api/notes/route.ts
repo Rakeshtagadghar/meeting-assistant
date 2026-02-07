@@ -10,7 +10,7 @@ const notesRepo = createNotesRepository(prisma);
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    const userId = getAuthUserId(request);
+    const userId = await getAuthUserId();
     if (!userId) return apiError(ApiErrorCode.UNAUTHORIZED);
 
     const body = (await request.json()) as Record<string, unknown>;
@@ -36,6 +36,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const note = await notesRepo.create(userId, input);
     return NextResponse.json({ noteId: note.id }, { status: 201 });
   } catch (error: unknown) {
+    // eslint-disable-next-line no-console
     console.error("POST /api/notes error:", error);
     return apiError(ApiErrorCode.INTERNAL_ERROR);
   }
@@ -43,7 +44,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
-    const userId = getAuthUserId(request);
+    const userId = await getAuthUserId();
     if (!userId) return apiError(ApiErrorCode.UNAUTHORIZED);
 
     const { searchParams } = new URL(request.url);
@@ -60,6 +61,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const notes = await notesRepo.findByUser(userId, { q, tag, pinned });
     return NextResponse.json({ notes });
   } catch (error: unknown) {
+    // eslint-disable-next-line no-console
     console.error("GET /api/notes error:", error);
     return apiError(ApiErrorCode.INTERNAL_ERROR);
   }

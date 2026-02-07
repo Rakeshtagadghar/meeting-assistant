@@ -21,7 +21,7 @@ export async function GET(
 ): Promise<NextResponse> {
   try {
     const { id } = await params;
-    const userId = getAuthUserId(request);
+    const userId = await getAuthUserId();
     if (!userId) return apiError(ApiErrorCode.UNAUTHORIZED);
 
     const note = await notesRepo.findById(id as UUID, userId);
@@ -42,7 +42,7 @@ export async function PATCH(
 ): Promise<NextResponse> {
   try {
     const { id } = await params;
-    const userId = getAuthUserId(request);
+    const userId = await getAuthUserId();
     if (!userId) return apiError(ApiErrorCode.UNAUTHORIZED);
 
     const body = (await request.json()) as Record<string, unknown>;
@@ -89,7 +89,7 @@ export async function DELETE(
 ): Promise<NextResponse> {
   try {
     const { id } = await params;
-    const userId = getAuthUserId(request);
+    const userId = await getAuthUserId();
     if (!userId) return apiError(ApiErrorCode.UNAUTHORIZED);
 
     await notesRepo.softDelete(id as UUID, userId);

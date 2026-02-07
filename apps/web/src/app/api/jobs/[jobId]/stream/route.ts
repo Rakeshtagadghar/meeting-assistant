@@ -19,7 +19,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ jobId: string }> },
 ): Promise<Response> {
-  const userId = getAuthUserId(request);
+  const userId = await getAuthUserId();
   if (!userId) return apiError(ApiErrorCode.UNAUTHORIZED);
 
   const { jobId } = await params;

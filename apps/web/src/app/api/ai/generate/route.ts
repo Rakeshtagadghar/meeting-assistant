@@ -17,7 +17,7 @@ const jobsRepo = createProcessingJobsRepository(prisma);
 const artifactsRepo = createArtifactsRepository(prisma);
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  const userId = getAuthUserId(request);
+  const userId = await getAuthUserId();
   if (!userId) return apiError(ApiErrorCode.UNAUTHORIZED);
 
   try {

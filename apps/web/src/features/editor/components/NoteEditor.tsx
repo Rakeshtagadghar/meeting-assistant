@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useCallback, useEffect } from "react";
 import { Input, Badge, Button, Spinner } from "@ainotes/ui";
 import { useNote } from "../hooks/use-note";

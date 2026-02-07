@@ -2,13 +2,11 @@ import type { MetadataRoute } from "next";
 
 export default function robots(): MetadataRoute.Robots {
   return {
-    rules: [
-      {
-        userAgent: "*",
-        allow: "/",
-        disallow: ["/api/", "/notes/", "/note/", "/settings/", "/shared/"],
-      },
-    ],
-    sitemap: "https://ainotes.app/sitemap.xml",
+    rules: {
+      userAgent: "*",
+      allow: "/",
+      disallow: ["/app/", "/api/"],
+    },
+    sitemap: "https://meeting-assistant-web.vercel.app/sitemap.xml",
   };
 }

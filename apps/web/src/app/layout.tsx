@@ -3,15 +3,17 @@ import type { ReactNode } from "react";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://meeting-assistant-web.vercel.app/"),
   title: {
-    template: "%s | AINotes - AI-powered private notes",
-    default: "AINotes - AI-powered private notes",
+    template: "%s | AINotes",
+    default: "AINotes",
   },
   description:
-    "AI-powered meeting notes that are private by default. Capture, transcribe, and summarize your meetings locally.",
+    "AI-powered meeting notes that are private by default. Local audio processing, secure exports, and developer-friendly.",
   openGraph: {
     type: "website",
-    locale: "en_GB",
+    locale: "en_US",
+    url: "/",
     siteName: "AINotes",
   },
   twitter: {
@@ -23,11 +25,13 @@ export const metadata: Metadata = {
   },
 };
 
+import { Providers } from "./providers";
+
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <body className="min-h-screen bg-white text-gray-900 antialiased">
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   );
