@@ -1,6 +1,7 @@
 {
   "extends": "@ainotes/config/tsconfig/library",
   "compilerOptions": {
+    "lib": ["ES2022", "DOM"],
     "outDir": "./dist",
     "rootDir": "./src"
   },

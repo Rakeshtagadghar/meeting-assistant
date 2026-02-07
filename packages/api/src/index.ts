@@ -23,3 +23,6 @@ export type {
   GetSharedNoteResponse,
   ApiErrorResponse,
 } from "./contracts";
+
+export { createApiClient } from "./client";
+export type { ApiClient, ApiClientConfig } from "./client";

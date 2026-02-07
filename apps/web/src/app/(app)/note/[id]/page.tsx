@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
+import { NoteEditor } from "@/features/editor";
 
 export const metadata: Metadata = {
   title: "Note Editor",
 };
 
-export default function NoteEditorPage() {
-  return (
-    <main className="p-8">
-      <h1 className="text-2xl font-bold">Note Editor</h1>
-    </main>
-  );
+export default async function NoteEditorPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  return <NoteEditor noteId={id} />;
 }
