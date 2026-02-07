@@ -28,6 +28,8 @@ export interface UpdateJobFields {
 export interface ProcessingJobsRepository {
   create(input: CreateJobInput): Promise<NoteProcessingJob>;
   findById(jobId: UUID, userId: UUID): Promise<NoteProcessingJob | null>;
+  /** For background job processing where ownership was verified at job creation */
+  findByIdInternal(jobId: UUID): Promise<NoteProcessingJob | null>;
   findByNote(noteId: UUID, userId: UUID): Promise<NoteProcessingJob[]>;
   update(jobId: UUID, fields: UpdateJobFields): Promise<NoteProcessingJob>;
 }
@@ -69,6 +71,13 @@ export function createProcessingJobsRepository(
     async findById(jobId, userId) {
       const row = await prisma.noteProcessingJob.findFirst({
         where: { id: jobId, userId },
+      });
+      return row ? toDomainJob(row) : null;
+    },
+
+    async findByIdInternal(jobId) {
+      const row = await prisma.noteProcessingJob.findUnique({
+        where: { id: jobId },
       });
       return row ? toDomainJob(row) : null;
     },

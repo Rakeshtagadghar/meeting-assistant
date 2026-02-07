@@ -10,6 +10,7 @@ import {
   createProcessingJobsRepository,
   createArtifactsRepository,
 } from "@/lib/db";
+import { runJobAsync } from "@/lib/jobs";
 
 const notesRepo = createNotesRepository(prisma);
 const jobsRepo = createProcessingJobsRepository(prisma);
@@ -66,10 +67,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       });
     }
 
-    // TODO: Kick off async processing (Phase 3F job runner)
+    // Kick off async processing (in-process for MVP)
+    void runJobAsync(job.id);
 
     return NextResponse.json({ jobId: job.id }, { status: 201 });
   } catch (error: unknown) {
+    // eslint-disable-next-line no-console
     console.error("POST /api/ai/generate error:", error);
     return apiError(ApiErrorCode.INTERNAL_ERROR);
   }

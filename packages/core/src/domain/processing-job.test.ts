@@ -242,7 +242,7 @@ describe("cancelJob", () => {
 // ─── isValidJobTransition ───
 
 describe("isValidJobTransition", () => {
-  const valid: [string, string][] = [
+  const valid: [ProcessingJobStatus, ProcessingJobStatus][] = [
     [ProcessingJobStatus.QUEUED, ProcessingJobStatus.RUNNING],
     [ProcessingJobStatus.QUEUED, ProcessingJobStatus.CANCELLED],
     [ProcessingJobStatus.RUNNING, ProcessingJobStatus.COMPLETED],
@@ -256,7 +256,7 @@ describe("isValidJobTransition", () => {
     });
   }
 
-  const invalid: [string, string][] = [
+  const invalid: [ProcessingJobStatus, ProcessingJobStatus][] = [
     [ProcessingJobStatus.QUEUED, ProcessingJobStatus.COMPLETED],
     [ProcessingJobStatus.QUEUED, ProcessingJobStatus.FAILED],
     [ProcessingJobStatus.RUNNING, ProcessingJobStatus.QUEUED],

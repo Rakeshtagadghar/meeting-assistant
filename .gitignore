@@ -38,3 +38,4 @@ blob-report/
 # Debug
 npm-debug.log*
 pnpm-debug.log*
+nul

@@ -6,6 +6,7 @@ import { Button, Card } from "@ainotes/ui";
 export interface SummaryPanelProps {
   summaries: AISummary[];
   artifacts: NoteArtifact[];
+  isGenerating?: boolean;
 }
 
 const KIND_LABELS: Record<string, string> = {
@@ -80,8 +81,12 @@ function renderSummaryContent(summary: AISummary): React.ReactNode {
   }
 }
 
-export function SummaryPanel({ summaries, artifacts }: SummaryPanelProps) {
-  if (summaries.length === 0 && artifacts.length === 0) {
+export function SummaryPanel({
+  summaries,
+  artifacts,
+  isGenerating = false,
+}: SummaryPanelProps) {
+  if (summaries.length === 0 && artifacts.length === 0 && !isGenerating) {
     return (
       <div className="rounded-md border border-gray-200 p-4 text-center text-sm text-gray-500">
         No summaries yet. Generate AI summaries to see them here.
@@ -118,8 +123,8 @@ export function SummaryPanel({ summaries, artifacts }: SummaryPanelProps) {
         </Card>
       ))}
 
-      {/* Artifacts */}
-      {artifacts.length > 0 && (
+      {/* Artifacts - Only show if NO generation is running */}
+      {!isGenerating && artifacts.length > 0 && (
         <Card className="p-4">
           <h3 className="mb-2 text-sm font-semibold text-gray-700">Exports</h3>
           <div className="flex flex-wrap gap-2">

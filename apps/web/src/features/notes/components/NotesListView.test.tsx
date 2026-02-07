@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import type { UUID, ISODateString, Note } from "@ainotes/core";
 import { NotesListView } from "./NotesListView";

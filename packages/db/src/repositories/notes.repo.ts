@@ -12,6 +12,8 @@ import type {
 export interface NotesRepository {
   create(userId: UUID, input: CreateNoteInput): Promise<Note>;
   findById(id: UUID, userId: UUID): Promise<Note | null>;
+  /** For background job processing where ownership was verified at job creation */
+  findByIdInternal(id: UUID): Promise<Note | null>;
   findByUser(
     userId: UUID,
     opts?: {
@@ -64,6 +66,13 @@ export function createNotesRepository(prisma: PrismaClient): NotesRepository {
     async findById(id, userId) {
       const row = await prisma.note.findFirst({
         where: { id, userId, deletedAt: null },
+      });
+      return row ? toDomainNote(row) : null;
+    },
+
+    async findByIdInternal(id) {
+      const row = await prisma.note.findFirst({
+        where: { id, deletedAt: null },
       });
       return row ? toDomainNote(row) : null;
     },
