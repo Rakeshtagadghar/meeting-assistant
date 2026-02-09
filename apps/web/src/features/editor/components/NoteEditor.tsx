@@ -8,6 +8,7 @@ import { useSpeechRecognition } from "../../capture/hooks/use-speech-recognition
 import { useStreamingSummary } from "../../ai/hooks/use-streaming-summary";
 import { SummaryPanel } from "./SummaryPanel";
 import { StreamingSummary } from "../../ai/components/StreamingSummary";
+import { DownloadMenu } from "../../ai/components/DownloadMenu";
 import {
   generateEmailContent,
   getComposeUrl,
@@ -312,6 +313,8 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
             </svg>
             {isGenerating ? "Generating..." : "Generate"}
           </button>
+
+          <DownloadMenu artifacts={artifacts} noteId={noteId} />
 
           {/* More actions menu */}
           <Dropdown

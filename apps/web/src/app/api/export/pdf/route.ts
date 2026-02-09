@@ -50,15 +50,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       kind: ProcessingJobKind.EXPORT_PDF,
     });
 
-    await artifactsRepo.create({
+    const artifact = await artifactsRepo.create({
       noteId,
       jobId: job.id,
       type: ArtifactType.PDF,
     });
 
-    // TODO: Kick off PDF generation (Phase 3F job runner)
-
-    return NextResponse.json({ jobId: job.id }, { status: 201 });
+    return NextResponse.json(
+      { jobId: job.id, artifactId: artifact.id },
+      { status: 201 },
+    );
   } catch (error: unknown) {
     console.error("POST /api/export/pdf error:", error);
     return apiError(ApiErrorCode.INTERNAL_ERROR);

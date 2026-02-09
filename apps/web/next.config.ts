@@ -37,6 +37,7 @@ const nextConfig: NextConfig = {
     "@ainotes/api",
   ],
   reactStrictMode: true,
+  serverExternalPackages: ["playwright-core", "@sparticuz/chromium"],
 };
 
 export default nextConfig;
