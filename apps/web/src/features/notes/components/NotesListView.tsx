@@ -91,71 +91,73 @@ export function NotesListView() {
   }, []);
 
   return (
-    <div className="mx-auto max-w-3xl px-6 py-8">
-      {/* Header */}
-      <div className="mb-8 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-gray-900">My Notes</h1>
-        <button
-          onClick={handleCreateNote}
-          className="flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-gray-800"
-        >
-          <svg
-            className="h-4 w-4"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth={2}
-            stroke="currentColor"
+    <div className="min-h-screen bg-bg-secondary">
+      <div className="mx-auto max-w-3xl px-6 py-8">
+        {/* Header */}
+        <div className="mb-8 flex items-center justify-between">
+          <h1 className="text-2xl font-bold gradient-text">My Notes</h1>
+          <button
+            onClick={handleCreateNote}
+            className="flex items-center gap-2 rounded-xl btn-gradient-primary px-5 py-2.5 text-sm font-medium text-white"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M12 4.5v15m7.5-7.5h-15"
-            />
-          </svg>
-          New Note
-        </button>
-      </div>
-
-      {/* Search */}
-      <div className="mb-6">
-        <SearchBar value={searchQuery} onChange={setSearchQuery} />
-      </div>
-
-      {/* Error */}
-      {error && (
-        <div className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
+            <svg
+              className="h-4 w-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={2}
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M12 4.5v15m7.5-7.5h-15"
+              />
+            </svg>
+            New Note
+          </button>
         </div>
-      )}
 
-      {/* Content */}
-      {loading ? (
-        <div className="flex justify-center py-20">
-          <Spinner size="lg" />
+        {/* Search */}
+        <div className="mb-6">
+          <SearchBar value={searchQuery} onChange={setSearchQuery} />
         </div>
-      ) : notes.length === 0 ? (
-        <EmptyState onCreateNote={handleCreateNote} />
-      ) : (
-        <div className="space-y-6">
-          {groupedNotes.map(([dateLabel, dateNotes]) => (
-            <div key={dateLabel}>
-              <h2 className="mb-2 px-4 text-xs font-semibold uppercase tracking-wider text-warm-400">
-                {dateLabel}
-              </h2>
-              <div className="divide-y divide-warm-200/50 rounded-2xl bg-white shadow-sm ring-1 ring-warm-200/60">
-                {dateNotes.map((note) => (
-                  <NoteCard
-                    key={note.id}
-                    note={note}
-                    onPin={handlePin}
-                    onDelete={handleDelete}
-                  />
-                ))}
+
+        {/* Error */}
+        {error && (
+          <div className="mb-4 rounded-xl glass-card border-red-200 bg-red-50/80 px-4 py-3 text-sm text-red-700">
+            {error}
+          </div>
+        )}
+
+        {/* Content */}
+        {loading ? (
+          <div className="flex justify-center py-20">
+            <Spinner size="lg" />
+          </div>
+        ) : notes.length === 0 ? (
+          <EmptyState onCreateNote={handleCreateNote} />
+        ) : (
+          <div className="space-y-6">
+            {groupedNotes.map(([dateLabel, dateNotes]) => (
+              <div key={dateLabel}>
+                <h2 className="mb-2 px-4 text-xs font-semibold uppercase tracking-wider text-text-muted">
+                  {dateLabel}
+                </h2>
+                <div className="divide-y divide-gray-100 glass-card rounded-2xl overflow-hidden">
+                  {dateNotes.map((note) => (
+                    <NoteCard
+                      key={note.id}
+                      note={note}
+                      onPin={handlePin}
+                      onDelete={handleDelete}
+                    />
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

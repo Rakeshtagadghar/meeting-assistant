@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import type { Note, AISummary, NoteArtifact } from "@ainotes/core";
 import type { GetNoteResponse } from "@ainotes/api";
 
@@ -19,9 +19,13 @@ export function useNote(noteId: string): UseNoteResult {
   const [artifacts, setArtifacts] = useState<NoteArtifact[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const initialLoadDone = useRef(false);
 
   const fetchNote = useCallback(async () => {
-    setLoading(true);
+    // Only set loading on initial fetch, not on refetch
+    if (!initialLoadDone.current) {
+      setLoading(true);
+    }
     setError(null);
 
     try {
@@ -39,6 +43,7 @@ export function useNote(noteId: string): UseNoteResult {
       setNote(data.note);
       setSummaries(data.summaries);
       setArtifacts(data.artifacts);
+      initialLoadDone.current = true;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch note");
     } finally {
@@ -47,6 +52,7 @@ export function useNote(noteId: string): UseNoteResult {
   }, [noteId]);
 
   useEffect(() => {
+    initialLoadDone.current = false;
     void fetchNote();
   }, [fetchNote]);
 

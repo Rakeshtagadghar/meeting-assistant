@@ -14,6 +14,7 @@ export interface UseStreamingSummaryResult {
   streamedText: string;
   status: StreamingStatus;
   error: string | null;
+  generatedTitle: string | null;
   generate: () => Promise<void>;
   cancel: () => void;
 }
@@ -22,6 +23,7 @@ export function useStreamingSummary(noteId: string): UseStreamingSummaryResult {
   const [streamedText, setStreamedText] = useState("");
   const [status, setStatus] = useState<StreamingStatus>("idle");
   const [error, setError] = useState<string | null>(null);
+  const [generatedTitle, setGeneratedTitle] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   const cancel = useCallback(() => {
@@ -37,6 +39,7 @@ export function useStreamingSummary(noteId: string): UseStreamingSummaryResult {
     setStreamedText("");
     setError(null);
     setStatus("connecting");
+    setGeneratedTitle(null);
 
     // Create abort controller
     const controller = new AbortController();
@@ -96,9 +99,15 @@ export function useStreamingSummary(noteId: string): UseStreamingSummaryResult {
             const parsed = JSON.parse(data);
 
             if (eventType === "token") {
-              setStreamedText(
-                (prev) => prev + (parsed as { token: string }).token,
-              );
+              const token = (parsed as { token: string }).token;
+              // Filter out GENERATED_TITLE line from display
+              setStreamedText((prev) => {
+                const newText = prev + token;
+                // Remove GENERATED_TITLE line if present
+                return newText.replace(/^GENERATED_TITLE:\s*.+?\n/m, "");
+              });
+            } else if (eventType === "titleUpdate") {
+              setGeneratedTitle((parsed as { title: string }).title);
             } else if (eventType === "done") {
               setStatus("done");
             } else if (eventType === "error") {
@@ -123,5 +132,5 @@ export function useStreamingSummary(noteId: string): UseStreamingSummaryResult {
     }
   }, [noteId]);
 
-  return { streamedText, status, error, generate, cancel };
+  return { streamedText, status, error, generatedTitle, generate, cancel };
 }

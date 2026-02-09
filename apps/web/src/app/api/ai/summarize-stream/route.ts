@@ -1,12 +1,17 @@
 import type { NextRequest } from "next/server";
 import type { UUID } from "@ainotes/core";
+import { AISummaryKind } from "@prisma/client";
 import {
   ProcessingJobKind,
   ProcessingJobStatus,
   ArtifactType,
   ArtifactStatus,
 } from "@ainotes/core";
-import { streamSummarize } from "@ainotes/ai";
+import {
+  streamSummarize,
+  extractGeneratedTitle,
+  stripTitleLine,
+} from "@ainotes/ai";
 import { getAuthUserId } from "@/lib/auth";
 import { apiError, ApiErrorCode } from "@/lib/api";
 import {
@@ -54,6 +59,30 @@ export async function POST(request: NextRequest): Promise<Response> {
     );
   }
 
+  // Check if note needs a title
+  const needsTitle =
+    !note.title ||
+    note.title.toLowerCase() === "untitled note" ||
+    note.title.toLowerCase() === "untitled";
+
+  // Delete existing summaries to avoid duplicates
+  try {
+    // We need to cast to any or import AISummaryKind if strict typing is enforced,
+    // but strings "SUMMARY" and "ACTION_ITEMS" match the enum.
+    await summariesRepo.deleteByNoteAndKind(noteId, AISummaryKind.SUMMARY);
+    await summariesRepo.deleteByNoteAndKind(noteId, AISummaryKind.ACTION_ITEMS);
+
+    // Also cleanup old artifacts
+    await artifactsRepo.deleteByNoteAndType(
+      noteId,
+      ArtifactType.MARKDOWN_SUMMARY,
+    );
+    await artifactsRepo.deleteByNoteAndType(noteId, ArtifactType.HTML_SUMMARY);
+  } catch (error) {
+    console.error("Failed to cleanup old summaries/artifacts:", error);
+    // Continue anyway
+  }
+
   // Create job + artifacts for audit trail
   const job = await jobsRepo.create({
     noteId,
@@ -94,6 +123,7 @@ export async function POST(request: NextRequest): Promise<Response> {
         const tokenStream = streamSummarize({
           noteTitle: note.title,
           noteContent,
+          needsTitle,
           signal: abortController.signal,
         });
 
@@ -102,8 +132,24 @@ export async function POST(request: NextRequest): Promise<Response> {
           send("token", { token });
         }
 
-        // Streaming complete — save to DB
-        const html = await markdownToHtml(accumulated);
+        // Streaming complete — process the response
+        let finalContent = accumulated;
+        let generatedTitle: string | null = null;
+
+        // If we asked for a title, extract it and update the note
+        if (needsTitle) {
+          generatedTitle = extractGeneratedTitle(accumulated);
+          if (generatedTitle) {
+            // Save title to database
+            await notesRepo.update(noteId, userId, { title: generatedTitle });
+            // Send title update event to client
+            send("titleUpdate", { title: generatedTitle });
+            // Strip title line from content for storage
+            finalContent = stripTitleLine(accumulated);
+          }
+        }
+
+        const html = await markdownToHtml(finalContent);
 
         // Update artifacts
         const artifacts = await artifactsRepo.findByJob(job.id);
@@ -111,7 +157,7 @@ export async function POST(request: NextRequest): Promise<Response> {
           if (artifact.type === "MARKDOWN_SUMMARY") {
             await artifactsRepo.update(artifact.id, {
               status: ArtifactStatus.READY,
-              storagePath: accumulated,
+              storagePath: finalContent,
             });
           } else if (artifact.type === "HTML_SUMMARY") {
             await artifactsRepo.update(artifact.id, {
@@ -123,24 +169,24 @@ export async function POST(request: NextRequest): Promise<Response> {
 
         // Create AISummary entity (SUMMARY kind) for SummaryPanel
         const summaryPayload = parseMarkdownToSummaryPayload(
-          accumulated,
-          note.title,
+          finalContent,
+          generatedTitle ?? note.title,
         );
         await summariesRepo.create({
           noteId,
           meetingSessionId: null,
-          kind: "SUMMARY",
+          kind: AISummaryKind.SUMMARY,
           payload: summaryPayload,
           modelInfo: { provider: "groq", model: "llama-3.3-70b-versatile" },
         });
 
         // Create ACTION_ITEMS if next steps were found
-        const actionItems = parseNextSteps(accumulated);
+        const actionItems = parseNextSteps(finalContent);
         if (actionItems.length > 0) {
           await summariesRepo.create({
             noteId,
             meetingSessionId: null,
-            kind: "ACTION_ITEMS",
+            kind: AISummaryKind.ACTION_ITEMS,
             payload: { items: actionItems },
             modelInfo: { provider: "groq", model: "llama-3.3-70b-versatile" },
           });

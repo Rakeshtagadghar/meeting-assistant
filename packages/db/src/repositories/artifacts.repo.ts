@@ -31,6 +31,7 @@ export interface ArtifactsRepository {
   ): Promise<NoteArtifact | null>;
   findByNote(noteId: UUID): Promise<NoteArtifact[]>;
   update(artifactId: UUID, fields: UpdateArtifactFields): Promise<NoteArtifact>;
+  deleteByNoteAndType(noteId: UUID, type: ArtifactType): Promise<void>;
 }
 
 function toDomainArtifact(row: PrismaArtifact): NoteArtifact {
@@ -98,6 +99,12 @@ export function createArtifactsRepository(
         data,
       });
       return toDomainArtifact(row);
+    },
+
+    async deleteByNoteAndType(noteId, type) {
+      await prisma.noteArtifact.deleteMany({
+        where: { noteId, type },
+      });
     },
   };
 }

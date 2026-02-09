@@ -3,10 +3,11 @@ import { getGroqClient } from "../providers/groq";
 export interface StreamSummarizeOptions {
   noteTitle: string;
   noteContent: string;
+  needsTitle?: boolean; // Set to true if the note is untitled
   signal?: AbortSignal;
 }
 
-const SYSTEM_PROMPT = `You are an expert meeting notes summarizer. Given raw meeting notes or transcript text, produce a clear, well-structured markdown summary.
+const BASE_SYSTEM_PROMPT = `You are an expert meeting notes summarizer. Given raw meeting notes or transcript text, produce a clear, well-structured markdown summary.
 
 Your output MUST follow this exact structure:
 
@@ -35,10 +36,29 @@ Rules:
 - Do NOT fabricate information not present in the notes
 - Write in professional, clear language`;
 
+const TITLE_GENERATION_ADDENDUM = `
+
+IMPORTANT: The note currently has no title. You MUST start your response with a special title line in this exact format:
+GENERATED_TITLE: [Your suggested title here]
+
+This title should be:
+- Concise (under 60 characters)
+- Descriptive and specific to the content
+- NOT generic like "Meeting Notes" or "Discussion"
+
+After the GENERATED_TITLE line, continue with the normal summary format starting with # [Meeting Title]`;
+
+function buildSystemPrompt(needsTitle: boolean): string {
+  if (needsTitle) {
+    return BASE_SYSTEM_PROMPT + TITLE_GENERATION_ADDENDUM;
+  }
+  return BASE_SYSTEM_PROMPT;
+}
+
 export async function* streamSummarize(
   options: StreamSummarizeOptions,
 ): AsyncGenerator<string, void, undefined> {
-  const { noteTitle, noteContent, signal } = options;
+  const { noteTitle, noteContent, needsTitle = false, signal } = options;
 
   const client = getGroqClient();
 
@@ -46,10 +66,12 @@ export async function* streamSummarize(
     {
       model: "llama-3.3-70b-versatile",
       messages: [
-        { role: "system", content: SYSTEM_PROMPT },
+        { role: "system", content: buildSystemPrompt(needsTitle) },
         {
           role: "user",
-          content: `Meeting title: "${noteTitle}"\n\nMeeting notes:\n${noteContent}`,
+          content: needsTitle
+            ? `Meeting notes:\n${noteContent}`
+            : `Meeting title: "${noteTitle}"\n\nMeeting notes:\n${noteContent}`,
         },
       ],
       temperature: 0.3,
@@ -65,4 +87,23 @@ export async function* streamSummarize(
       yield token;
     }
   }
+}
+
+/**
+ * Extract the generated title from the accumulated response
+ * Returns null if no title was found
+ */
+export function extractGeneratedTitle(response: string): string | null {
+  const match = response.match(/^GENERATED_TITLE:\s*(.+?)(?:\n|$)/m);
+  if (match?.[1]) {
+    return match[1].trim();
+  }
+  return null;
+}
+
+/**
+ * Remove the GENERATED_TITLE line from the response for display
+ */
+export function stripTitleLine(response: string): string {
+  return response.replace(/^GENERATED_TITLE:\s*.+?\n/m, "").trim();
 }

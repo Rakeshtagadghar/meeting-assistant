@@ -1,0 +1,429 @@
+{
+  "landing_page_ui_spec": {
+    "route": "/",
+    "goal": "Visually appealing modern landing page with staggered card entry animations and strong conversion UX",
+    "design_system": {
+      "style": "Minimal modern SaaS",
+      "layout": "12-col responsive grid",
+      "spacing": "8px scale",
+      "radius": "2xl",
+      "shadow": "soft",
+      "typography": {
+        "font_primary": "Inter (or system fallback)",
+        "h1": "48-56px desktop / 34-40px mobile",
+        "h2": "28-34px",
+        "body": "16-18px"
+      },
+      "color_palette": {
+        "default_mode": "light",
+        "contrast": "WCAG AA",
+        "colors": {
+          "primary": {
+            "gradient": "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+            "solid": "#667eea",
+            "hover": "#5a6fd6"
+          },
+          "accent": {
+            "gradient": "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
+            "solid": "#f093fb",
+            "hover": "#e080e8"
+          },
+          "hero_gradient": "linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)",
+          "text": {
+            "heading": {
+              "gradient": "linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)",
+              "solid": "#1a1a2e"
+            },
+            "body": "#4a5568",
+            "muted": "#718096",
+            "inverse": "#ffffff"
+          },
+          "background": {
+            "primary": "#ffffff",
+            "secondary": "#f7fafc",
+            "gradient": "linear-gradient(180deg, #ffffff 0%, #f7fafc 50%, #edf2f7 100%)",
+            "hero_bg": "linear-gradient(135deg, #f5f7fa 0%, #e4e9f0 100%)"
+          },
+          "surface": {
+            "card": "rgba(255, 255, 255, 0.8)",
+            "card_border": "rgba(255, 255, 255, 0.2)",
+            "glassmorphism": {
+              "background": "rgba(255, 255, 255, 0.25)",
+              "backdrop_blur": "16px",
+              "border": "1px solid rgba(255, 255, 255, 0.3)"
+            }
+          },
+          "cta_button": {
+            "primary_gradient": "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+            "primary_hover": "linear-gradient(135deg, #5a6fd6 0%, #6a4190 100%)",
+            "secondary_gradient": "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
+            "text_color": "#ffffff",
+            "shadow": "0 4px 15px rgba(102, 126, 234, 0.4)"
+          },
+          "badges": {
+            "gradient": "linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)",
+            "text": "#4a5568"
+          },
+          "icons": {
+            "gradient": "linear-gradient(135deg, #667eea 0%, #f093fb 100%)",
+            "solid": "#667eea"
+          }
+        },
+        "dark_mode": {
+          "text": {
+            "heading": {
+              "gradient": "linear-gradient(135deg, #ffffff 0%, #e2e8f0 100%)",
+              "solid": "#ffffff"
+            },
+            "body": "#cbd5e0",
+            "muted": "#a0aec0"
+          },
+          "background": {
+            "primary": "#0d1117",
+            "secondary": "#161b22",
+            "gradient": "linear-gradient(180deg, #0d1117 0%, #161b22 50%, #1a202c 100%)",
+            "hero_bg": "linear-gradient(135deg, #0d1117 0%, #1a1a2e 50%, #16213e 100%)"
+          },
+          "surface": {
+            "card": "rgba(22, 27, 34, 0.8)",
+            "card_border": "rgba(255, 255, 255, 0.1)",
+            "glassmorphism": {
+              "background": "rgba(22, 27, 34, 0.6)",
+              "backdrop_blur": "16px",
+              "border": "1px solid rgba(255, 255, 255, 0.1)"
+            }
+          },
+          "cta_button": {
+            "shadow": "0 4px 15px rgba(102, 126, 234, 0.3)"
+          }
+        }
+      }
+    },
+    "animations": {
+      "library": "Framer Motion",
+      "principles": [
+        "Staggered children reveal",
+        "Reduce motion support (prefers-reduced-motion)",
+        "No excessive motion on scroll"
+      ],
+      "presets": {
+        "stagger_container": {
+          "initial": "hidden",
+          "animate": "show",
+          "transition": {
+            "staggerChildren": 0.08,
+            "delayChildren": 0.05
+          }
+        },
+        "card_reveal": {
+          "hidden": {
+            "opacity": 0,
+            "y": 18,
+            "scale": 0.98
+          },
+          "show": {
+            "opacity": 1,
+            "y": 0,
+            "scale": 1,
+            "transition": {
+              "duration": 0.45
+            }
+          }
+        },
+        "hero_fade": {
+          "hidden": {
+            "opacity": 0,
+            "y": 10
+          },
+          "show": {
+            "opacity": 1,
+            "y": 0,
+            "transition": {
+              "duration": 0.55
+            }
+          }
+        }
+      }
+    },
+    "seo_content_rules": {
+      "h1_single": true,
+      "keyword_focus": [
+        "ai meeting notes",
+        "private ai notes",
+        "meeting transcription",
+        "summarize notes"
+      ],
+      "copy_constraints": [
+        "No exaggerated claims",
+        "Explicit consent messaging on meeting transcription",
+        "Privacy-first copy present above the fold"
+      ]
+    },
+    "page_structure": {
+      "header": {
+        "sticky": true,
+        "left": ["Logo", "ProductName"],
+        "center": ["Features", "How it works", "Privacy", "Pricing"],
+        "right": [
+          {
+            "type": "link",
+            "label": "Sign in",
+            "href": "/api/auth/signin"
+          },
+          {
+            "type": "button",
+            "label": "Get started",
+            "href": "/api/auth/signin",
+            "variant": "contained"
+          }
+        ]
+      },
+      "hero": {
+        "layout": "two_column_desktop_one_column_mobile",
+        "left": {
+          "h1": "Write notes like normal. Get a clean summary after.",
+          "subtext": "Live transcript during meetings, then one-click AI summaries, action items, and exports. Private by default and consent-first.",
+          "cta_primary": {
+            "label": "Sign in with Google",
+            "action": "AUTH_GOOGLE"
+          },
+          "cta_secondary": {
+            "label": "See how it works",
+            "href": "#how-it-works"
+          },
+          "trust_row": [
+            "No audio stored by default",
+            "Consent-first meeting mode",
+            "Works on desktop + web"
+          ]
+        },
+        "right": {
+          "type": "mock_preview",
+          "description": "A window preview resembling Quick Note + Generate flow",
+          "elements": [
+            "Quick Note floating card",
+            "Transcript lines",
+            "Generate progress strip",
+            "Download dropdown (PDF/DOCX) gated by ready state"
+          ]
+        }
+      },
+      "social_proof": {
+        "type": "compact",
+        "items": [
+          "Built for fast note-taking",
+          "Designed for privacy-first teams",
+          "Optimized for low-latency live capture"
+        ]
+      },
+      "feature_cards_section": {
+        "id": "features",
+        "title": "Everything you need to capture, summarize, and share",
+        "layout": "responsive_card_grid",
+        "cards": [
+          {
+            "title": "Quick Note (Live)",
+            "description": "See transcript appear as people speak. No distracting AI mid-meeting.",
+            "icon": "mic",
+            "badge": "Desktop"
+          },
+          {
+            "title": "Generate Summary",
+            "description": "Click Generate after you’re done—get summary, key points, action items, decisions.",
+            "icon": "sparkles",
+            "badge": "Post-processing"
+          },
+          {
+            "title": "Download-ready Exports",
+            "description": "PDF/DOCX downloads with progress UI. Download appears only when ready.",
+            "icon": "download",
+            "badge": "Controlled"
+          },
+          {
+            "title": "Private by default",
+            "description": "Notes stay private unless you share. Clear retention and delete controls.",
+            "icon": "lock",
+            "badge": "Trust"
+          },
+          {
+            "title": "Search your notes",
+            "description": "Find anything across notes and transcripts with fast full-text search.",
+            "icon": "search",
+            "badge": "Web"
+          },
+          {
+            "title": "Consent-first",
+            "description": "Built-in consent reminder + checkbox before meeting transcription.",
+            "icon": "shield",
+            "badge": "Compliance"
+          }
+        ],
+        "animation": {
+          "type": "staggered_entry",
+          "container_preset": "stagger_container",
+          "item_preset": "card_reveal",
+          "trigger": "on_scroll_once",
+          "viewport_amount": 0.25
+        }
+      },
+      "how_it_works": {
+        "id": "how-it-works",
+        "title": "How it works",
+        "layout": "staggered_steps",
+        "steps": [
+          {
+            "title": "Start a note",
+            "text": "Create a new note in the web app or open Quick Note on desktop."
+          },
+          {
+            "title": "Capture the conversation",
+            "text": "Live transcript appears as people speak. You can pause/resume any time."
+          },
+          {
+            "title": "Click Generate",
+            "text": "AI processes transcript after you’re done and produces structured summaries."
+          },
+          {
+            "title": "Export or share",
+            "text": "Download PDF/DOCX or share a restricted link with specific emails."
+          }
+        ],
+        "animation": {
+          "type": "staggered_entry",
+          "container_preset": "stagger_container",
+          "item_preset": "card_reveal",
+          "trigger": "on_scroll_once"
+        }
+      },
+      "privacy_section": {
+        "id": "privacy",
+        "title": "Privacy-first by default",
+        "bullets": [
+          "No audio stored by default (transcript + summaries only)",
+          "Share is explicit and restricted by default",
+          "Delete notes and transcripts anytime",
+          "GDPR-ready controls and clear retention"
+        ],
+        "cta": {
+          "label": "Read privacy policy",
+          "href": "/privacy"
+        }
+      },
+      "faq": {
+        "title": "FAQ",
+        "items": [
+          {
+            "q": "Do you store meeting audio?",
+            "a": "By default, no. The app stores transcript and summaries only. You control retention and deletions."
+          },
+          {
+            "q": "Can I export to PDF or DOCX?",
+            "a": "Yes. Exports show a progress UI and the download option appears only when ready."
+          },
+          {
+            "q": "Does it work in the browser?",
+            "a": "Yes for notes management, summaries, sharing, and exports. Desktop is best for live capture."
+          },
+          {
+            "q": "How do cookies work?",
+            "a": "We use a CMP (Google CMP v2 compliant). Analytics only run after opt-in consent in EEA/UK."
+          }
+        ],
+        "structured_data": {
+          "type": "FAQPage",
+          "enabled": true
+        }
+      },
+      "final_cta": {
+        "title": "Start capturing better notes today",
+        "subtext": "Sign in and create your first note in under a minute.",
+        "cta_primary": {
+          "label": "Get started with Google",
+          "action": "AUTH_GOOGLE"
+        }
+      },
+      "footer": {
+        "links": [
+          {
+            "label": "Privacy",
+            "href": "/privacy"
+          },
+          {
+            "label": "Terms",
+            "href": "/terms"
+          },
+          {
+            "label": "Cookies",
+            "href": "/cookies"
+          },
+          {
+            "label": "Contact",
+            "href": "/contact"
+          }
+        ],
+        "legal": "© {{year}} AINotes. All rights reserved."
+      }
+    },
+    "accessibility": {
+      "requirements": [
+        "Keyboard navigable header + CTAs",
+        "Focus visible on interactive elements",
+        "prefers-reduced-motion supported",
+        "ARIA labels for icons and menus"
+      ]
+    },
+    "landing_page_tests_tdd": {
+      "component_tests": [
+        {
+          "id": "LP_UI_001",
+          "name": "Hero renders single H1",
+          "assert": ["Exactly one h1 element exists", "CTA buttons visible"]
+        },
+        {
+          "id": "LP_UI_002",
+          "name": "Staggered cards animate on scroll",
+          "assert": [
+            "Feature cards mounted",
+            "Animation props present",
+            "Reduced motion disables animation"
+          ]
+        },
+        {
+          "id": "LP_UI_003",
+          "name": "Footer contains legal links",
+          "assert": ["Privacy/Terms/Cookies/Contact links exist"]
+        }
+      ],
+      "seo_tests": [
+        {
+          "id": "LP_SEO_001",
+          "name": "Metadata and canonical present",
+          "assert": [
+            "title present",
+            "description present",
+            "canonical link present"
+          ]
+        },
+        {
+          "id": "LP_SEO_002",
+          "name": "FAQ structured data present when FAQ enabled",
+          "assert": ["JSON-LD block exists", "schema type == FAQPage"]
+        }
+      ],
+      "cmp_tests": [
+        {
+          "id": "LP_CMP_001",
+          "name": "No analytics before consent",
+          "assert": ["no GA script loaded", "no analytics cookies set"]
+        }
+      ],
+      "lighthouse_ci": {
+        "targets": {
+          "performance": 90,
+          "accessibility": 90,
+          "seo": 90
+        }
+      }
+    }
+  }
+}

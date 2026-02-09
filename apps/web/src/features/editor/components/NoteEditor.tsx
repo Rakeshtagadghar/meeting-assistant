@@ -1,13 +1,17 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import { Badge, Spinner } from "@ainotes/ui";
+import { Badge, Spinner, Dropdown } from "@ainotes/ui";
 import { useNote } from "../hooks/use-note";
 import { useAutosave } from "../hooks/use-autosave";
 import { useSpeechRecognition } from "../../capture/hooks/use-speech-recognition";
 import { useStreamingSummary } from "../../ai/hooks/use-streaming-summary";
 import { SummaryPanel } from "./SummaryPanel";
 import { StreamingSummary } from "../../ai/components/StreamingSummary";
+import {
+  generateEmailContent,
+  getComposeUrl,
+} from "../../email/utils/email-generator";
 
 export interface NoteEditorProps {
   noteId: string;
@@ -21,9 +25,18 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
     streamedText,
     status: streamingStatus,
     error: streamingError,
+    generatedTitle,
     generate: generateStream,
     cancel: cancelStream,
   } = useStreamingSummary(noteId);
+
+  // Update title when automatically generated
+  useEffect(() => {
+    if (generatedTitle) {
+      setTitle(generatedTitle);
+    }
+  }, [generatedTitle]);
+
   const {
     transcript,
     isListening,
@@ -149,6 +162,79 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
     }
   }, [isListening, startListening, stopListening]);
 
+  // Helper to get best summary text (markdown artifact or plain text from summary objects)
+  const getBestSummaryText = useCallback(() => {
+    // Prefer markdown artifact
+    const markdownArtifact = artifacts.find(
+      (a) =>
+        a.type === "MARKDOWN_SUMMARY" && a.status === "READY" && a.storagePath,
+    );
+    if (markdownArtifact?.storagePath) {
+      return markdownArtifact.storagePath;
+    }
+
+    // Fallback to text from summaries (simple concatenation)
+    return summaries
+      .map((s) => {
+        if (s.kind === "SUMMARY") return s.payload.oneLiner || "";
+        return "";
+      })
+      .filter(Boolean)
+      .join("\n\n");
+  }, [artifacts, summaries]);
+
+  const handleCopySummary = useCallback(async () => {
+    const text = getBestSummaryText();
+    if (!text) return;
+
+    try {
+      const { body, htmlBody } = generateEmailContent(title, text, {
+        includeLinks: true,
+      });
+
+      // Write both text and html to clipboard so it pastes nicely in rich editors
+      const blobText = new Blob([body], { type: "text/plain" });
+      const blobHtml = new Blob([htmlBody], { type: "text/html" });
+      const item = new ClipboardItem({
+        "text/plain": blobText,
+        "text/html": blobHtml,
+      });
+
+      await navigator.clipboard.write([item]);
+    } catch (err) {
+      console.error("Failed to copy", err);
+      // Fallback to simple text copy if rich copy fails
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch (e) {
+        console.error("Fallback copy failed", e);
+      }
+    }
+  }, [getBestSummaryText, title]);
+
+  const handleDraftEmail = useCallback(() => {
+    const text = getBestSummaryText();
+    if (!text) return;
+
+    const emailContent = generateEmailContent(title, text, {
+      includeLinks: true, // we can support this later with real links
+    });
+
+    // Try Gmail first
+    const gmailUrl = getComposeUrl("gmail", emailContent);
+    const windowRef = window.open(gmailUrl, "_blank");
+
+    // Fallback to mailto if blocked or failed (though window.open usually returns object even if blocked in some browsers, checking logic is fuzzy.
+    // We'll just copy to clipboard as backup regardless)
+    if (
+      !windowRef ||
+      windowRef.closed ||
+      typeof windowRef.closed === "undefined"
+    ) {
+      window.location.href = getComposeUrl("mailto", emailContent);
+    }
+  }, [getBestSummaryText, title]);
+
   if (loading) {
     return (
       <div
@@ -226,6 +312,77 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
             </svg>
             {isGenerating ? "Generating..." : "Generate"}
           </button>
+
+          {/* More actions menu */}
+          <Dropdown
+            align="right"
+            trigger={
+              <button
+                aria-label="More options"
+                className="flex items-center justify-center rounded-lg p-2 text-warm-400 transition-colors hover:bg-warm-100 hover:text-warm-500"
+              >
+                <svg
+                  className="h-5 w-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={1.5}
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M12 6.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM12 12.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM12 18.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5Z"
+                  />
+                </svg>
+              </button>
+            }
+            items={[
+              {
+                id: "draft-email",
+                label: (
+                  <div className="flex items-center gap-2">
+                    <svg
+                      className="h-4 w-4 text-warm-400"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      strokeWidth={1.5}
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75"
+                      />
+                    </svg>
+                    <span>Draft email</span>
+                  </div>
+                ),
+                onClick: handleDraftEmail,
+              },
+              {
+                id: "copy",
+                label: (
+                  <div className="flex items-center gap-2">
+                    <svg
+                      className="h-4 w-4 text-warm-400"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      strokeWidth={1.5}
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75"
+                      />
+                    </svg>
+                    <span>Copy</span>
+                  </div>
+                ),
+                onClick: handleCopySummary,
+              },
+            ]}
+          />
         </div>
       </div>
 
@@ -238,6 +395,15 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
           onCancel={handleCancelGenerate}
         />
       )}
+
+      {/* AI Summaries - Shown at the top when ready */}
+      <div className="mb-6">
+        <SummaryPanel
+          summaries={summaries}
+          artifacts={artifacts}
+          isGenerating={isGenerating}
+        />
+      </div>
 
       {/* Note content card */}
       <div className="rounded-2xl bg-white p-8 shadow-sm ring-1 ring-warm-200/60">
@@ -308,8 +474,14 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
           />
         </div>
 
-        {/* Divider */}
-        <hr className="my-6 border-warm-200/60" />
+        {/* Transcript Header */}
+        <div className="my-6 flex items-center gap-4">
+          <div className="h-px flex-1 bg-warm-200/60" />
+          <span className="text-sm font-medium uppercase tracking-wider text-warm-400">
+            Transcript
+          </span>
+          <div className="h-px flex-1 bg-warm-200/60" />
+        </div>
 
         {/* Content area */}
         <textarea
@@ -381,13 +553,6 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
       </div>
 
       {/* AI Summaries */}
-      <div className="mt-6">
-        <SummaryPanel
-          summaries={summaries}
-          artifacts={artifacts}
-          isGenerating={isGenerating}
-        />
-      </div>
     </div>
   );
 }

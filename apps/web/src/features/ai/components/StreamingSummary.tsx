@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useMemo } from "react";
-import { marked } from "marked";
-import DOMPurify from "dompurify";
+import { useEffect, useRef } from "react";
+import { Streamdown } from "streamdown";
 import type { StreamingStatus } from "../hooks/use-streaming-summary";
 
 export interface StreamingSummaryProps {
@@ -20,19 +19,12 @@ export function StreamingSummary({
 }: StreamingSummaryProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Convert accumulated markdown to sanitized HTML
-  const renderedHtml = useMemo(() => {
-    if (!streamedText) return "";
-    const raw = marked.parse(streamedText, { async: false }) as string;
-    return DOMPurify.sanitize(raw);
-  }, [streamedText]);
-
   // Auto-scroll to bottom as content grows
   useEffect(() => {
     if (containerRef.current && status === "streaming") {
       containerRef.current.scrollTop = containerRef.current.scrollHeight;
     }
-  }, [renderedHtml, status]);
+  }, [streamedText, status]);
 
   if (status === "idle") return null;
 
@@ -120,10 +112,10 @@ export function StreamingSummary({
           </div>
         )}
 
-        {/* Rendered markdown content */}
+        {/* Rendered markdown content using streamdown */}
         {streamedText && (
           <div className="streaming-prose">
-            <div dangerouslySetInnerHTML={{ __html: renderedHtml }} />
+            <Streamdown>{streamedText}</Streamdown>
             {/* Blinking cursor while streaming */}
             {isStreaming && (
               <span className="ml-0.5 inline-block h-5 w-[2px] animate-pulse bg-accent align-text-bottom" />

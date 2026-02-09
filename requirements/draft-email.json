@@ -1,0 +1,443 @@
+{
+  "feature": {
+    "id": "SHARE_EMAIL_001",
+    "name": "Share via Email (Open Draft)",
+    "summary": "Open the user's email client (Gmail web preferred, mailto fallback) with subject/body prefilled using AI summary and optional links. No backend email sending.",
+    "scope": "web_app + desktop_app",
+    "priority": "MVP",
+    "privacy_model": "client_side_only_no_email_sent"
+  },
+  "user_story": {
+    "as_a": "user",
+    "i_want": "to share my AI summary via email quickly",
+    "so_that": "I can send meeting minutes without copy/paste"
+  },
+  "supported_clients": {
+    "default_behavior": "auto_select",
+    "providers": [
+      {
+        "id": "gmail_web",
+        "name": "Gmail Web Compose",
+        "platforms": ["web", "desktop"],
+        "compose_url_template": "https://mail.google.com/mail/u/0/?fs=1&tf=cm&su={{subject}}&body={{body}}",
+        "limits": {
+          "body_chars_soft_limit": 20000,
+          "subject_chars_soft_limit": 200
+        }
+      },
+      {
+        "id": "mailto",
+        "name": "Default Mail Client",
+        "platforms": ["web", "desktop"],
+        "compose_url_template": "mailto:{{to}}?subject={{subject}}&body={{body}}&cc={{cc}}&bcc={{bcc}}",
+        "limits": {
+          "body_chars_soft_limit": 8000,
+          "subject_chars_soft_limit": 200
+        }
+      },
+      {
+        "id": "outlook_web",
+        "name": "Outlook Web Compose (Optional)",
+        "platforms": ["web", "desktop"],
+        "enabled": false,
+        "compose_url_template": "https://outlook.live.com/mail/0/deeplink/compose?subject={{subject}}&body={{body}}&to={{to}}&cc={{cc}}&bcc={{bcc}}",
+        "limits": {
+          "body_chars_soft_limit": 20000,
+          "subject_chars_soft_limit": 200
+        }
+      }
+    ],
+    "auto_select_rules": [
+      {
+        "rule": "If user selected preferred provider in settings, use it",
+        "fallback": "gmail_web"
+      },
+      {
+        "rule": "If popup blocked or open fails for gmail_web, fallback to mailto",
+        "fallback": "mailto"
+      }
+    ],
+    "settings": {
+      "enabled": true,
+      "key": "preferred_email_provider",
+      "options": ["gmail_web", "mailto", "outlook_web"],
+      "default": "gmail_web"
+    }
+  },
+  "entry_points": {
+    "web": [
+      {
+        "location": "Note Editor toolbar",
+        "control": "Share dropdown",
+        "menu_item": "Share via Email",
+        "icon": "mail"
+      },
+      {
+        "location": "Note list row actions",
+        "control": "More actions",
+        "menu_item": "Share via Email",
+        "icon": "mail"
+      }
+    ],
+    "desktop": [
+      {
+        "location": "Quick Note/Meeting HUD header",
+        "control": "Share button",
+        "menu_item": "Share via Email",
+        "icon": "mail"
+      }
+    ]
+  },
+  "gating_and_availability": {
+    "enabled_if": ["user_is_authenticated == true", "note_exists == true"],
+    "soft_gates": [
+      {
+        "condition": "ai_summary_status != READY",
+        "behavior": "show_modal_offer_generate",
+        "ui_copy": "Generate the AI summary before sharing via email."
+      }
+    ],
+    "hard_gates": [
+      {
+        "condition": "note_deleted == true",
+        "behavior": "disable_action",
+        "ui_copy": "This note is deleted."
+      }
+    ]
+  },
+  "email_compose_payload": {
+    "fields": {
+      "to": {
+        "source": "user_input_optional",
+        "default": "",
+        "validation": {
+          "max_recipients": 50,
+          "pattern": "email_list_csv"
+        }
+      },
+      "cc": {
+        "source": "user_input_optional",
+        "default": ""
+      },
+      "bcc": {
+        "source": "user_input_optional",
+        "default": ""
+      },
+      "subject": {
+        "source": "template",
+        "template": "{{note.title}}",
+        "fallback": "Notes from {{note.updatedAt_date}}",
+        "validation": {
+          "max_chars": 200
+        }
+      },
+      "body": {
+        "source": "template",
+        "template": [
+          "{{email_intro_optional}}",
+          "",
+          "{{ai_summary_plain_text}}",
+          "",
+          "{{action_items_plain_text_optional}}",
+          "",
+          "---",
+          "Shared via {{product_name}}",
+          "{{shared_note_url_optional}}",
+          "{{transcript_url_optional}}"
+        ],
+        "validation": {
+          "max_chars_provider_dependent": true
+        }
+      }
+    },
+    "encoding": {
+      "charset": "utf-8",
+      "url_encode": "encodeURIComponent",
+      "line_breaks": "use_%0A_in_urls",
+      "spaces": "encodeURIComponent_default",
+      "special_characters": "escape_all_reserved"
+    }
+  },
+  "content_sources": {
+    "priority_order": [
+      "AISummary(kind=SUMMARY)",
+      "AISummary(kind=KEY_POINTS)",
+      "Note.contentPlain",
+      "Transcript (final merged)"
+    ],
+    "include_sections": {
+      "summary": true,
+      "key_points": true,
+      "action_items": true,
+      "decisions": true,
+      "risks": false,
+      "transcript_link": true,
+      "shared_note_link": true
+    },
+    "links": {
+      "shared_note_url": {
+        "source": "ShareLink.token (if exists) else create_on_demand",
+        "policy": "RESTRICTED_BY_DEFAULT",
+        "allowedEmails": "optional_from_to_field",
+        "expiresAt": "optional"
+      },
+      "transcript_url": {
+        "source": "meeting_session_link_if_exists",
+        "enabled": true
+      }
+    }
+  },
+  "markdown_to_email_text": {
+    "goal": "Convert AI markdown into email-friendly plain text while preserving structure",
+    "rules": [
+      {
+        "from": "### ",
+        "to": "### "
+      },
+      {
+        "from": "## ",
+        "to": "## "
+      },
+      {
+        "from": "# ",
+        "to": "# "
+      },
+      {
+        "from": "**bold**",
+        "to": "bold (strip **)"
+      },
+      {
+        "from": "`code`",
+        "to": "code (strip backticks)"
+      },
+      {
+        "from": "```codeblock```",
+        "to": "codeblock (strip fences, keep indentation)"
+      },
+      {
+        "from": "[text](url)",
+        "to": "text (url)"
+      },
+      {
+        "from": "- [ ] task",
+        "to": "- [ ] task"
+      },
+      {
+        "from": "- [x] task",
+        "to": "- [x] task"
+      },
+      {
+        "from": "tables",
+        "to": "convert_to_bullets_or_pipe_text"
+      }
+    ],
+    "sanitization": {
+      "strip_html": true,
+      "remove_scripts": true,
+      "normalize_whitespace": true
+    },
+    "length_management": {
+      "provider_soft_limits": {
+        "gmail_web": 20000,
+        "mailto": 8000,
+        "outlook_web": 20000
+      },
+      "truncate_strategy": {
+        "enabled": true,
+        "truncate_after_chars": "provider_soft_limit",
+        "append": "\n\n[Truncated] View full note here: {{shared_note_url_optional}}"
+      }
+    }
+  },
+  "ui_ux": {
+    "share_modal": {
+      "enabled": true,
+      "fields": [
+        "to",
+        "cc",
+        "bcc",
+        "include_action_items_toggle",
+        "include_links_toggle"
+      ],
+      "defaults": {
+        "include_action_items_toggle": true,
+        "include_links_toggle": true
+      },
+      "actions": [
+        {
+          "label": "Open email draft",
+          "type": "primary",
+          "behavior": "open_compose_url_in_new_tab_or_window"
+        },
+        {
+          "label": "Copy email text",
+          "type": "secondary",
+          "behavior": "copy_to_clipboard"
+        }
+      ],
+      "error_states": [
+        {
+          "id": "POPUP_BLOCKED",
+          "message": "Popup blocked. Try again or use your default mail app.",
+          "fallback_action": "use_mailto"
+        },
+        {
+          "id": "TOO_LONG",
+          "message": "Email draft is too long. We’ll truncate and include a link to the full note.",
+          "behavior": "truncate_and_continue"
+        }
+      ]
+    },
+    "editor_integration": {
+      "download_like_progress_ui": false,
+      "note": "Email compose is instantaneous; no backend job required"
+    }
+  },
+  "security_privacy": {
+    "no_backend_sending": true,
+    "no_email_storage": true,
+    "no_tracking_pixels": true,
+    "gdpr_notes": [
+      "User explicitly opens their email client and chooses recipients",
+      "App does not process or store recipient emails unless user saves them in settings",
+      "If share link is created, it is restricted by default and can be revoked"
+    ],
+    "consent": {
+      "meeting_transcript_consent_reminder_in_email": {
+        "enabled": true,
+        "text": "Reminder: Please ensure meeting participants consented to transcription."
+      }
+    }
+  },
+  "api_requirements": {
+    "mvp": {
+      "compose_url_generation": "client_only",
+      "share_link_creation": {
+        "endpoint": "POST /api/share-links",
+        "required_if": "include_links_toggle == true AND no existing share link"
+      },
+      "no_email_send_endpoint": true
+    }
+  },
+  "platform_behavior": {
+    "web": {
+      "open_method": "window.open(url, '_blank', 'noopener,noreferrer')",
+      "fallback_if_blocked": "window.location.href = mailto_url"
+    },
+    "desktop": {
+      "tauri_open": "open(url) via shell.open",
+      "fallback": "copy_to_clipboard + show toast"
+    }
+  },
+  "analytics_and_cmp": {
+    "events": [
+      {
+        "name": "share_email_clicked",
+        "props": ["provider", "noteType"]
+      },
+      {
+        "name": "share_email_opened",
+        "props": ["provider", "truncated"]
+      },
+      {
+        "name": "share_email_copy_clicked",
+        "props": ["noteType"]
+      }
+    ],
+    "consent_rules": {
+      "analytics_only_after_cmp_opt_in": true,
+      "EEA_UK_requires_opt_in": true
+    }
+  },
+  "tdd_test_suite": {
+    "unit_tests": [
+      {
+        "id": "EMAIL_UT_001",
+        "name": "Build Gmail compose URL encodes subject/body",
+        "assert": [
+          "contains fs=1&tf=cm",
+          "subject and body are encodeURIComponent encoded",
+          "line breaks encoded as %0A"
+        ]
+      },
+      {
+        "id": "EMAIL_UT_002",
+        "name": "Markdown->plain conversion preserves headings and bullets",
+        "assert": [
+          "headings kept",
+          "bullets kept",
+          "links converted to text (url)",
+          "no html tags remain"
+        ]
+      },
+      {
+        "id": "EMAIL_UT_003",
+        "name": "Truncation adds full note link",
+        "assert": [
+          "body length <= provider limit",
+          "truncation suffix includes shared link"
+        ]
+      }
+    ],
+    "component_tests": [
+      {
+        "id": "EMAIL_CT_001",
+        "name": "Share via Email disabled when summary not ready",
+        "assert": [
+          "menu item disabled",
+          "tooltip shown",
+          "generate modal opens on click"
+        ]
+      },
+      {
+        "id": "EMAIL_CT_002",
+        "name": "Share modal populates preview text",
+        "assert": [
+          "subject filled",
+          "body preview contains summary",
+          "toggles update preview"
+        ]
+      }
+    ],
+    "integration_tests": [
+      {
+        "id": "EMAIL_IT_001",
+        "name": "Create restricted share link on demand",
+        "given": "include_links_toggle == true and no share link exists",
+        "then": [
+          "POST /api/share-links called",
+          "token returned",
+          "link injected into email body"
+        ]
+      }
+    ],
+    "e2e_tests": [
+      {
+        "id": "EMAIL_E2E_001",
+        "name": "Open Gmail draft from note",
+        "steps": [
+          "Open note with READY AI summary",
+          "Click Share -> Share via Email",
+          "Click Open email draft",
+          "Assert window.open called with gmail URL containing subject/body"
+        ]
+      },
+      {
+        "id": "EMAIL_E2E_002",
+        "name": "Popup blocked fallback to mailto",
+        "steps": [
+          "Simulate window.open returns null",
+          "Assert window.location set to mailto URL"
+        ]
+      }
+    ]
+  },
+  "acceptance_criteria": [
+    "User can open an email draft with subject/body prefilled using AI summary",
+    "Works in browser (Gmail compose) and falls back to default mail client (mailto)",
+    "Email body is readable plain text (not raw markdown noise)",
+    "If email is too long, content is truncated and includes share link to full note",
+    "No email is sent by the app backend; user must press Send",
+    "Share links are restricted by default and revocable"
+  ]
+}

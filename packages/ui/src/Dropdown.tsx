@@ -4,7 +4,8 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import type { ReactNode } from "react";
 
 export interface DropdownItem {
-  label: string;
+  id?: string;
+  label: ReactNode;
   onClick: () => void;
   disabled?: boolean;
 }
@@ -62,9 +63,9 @@ export function Dropdown({ trigger, items, align = "left" }: DropdownProps) {
           role="menu"
           className={`absolute z-50 mt-1 min-w-[160px] rounded-md border border-gray-200 bg-white py-1 shadow-lg ${align === "right" ? "right-0" : "left-0"}`}
         >
-          {items.map((item) => (
+          {items.map((item, index) => (
             <button
-              key={item.label}
+              key={item.id || index}
               role="menuitem"
               disabled={item.disabled}
               className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"

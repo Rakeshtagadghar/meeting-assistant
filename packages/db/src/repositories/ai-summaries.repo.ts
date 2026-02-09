@@ -21,6 +21,7 @@ export interface CreateAISummaryInput {
 export interface AISummariesRepository {
   create(input: CreateAISummaryInput): Promise<AISummary>;
   findByNote(noteId: UUID): Promise<AISummary[]>;
+  deleteByNoteAndKind(noteId: UUID, kind: AISummaryKind): Promise<void>;
 }
 
 function toDomainSummary(row: PrismaAISummary): AISummary {
@@ -61,6 +62,12 @@ export function createAISummariesRepository(
         orderBy: { createdAt: "desc" },
       });
       return rows.map(toDomainSummary);
+    },
+
+    async deleteByNoteAndKind(noteId, kind) {
+      await prisma.aISummary.deleteMany({
+        where: { noteId, kind },
+      });
     },
   };
 }
