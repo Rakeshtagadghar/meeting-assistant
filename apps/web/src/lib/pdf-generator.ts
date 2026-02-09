@@ -227,9 +227,8 @@ export async function generatePdf(
       // Serverless / Production environment
       browser = await playwright.chromium.launch({
         args: chromium.args,
-        defaultViewport: chromium.defaultViewport,
         executablePath: await chromium.executablePath(),
-        headless: chromium.headless,
+        headless: true,
       });
     } else {
       // Local Development environment
