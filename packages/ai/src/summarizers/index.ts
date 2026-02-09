@@ -1,2 +1,2 @@
-export { extractiveSummarize } from "./extractive";
-export type { Summary } from "./extractive";
+export { streamSummarize } from "./ai-summarizer";
+export type { StreamSummarizeOptions } from "./ai-summarizer";

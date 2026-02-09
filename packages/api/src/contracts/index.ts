@@ -119,6 +119,24 @@ export interface GetSharedNoteResponse {
   readonly summaries: AISummary[];
 }
 
+// ─── Streaming Summarize SSE Events ───
+
+export interface StreamSummarizeRequest {
+  readonly noteId: UUID;
+}
+
+export interface StreamTokenEvent {
+  readonly token: string;
+}
+
+export interface StreamDoneEvent {
+  readonly jobId: UUID;
+}
+
+export interface StreamErrorEvent {
+  readonly message: string;
+}
+
 // ─── Error ───
 
 export interface ApiErrorResponse {

@@ -4,10 +4,10 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { Badge, Spinner } from "@ainotes/ui";
 import { useNote } from "../hooks/use-note";
 import { useAutosave } from "../hooks/use-autosave";
-import { useJobProgress } from "../hooks/use-job-progress";
 import { useSpeechRecognition } from "../../capture/hooks/use-speech-recognition";
+import { useStreamingSummary } from "../../ai/hooks/use-streaming-summary";
 import { SummaryPanel } from "./SummaryPanel";
-import { ProgressBanner } from "./ProgressBanner";
+import { StreamingSummary } from "../../ai/components/StreamingSummary";
 
 export interface NoteEditorProps {
   noteId: string;
@@ -18,13 +18,12 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
     useNote(noteId);
   const { save, saving, lastSaved } = useAutosave(noteId);
   const {
-    progressPct,
-    message,
-    status: jobStatus,
-    startTracking,
-    cancelJob,
-    reset: resetJob,
-  } = useJobProgress();
+    streamedText,
+    status: streamingStatus,
+    error: streamingError,
+    generate: generateStream,
+    cancel: cancelStream,
+  } = useStreamingSummary(noteId);
   const {
     transcript,
     isListening,
@@ -34,7 +33,8 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
     clear: clearTranscript,
   } = useSpeechRecognition();
 
-  const isGenerating = jobStatus === "QUEUED" || jobStatus === "RUNNING";
+  const isGenerating =
+    streamingStatus === "connecting" || streamingStatus === "streaming";
 
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
@@ -77,12 +77,12 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
     }
   }, [isListening, transcript, save, clearTranscript, content]);
 
-  // Refresh note data when job completes
+  // Refresh note data when streaming completes
   useEffect(() => {
-    if (jobStatus === "COMPLETED") {
+    if (streamingStatus === "done") {
       void refetch();
     }
-  }, [jobStatus, refetch]);
+  }, [streamingStatus, refetch]);
 
   const handleTitleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -134,26 +134,12 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
   );
 
   const handleGenerate = useCallback(async () => {
-    try {
-      resetJob();
-      const res = await fetch("/api/ai/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ noteId }),
-      });
-      if (!res.ok) throw new Error("Failed to start generation");
-      const data = await res.json();
-      if (data.jobId) {
-        startTracking(data.jobId);
-      }
-    } catch {
-      // TODO: show toast
-    }
-  }, [noteId, resetJob, startTracking]);
+    await generateStream();
+  }, [generateStream]);
 
-  const handleCancelGenerate = useCallback(async () => {
-    await cancelJob();
-  }, [cancelJob]);
+  const handleCancelGenerate = useCallback(() => {
+    cancelStream();
+  }, [cancelStream]);
 
   const handleToggleSpeech = useCallback(() => {
     if (isListening) {
@@ -243,13 +229,15 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
         </div>
       </div>
 
-      {/* Progress banner */}
-      <ProgressBanner
-        status={jobStatus}
-        progressPct={progressPct}
-        message={message}
-        onCancel={handleCancelGenerate}
-      />
+      {/* AI streaming summary */}
+      {streamingStatus !== "idle" && (
+        <StreamingSummary
+          streamedText={streamedText}
+          status={streamingStatus}
+          error={streamingError}
+          onCancel={handleCancelGenerate}
+        />
+      )}
 
       {/* Note content card */}
       <div className="rounded-2xl bg-white p-8 shadow-sm ring-1 ring-warm-200/60">

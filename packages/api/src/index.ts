@@ -21,6 +21,10 @@ export type {
   CreateShareLinkRequest,
   CreateShareLinkResponse,
   GetSharedNoteResponse,
+  StreamSummarizeRequest,
+  StreamTokenEvent,
+  StreamDoneEvent,
+  StreamErrorEvent,
   ApiErrorResponse,
 } from "./contracts";
 

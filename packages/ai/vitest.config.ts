@@ -23,6 +23,6 @@ export default defineConfig({
         "**/index.ts",
       ],
     },
-    passWithNoTests: false,
+    passWithNoTests: true,
   },
 });

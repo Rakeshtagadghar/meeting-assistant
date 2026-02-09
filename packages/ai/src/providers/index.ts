@@ -1,1 +1,1 @@
-export {};
+export { getGroqClient } from "./groq";

@@ -1,6 +1,3 @@
-export { extractiveSummarize } from "./summarizers/extractive";
-export type {
-  Summary,
-  SummarySection,
-  ActionItem,
-} from "./summarizers/extractive";
+export { streamSummarize } from "./summarizers/ai-summarizer";
+export type { StreamSummarizeOptions } from "./summarizers/ai-summarizer";
+export { getGroqClient } from "./providers/groq";
