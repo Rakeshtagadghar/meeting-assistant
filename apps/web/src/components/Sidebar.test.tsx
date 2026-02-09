@@ -25,6 +25,17 @@ vi.mock("next/link", () => ({
   ),
 }));
 
+// Mock next-auth/react
+vi.mock("next-auth/react", () => ({
+  useSession: () => ({
+    data: {
+      user: { name: "Test User", email: "test@example.com", image: null },
+    },
+    status: "authenticated",
+  }),
+  signOut: vi.fn(),
+}));
+
 describe("Sidebar", () => {
   it("renders the logo", () => {
     render(<Sidebar />);
@@ -32,33 +43,38 @@ describe("Sidebar", () => {
     expect(logos.length).toBeGreaterThan(0);
   });
 
-  it("renders Notes nav link", () => {
+  it("renders My notes nav link", () => {
     render(<Sidebar />);
-    expect(screen.getByRole("link", { name: /^Notes$/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /My notes/ })).toBeInTheDocument();
   });
 
   it("renders Settings nav link", () => {
     render(<Sidebar />);
-    expect(
-      screen.getByRole("link", { name: /^Settings$/ }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Settings/ })).toBeInTheDocument();
   });
 
   it("highlights active nav item with aria-current", () => {
     render(<Sidebar />);
-    const notesLink = screen.getByRole("link", { name: /^Notes$/ });
+    const notesLink = screen.getByRole("link", { name: /My notes/ });
     expect(notesLink).toHaveAttribute("aria-current", "page");
   });
 
   it("does not highlight non-active nav item", () => {
     render(<Sidebar />);
-    const settingsLink = screen.getByRole("link", { name: /^Settings$/ });
+    const settingsLink = screen.getByRole("link", { name: /Settings/ });
     expect(settingsLink).not.toHaveAttribute("aria-current");
   });
 
-  it("renders user placeholder", () => {
+  it("renders user name when authenticated", () => {
     render(<Sidebar />);
-    expect(screen.getByText("User")).toBeInTheDocument();
+    expect(screen.getByText("Test User")).toBeInTheDocument();
+  });
+
+  it("renders sign out button when authenticated", () => {
+    render(<Sidebar />);
+    expect(
+      screen.getByRole("button", { name: "Sign out" }),
+    ).toBeInTheDocument();
   });
 
   it("renders main navigation landmark", () => {

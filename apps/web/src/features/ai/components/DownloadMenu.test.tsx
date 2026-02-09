@@ -44,20 +44,28 @@ const notReadyDocx: NoteArtifact = {
   hash: null,
 };
 
+function getDownloadTrigger() {
+  // The Dropdown wrapper adds role="button" on the div, and the inner Button is also a button.
+  // We want the actual <button> element with text "Download".
+  const buttons = screen.getAllByRole("button", { name: "Download" });
+  // The inner <button> is the actual trigger
+  const btn = buttons.find((el) => el.tagName === "BUTTON");
+  if (!btn) throw new Error("Download button not found");
+  return btn;
+}
+
 describe("DownloadMenu", () => {
   it("renders download trigger button", () => {
     render(<DownloadMenu artifacts={[readyPdf, readyDocx]} noteId="note-1" />);
 
-    expect(
-      screen.getByRole("button", { name: "Download" }),
-    ).toBeInTheDocument();
+    expect(getDownloadTrigger()).toBeInTheDocument();
   });
 
   it("shows PDF and DOCX options when dropdown is opened", async () => {
     const user = userEvent.setup();
     render(<DownloadMenu artifacts={[readyPdf, readyDocx]} noteId="note-1" />);
 
-    await user.click(screen.getByRole("button", { name: "Download" }));
+    await user.click(getDownloadTrigger());
 
     expect(
       screen.getByRole("menuitem", { name: "Download PDF" }),
@@ -73,7 +81,7 @@ describe("DownloadMenu", () => {
       <DownloadMenu artifacts={[notReadyPdf, notReadyDocx]} noteId="note-1" />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Download" }));
+    await user.click(getDownloadTrigger());
 
     expect(
       screen.getByRole("menuitem", { name: "Download PDF" }),

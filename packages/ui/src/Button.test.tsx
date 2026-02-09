@@ -13,7 +13,7 @@ describe("Button", () => {
   it("applies primary variant classes by default", () => {
     render(<Button>Test</Button>);
     const button = screen.getByRole("button");
-    expect(button.className).toContain("bg-blue-600");
+    expect(button.className).toContain("bg-indigo-600");
   });
 
   it("applies secondary variant classes", () => {

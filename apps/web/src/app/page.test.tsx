@@ -1,19 +1,20 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import HomePage from "./page";
 
+// Navbar uses useSession from next-auth/react
+vi.mock("next-auth/react", () => ({
+  useSession: () => ({ data: null, status: "unauthenticated" }),
+}));
+
 describe("HomePage", () => {
-  it("renders the heading", () => {
+  it("renders the brand link", () => {
     render(<HomePage />);
-    expect(
-      screen.getByRole("heading", { level: 1, name: "AINotes" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "AINotes" })).toBeInTheDocument();
   });
 
-  it("renders the tagline", () => {
+  it("renders the main content area", () => {
     render(<HomePage />);
-    expect(
-      screen.getByText("AI-powered meeting notes, private by default."),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("main")).toBeInTheDocument();
   });
 });

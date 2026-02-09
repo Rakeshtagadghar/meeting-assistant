@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 
 const NAV_ITEMS = [
-  { href: "/notes", label: "Notes", icon: NotesIcon },
+  { href: "/notes", label: "My notes", icon: NotesIcon },
   { href: "/settings", label: "Settings", icon: SettingsIcon },
 ] as const;
 
@@ -26,14 +26,14 @@ export function Sidebar() {
   return (
     <>
       {/* Mobile header */}
-      <div className="flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3 md:hidden">
-        <Link href="/notes" className="text-lg font-bold text-gray-900">
+      <div className="flex items-center justify-between border-b border-warm-200 bg-warm-50 px-4 py-3 md:hidden">
+        <Link href="/notes" className="text-lg font-semibold text-gray-900">
           AINotes
         </Link>
         <button
           onClick={toggleMobile}
           aria-label="Toggle menu"
-          className="rounded-md p-2 text-gray-600 hover:bg-gray-100"
+          className="rounded-lg p-2 text-warm-500 hover:bg-warm-100"
         >
           <HamburgerIcon />
         </button>
@@ -43,31 +43,36 @@ export function Sidebar() {
       {mobileOpen && (
         <div
           data-testid="sidebar-overlay"
-          className="fixed inset-0 z-40 bg-black/50 md:hidden"
+          className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm md:hidden"
           onClick={closeMobile}
         />
       )}
 
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 transform border-r border-gray-200 bg-white transition-transform md:relative md:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 w-56 transform bg-warm-100/80 transition-transform md:relative md:translate-x-0 ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         <div className="flex h-full flex-col">
           {/* Logo */}
-          <div className="flex h-16 items-center border-b border-gray-200 px-6">
+          <div className="px-4 pt-5 pb-2">
             <Link
               href="/notes"
-              className="text-xl font-bold text-gray-900"
+              className="mb-4 flex items-center gap-2"
               onClick={closeMobile}
             >
-              AINotes
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gray-900 text-xs font-bold text-white">
+                A
+              </div>
+              <span className="text-base font-semibold text-gray-900">
+                AINotes
+              </span>
             </Link>
           </div>
 
           {/* Nav */}
-          <nav className="flex-1 space-y-1 px-3 py-4" aria-label="Main">
+          <nav className="flex-1 space-y-0.5 px-3" aria-label="Main">
             {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
               const isActive =
                 pathname === href || pathname.startsWith(`${href}/`);
@@ -76,10 +81,10 @@ export function Sidebar() {
                   key={href}
                   href={href}
                   onClick={closeMobile}
-                  className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                  className={`flex items-center gap-3 rounded-lg px-3 py-2 text-[14px] font-medium transition-colors ${
                     isActive
-                      ? "bg-blue-50 text-blue-700"
-                      : "text-gray-700 hover:bg-gray-100"
+                      ? "bg-warm-200/80 text-gray-900"
+                      : "text-warm-500 hover:bg-warm-200/50 hover:text-gray-900"
                   }`}
                   aria-current={isActive ? "page" : undefined}
                 >
@@ -91,11 +96,11 @@ export function Sidebar() {
           </nav>
 
           {/* User section */}
-          <div className="border-t border-gray-200 p-4">
+          <div className="border-t border-warm-200/60 p-4">
             {status === "loading" ? (
               <div className="flex animate-pulse items-center gap-3">
-                <div className="h-8 w-8 rounded-full bg-gray-200" />
-                <div className="h-4 w-20 rounded bg-gray-200" />
+                <div className="h-8 w-8 rounded-full bg-warm-200" />
+                <div className="h-4 w-20 rounded bg-warm-200" />
               </div>
             ) : session?.user ? (
               <div className="flex items-center justify-between">
@@ -107,27 +112,22 @@ export function Sidebar() {
                       className="h-8 w-8 rounded-full"
                     />
                   ) : (
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 text-sm font-medium text-gray-600">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-warm-300 text-sm font-medium text-warm-500">
                       {session.user.name?.[0] || session.user.email?.[0] || "U"}
                     </div>
                   )}
-                  <div className="flex flex-col truncate">
-                    <span className="truncate text-sm font-medium text-gray-900">
-                      {session.user.name}
-                    </span>
-                    <span className="truncate text-xs text-gray-500">
-                      {session.user.email}
-                    </span>
-                  </div>
+                  <span className="truncate text-sm font-medium text-gray-900">
+                    {session.user.name}
+                  </span>
                 </div>
                 <button
                   onClick={() => signOut()}
-                  className="ml-2 rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-500"
+                  className="ml-2 rounded-lg p-1.5 text-warm-400 hover:bg-warm-200 hover:text-warm-500"
                   title="Sign out"
                   aria-label="Sign out"
                 >
                   <svg
-                    className="h-5 w-5"
+                    className="h-4 w-4"
                     fill="none"
                     viewBox="0 0 24 24"
                     strokeWidth={1.5}
@@ -144,7 +144,7 @@ export function Sidebar() {
             ) : (
               <Link
                 href="/api/auth/signin"
-                className="flex w-full items-center justify-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+                className="flex w-full items-center justify-center rounded-lg bg-gray-900 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-gray-800"
               >
                 Sign in
               </Link>
@@ -159,7 +159,7 @@ export function Sidebar() {
 function NotesIcon() {
   return (
     <svg
-      className="h-5 w-5"
+      className="h-[18px] w-[18px]"
       fill="none"
       viewBox="0 0 24 24"
       strokeWidth={1.5}
@@ -169,7 +169,7 @@ function NotesIcon() {
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
-        d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"
+        d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25"
       />
     </svg>
   );
@@ -178,7 +178,7 @@ function NotesIcon() {
 function SettingsIcon() {
   return (
     <svg
-      className="h-5 w-5"
+      className="h-[18px] w-[18px]"
       fill="none"
       viewBox="0 0 24 24"
       strokeWidth={1.5}
@@ -202,7 +202,7 @@ function SettingsIcon() {
 function HamburgerIcon() {
   return (
     <svg
-      className="h-6 w-6"
+      className="h-5 w-5"
       fill="none"
       viewBox="0 0 24 24"
       strokeWidth={1.5}

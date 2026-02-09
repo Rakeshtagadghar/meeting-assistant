@@ -42,11 +42,10 @@ describe("NoteCard", () => {
     expect(screen.getByText("Weekly Standup Notes")).toBeInTheDocument();
   });
 
-  it("renders tags as badges", () => {
+  it("renders author label", () => {
     render(<NoteCard note={mockNote} />);
 
-    expect(screen.getByText("engineering")).toBeInTheDocument();
-    expect(screen.getByText("standup")).toBeInTheDocument();
+    expect(screen.getByText("Me")).toBeInTheDocument();
   });
 
   it("calls onPin when pin button is clicked", async () => {
@@ -88,9 +87,10 @@ describe("NoteCard", () => {
     expect(screen.getByLabelText("Pinned")).toBeInTheDocument();
   });
 
-  it("renders the note type as a badge", () => {
+  it("renders the updated time", () => {
     render(<NoteCard note={mockNote} />);
 
-    expect(screen.getByText("MEETING")).toBeInTheDocument();
+    // The time should be displayed (format depends on locale)
+    expect(screen.getByText(/\d{2}:\d{2}/)).toBeInTheDocument();
   });
 });

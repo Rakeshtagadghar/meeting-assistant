@@ -61,6 +61,29 @@ vi.mock("../hooks/use-autosave", () => ({
   useAutosave: vi.fn(() => mockUseAutosave),
 }));
 
+vi.mock("../hooks/use-job-progress", () => ({
+  useJobProgress: vi.fn(() => ({
+    progressPct: 0,
+    message: "",
+    status: "IDLE",
+    startTracking: vi.fn(),
+    cancelJob: vi.fn(),
+    reset: vi.fn(),
+  })),
+}));
+
+vi.mock("../../capture/hooks/use-speech-recognition", () => ({
+  useSpeechRecognition: vi.fn(() => ({
+    transcript: "",
+    isListening: false,
+    isSupported: true,
+    start: vi.fn(),
+    stop: vi.fn(),
+    clear: vi.fn(),
+    error: null,
+  })),
+}));
+
 // ─── Mock next/navigation ───
 
 vi.mock("next/navigation", () => ({
@@ -143,5 +166,24 @@ describe("NoteEditor", () => {
     const pinButton = screen.getByRole("button", { name: "Pin note" });
     expect(pinButton).toBeInTheDocument();
     expect(pinButton).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("renders dictate button when speech is supported", () => {
+    mockedUseNote.mockReturnValue(mockUseNoteLoaded);
+
+    render(<NoteEditor noteId="note-1" />);
+
+    expect(
+      screen.getByRole("button", { name: "Start recording" }),
+    ).toBeInTheDocument();
+  });
+
+  it("renders word count", () => {
+    mockedUseNote.mockReturnValue(mockUseNoteLoaded);
+
+    render(<NoteEditor noteId="note-1" />);
+
+    // "Some plain text content" = 4 words
+    expect(screen.getByText("4 words")).toBeInTheDocument();
   });
 });
