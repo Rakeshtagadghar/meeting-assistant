@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { Badge, Spinner } from "@ainotes/ui";
 import { useNote } from "../hooks/use-note";
 import { useAutosave } from "../hooks/use-autosave";
@@ -41,6 +41,7 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
   const [tags, setTags] = useState<string[]>([]);
   const [pinned, setPinned] = useState(false);
   const [tagInput, setTagInput] = useState("");
+  const baseContentRef = useRef("");
 
   // Sync local state when note loads
   useEffect(() => {
@@ -52,10 +53,19 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
     }
   }, [note]);
 
-  // Append speech transcript to content in real-time
+  // Snapshot content when recording starts
   useEffect(() => {
-    if (transcript && isListening) {
-      setContent((prev) => prev.trimEnd() + (prev ? "\n" : "") + transcript);
+    if (isListening) {
+      baseContentRef.current = content;
+    }
+    // Only capture snapshot when isListening transitions to true
+  }, [isListening]);
+
+  // Replace content with base + transcript while listening
+  useEffect(() => {
+    if (isListening && transcript) {
+      const base = baseContentRef.current;
+      setContent(base + (base ? "\n" : "") + transcript);
     }
   }, [transcript, isListening]);
 
