@@ -5,11 +5,13 @@ import type {
   CreateMeetingSessionInput,
   CreateProcessingJobInput,
   CreateArtifactInput,
+  CreateTranscriptChunkInput,
 } from "../domain/types";
 import {
   NoteType,
   ShareVisibility,
   MeetingSessionSource,
+  MeetingPlatform,
   ProcessingJobKind,
   ArtifactType,
 } from "../domain/types";
@@ -110,6 +112,53 @@ export function validateCreateMeetingSessionInput(
   const validSources = Object.values(MeetingSessionSource);
   if (!validSources.includes(input.source)) {
     errors.push(`source must be one of: ${validSources.join(", ")}`);
+  }
+
+  if (input.platform !== undefined) {
+    const validPlatforms = Object.values(MeetingPlatform);
+    if (!validPlatforms.includes(input.platform)) {
+      errors.push(`platform must be one of: ${validPlatforms.join(", ")}`);
+    }
+  }
+
+  if (input.title !== undefined && input.title.length > MAX_TITLE_LENGTH) {
+    errors.push(`title must not exceed ${String(MAX_TITLE_LENGTH)} characters`);
+  }
+
+  return { valid: errors.length === 0, errors };
+}
+
+export function validateCreateTranscriptChunkInput(
+  input: CreateTranscriptChunkInput,
+): ValidationResult {
+  const errors: string[] = [];
+
+  if (!input.meetingSessionId || input.meetingSessionId.trim().length === 0) {
+    errors.push("meetingSessionId is required");
+  }
+
+  if (!Number.isInteger(input.sequence) || input.sequence < 0) {
+    errors.push("sequence must be a non-negative integer");
+  }
+
+  if (
+    !Number.isFinite(input.tStartMs) ||
+    !Number.isFinite(input.tEndMs) ||
+    input.tStartMs < 0 ||
+    input.tEndMs <= input.tStartMs
+  ) {
+    errors.push("invalid chunk timing: tEndMs must be greater than tStartMs");
+  }
+
+  if (input.text.trim().length === 0) {
+    errors.push("text must not be empty");
+  }
+
+  if (
+    input.confidence !== null &&
+    (input.confidence < 0 || input.confidence > 1)
+  ) {
+    errors.push("confidence must be between 0 and 1");
   }
 
   return { valid: errors.length === 0, errors };

@@ -1,0 +1,14 @@
+Meeting context
+I attended a daily standup meeting. The goal is to document each participant’s updates regarding their recent accomplishments, current focus, and any blockers they are facing. Keep these notes short and to-the-point.
+Announcements
+Include any note-worthy points from the small-talk or announcements at the beginning of the call.
+
+Sections
+Updates
+Break these down into what was achieved yesterday, or accomplishments, what each person is working on today and highlight any blockers that could impact progress.
+
+Sidebar
+Summarize any further discussions or issues that were explored after the main updates. Note any collaborative efforts, decisions made, or additional points raised.
+
+Action Items
+Document and assign next steps from the meeting, summarize immediate tasks, provide reminders, and ensure accountability and clarity on responsibilities.

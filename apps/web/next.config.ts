@@ -38,6 +38,23 @@ const nextConfig: NextConfig = {
   ],
   reactStrictMode: true,
   serverExternalPackages: ["playwright-core", "@sparticuz/chromium"],
+
+  // Turbopack is the default bundler in Next.js 16
+  turbopack: {},
+
+  // Webpack fallback for explicit --webpack builds:
+  // @huggingface/transformers references Node.js modules needing client-side stubs
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        path: false,
+        crypto: false,
+      };
+    }
+    return config;
+  },
 };
 
 export default nextConfig;

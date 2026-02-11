@@ -3,6 +3,7 @@ export {
   NoteType,
   MeetingSessionSource,
   MeetingSessionStatus,
+  MeetingPlatform,
   AISummaryKind,
   ShareVisibility,
   ProcessingJobKind,
@@ -34,6 +35,7 @@ export type {
   UpdateNoteInput,
   CreateShareLinkInput,
   CreateMeetingSessionInput,
+  CreateTranscriptChunkInput,
   CreateProcessingJobInput,
   CreateArtifactInput,
 } from "./types";
@@ -77,6 +79,8 @@ export {
 // ─── Meeting ───
 export {
   createMeetingSession,
+  confirmConsent,
+  updateMeetingContext,
   startRecording,
   pauseRecording,
   stopRecording,
@@ -86,12 +90,30 @@ export {
 
 // ─── Transcript ───
 export {
+  createTranscriptChunk,
   sortChunks,
   mergeAdjacentChunks,
   buildTranscriptText,
   isValidChunkTiming,
   chunksInRange,
 } from "./transcript";
+
+// ─── ASR Events ───
+export type {
+  ASRState,
+  ASRStatusEvent,
+  ASRPartialEvent,
+  ASRFinalEvent,
+  ASREvent,
+  ASROptions,
+  ASRProvider,
+} from "./asr-events";
+
+export {
+  isASRStatusEvent,
+  isASRPartialEvent,
+  isASRFinalEvent,
+} from "./asr-events";
 
 // ─── Processing Job ───
 export {

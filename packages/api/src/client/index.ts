@@ -15,6 +15,15 @@ import type {
   CreateShareLinkRequest,
   CreateShareLinkResponse,
   GetSharedNoteResponse,
+  CreateMeetingSessionRequest,
+  MeetingSessionResponse,
+  MeetingSessionWithChunksResponse,
+  UpdateMeetingSessionRequest,
+  ConfirmConsentRequest,
+  SaveChunksRequest,
+  SaveChunksResponse,
+  GetChunksQuery,
+  GetChunksResponse,
   ApiErrorResponse,
 } from "../contracts";
 
@@ -47,6 +56,27 @@ export interface ApiClient {
   share: {
     createLink(body: CreateShareLinkRequest): Promise<CreateShareLinkResponse>;
     getShared(token: string): Promise<GetSharedNoteResponse>;
+  };
+  meetings: {
+    create(body: CreateMeetingSessionRequest): Promise<MeetingSessionResponse>;
+    get(sessionId: string): Promise<MeetingSessionWithChunksResponse>;
+    update(
+      sessionId: string,
+      body: UpdateMeetingSessionRequest,
+    ): Promise<MeetingSessionResponse>;
+    confirmConsent(
+      sessionId: string,
+      body: ConfirmConsentRequest,
+    ): Promise<MeetingSessionResponse>;
+    stop(sessionId: string): Promise<MeetingSessionResponse>;
+    saveChunks(
+      sessionId: string,
+      body: SaveChunksRequest,
+    ): Promise<SaveChunksResponse>;
+    getChunks(
+      sessionId: string,
+      query?: GetChunksQuery,
+    ): Promise<GetChunksResponse>;
   };
 }
 
@@ -161,6 +191,42 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
 
       getShared: (token) =>
         req<GetSharedNoteResponse>("GET", `/api/shared/${token}`),
+    },
+
+    meetings: {
+      create: (body) =>
+        req<MeetingSessionResponse>("POST", "/api/meetings", { body }),
+
+      get: (sessionId) =>
+        req<MeetingSessionWithChunksResponse>(
+          "GET",
+          `/api/meetings/${sessionId}`,
+        ),
+
+      update: (sessionId, body) =>
+        req<MeetingSessionResponse>("PATCH", `/api/meetings/${sessionId}`, {
+          body,
+        }),
+
+      confirmConsent: (sessionId, body) =>
+        req<MeetingSessionResponse>(
+          "POST",
+          `/api/meetings/${sessionId}/consent`,
+          { body },
+        ),
+
+      stop: (sessionId) =>
+        req<MeetingSessionResponse>("POST", `/api/meetings/${sessionId}/stop`),
+
+      saveChunks: (sessionId, body) =>
+        req<SaveChunksResponse>("POST", `/api/meetings/${sessionId}/chunks`, {
+          body,
+        }),
+
+      getChunks: (sessionId, query) =>
+        req<GetChunksResponse>("GET", `/api/meetings/${sessionId}/chunks`, {
+          params: query as unknown as Record<string, ParamValue>,
+        }),
     },
   };
 }

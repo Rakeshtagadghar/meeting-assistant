@@ -8,3 +8,7 @@ export { createProcessingJobsRepository } from "./processing-jobs.repo";
 export type { ProcessingJobsRepository } from "./processing-jobs.repo";
 export { createArtifactsRepository } from "./artifacts.repo";
 export type { ArtifactsRepository } from "./artifacts.repo";
+export { createMeetingSessionsRepository } from "./meeting-sessions.repo";
+export type { MeetingSessionsRepository } from "./meeting-sessions.repo";
+export { createTranscriptChunksRepository } from "./transcript-chunks.repo";
+export type { TranscriptChunksRepository } from "./transcript-chunks.repo";

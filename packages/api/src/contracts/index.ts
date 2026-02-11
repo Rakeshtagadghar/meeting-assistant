@@ -3,8 +3,13 @@ import type {
   AISummary,
   NoteProcessingJob,
   NoteArtifact,
+  MeetingSession,
+  TranscriptChunk,
   UUID,
   NoteType,
+  MeetingSessionSource,
+  MeetingSessionStatus,
+  MeetingPlatform,
   ShareVisibility,
   ProcessingJobKind,
   ProcessingJobStatus,
@@ -135,6 +140,61 @@ export interface StreamDoneEvent {
 
 export interface StreamErrorEvent {
   readonly message: string;
+}
+
+// ─── Meetings ───
+
+export interface CreateMeetingSessionRequest {
+  readonly noteId: UUID;
+  readonly source?: MeetingSessionSource;
+  readonly platform?: MeetingPlatform;
+  readonly title?: string;
+  readonly participants?: string[];
+}
+
+export interface MeetingSessionResponse {
+  readonly session: MeetingSession;
+}
+
+export interface MeetingSessionWithChunksResponse {
+  readonly session: MeetingSession;
+  readonly chunks: TranscriptChunk[];
+}
+
+export interface UpdateMeetingSessionRequest {
+  readonly status?: MeetingSessionStatus;
+  readonly title?: string;
+  readonly participants?: string[];
+}
+
+export interface ConfirmConsentRequest {
+  readonly consentText?: string | null;
+  readonly title?: string;
+  readonly participants?: string[];
+}
+
+export interface SaveChunksRequest {
+  readonly chunks: Array<{
+    readonly sequence: number;
+    readonly tStartMs: number;
+    readonly tEndMs: number;
+    readonly speaker: string | null;
+    readonly text: string;
+    readonly confidence: number | null;
+  }>;
+}
+
+export interface SaveChunksResponse {
+  readonly saved: number;
+}
+
+export interface GetChunksQuery {
+  readonly limit?: number;
+  readonly afterSequence?: number;
+}
+
+export interface GetChunksResponse {
+  readonly chunks: TranscriptChunk[];
 }
 
 // ─── Error ───

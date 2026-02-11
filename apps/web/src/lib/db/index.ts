@@ -5,6 +5,8 @@ export {
   createAISummariesRepository,
   createProcessingJobsRepository,
   createArtifactsRepository,
+  createMeetingSessionsRepository,
+  createTranscriptChunksRepository,
 } from "@ainotes/db";
 
 export type {
@@ -13,4 +15,6 @@ export type {
   AISummariesRepository,
   ProcessingJobsRepository,
   ArtifactsRepository,
+  MeetingSessionsRepository,
+  TranscriptChunksRepository,
 } from "@ainotes/db";

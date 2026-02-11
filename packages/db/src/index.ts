@@ -9,4 +9,8 @@ export { createProcessingJobsRepository } from "./repositories/processing-jobs.r
 export type { ProcessingJobsRepository } from "./repositories/processing-jobs.repo";
 export { createArtifactsRepository } from "./repositories/artifacts.repo";
 export type { ArtifactsRepository } from "./repositories/artifacts.repo";
+export { createMeetingSessionsRepository } from "./repositories/meeting-sessions.repo";
+export type { MeetingSessionsRepository } from "./repositories/meeting-sessions.repo";
+export { createTranscriptChunksRepository } from "./repositories/transcript-chunks.repo";
+export type { TranscriptChunksRepository } from "./repositories/transcript-chunks.repo";
 export type { PrismaClient } from "@prisma/client";

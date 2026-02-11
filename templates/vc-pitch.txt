@@ -1,0 +1,17 @@
+Meeting Context
+I am an investor meeting a startup to see if I should potentially invest
+Team
+Detail the background of the team members and their previous experience.
+
+Sections
+Problem
+This section is about what problem the startup is trying to solve. Who has this problem? How many people or businesses have this problem? Why is it a problem?
+
+Product
+What product is the startup building? How does the product work? How does it solve the user's problem? Any specific details about the product goes here.
+
+Go-to-market
+How will they sell the product? Have they started selling it yet? How are they reaching customers? How much will it cost? How will they get lots of customers
+
+Traction
+What has the startup achieved so far? How many users do they have? How much money are they making? What other progress or traction do they have?

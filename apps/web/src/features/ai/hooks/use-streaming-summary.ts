@@ -17,6 +17,8 @@ export interface UseStreamingSummaryResult {
   generatedTitle: string | null;
   generate: () => Promise<void>;
   cancel: () => void;
+  /** Reset streaming state back to idle (e.g. after SummaryPanel takes over) */
+  reset: () => void;
 }
 
 export function useStreamingSummary(noteId: string): UseStreamingSummaryResult {
@@ -132,5 +134,20 @@ export function useStreamingSummary(noteId: string): UseStreamingSummaryResult {
     }
   }, [noteId]);
 
-  return { streamedText, status, error, generatedTitle, generate, cancel };
+  const reset = useCallback(() => {
+    setStreamedText("");
+    setStatus("idle");
+    setError(null);
+    setGeneratedTitle(null);
+  }, []);
+
+  return {
+    streamedText,
+    status,
+    error,
+    generatedTitle,
+    generate,
+    cancel,
+    reset,
+  };
 }

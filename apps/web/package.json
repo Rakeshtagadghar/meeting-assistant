@@ -39,6 +39,7 @@
     "remark-parse": "^11.0.0",
     "remark-rehype": "^11.1.2",
     "streamdown": "^2.2.0",
+    "@huggingface/transformers": "^3.4.0",
     "unified": "^11.0.5"
   },
   "devDependencies": {

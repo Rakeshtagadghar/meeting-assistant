@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @source "../node_modules/streamdown/dist/*.js";
+@source "../node_modules/@ainotes/ui/src/**/*.tsx";
 
 @theme {
   /* Original warm colors */
@@ -33,6 +34,10 @@
   /* Badge colors */
   --color-badge-start: #a8edea;
   --color-badge-end: #fed6e3;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
@@ -105,6 +110,9 @@ body {
 
 /* Reduced motion support */
 @media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
   .btn-gradient-primary:hover,
   .glass-card:hover {
     transform: none;

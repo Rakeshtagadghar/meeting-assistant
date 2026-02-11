@@ -29,6 +29,7 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
     generatedTitle,
     generate: generateStream,
     cancel: cancelStream,
+    reset: resetStream,
   } = useStreamingSummary(noteId);
 
   // Update title when automatically generated
@@ -91,12 +92,12 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
     }
   }, [isListening, transcript, save, clearTranscript, content]);
 
-  // Refresh note data when streaming completes
+  // Refresh note data when streaming completes, then hide the streaming card
   useEffect(() => {
     if (streamingStatus === "done") {
-      void refetch();
+      void refetch().then(() => resetStream());
     }
-  }, [streamingStatus, refetch]);
+  }, [streamingStatus, refetch, resetStream]);
 
   const handleTitleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {

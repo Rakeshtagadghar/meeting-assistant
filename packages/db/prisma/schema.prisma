@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ─── Enums ───
@@ -24,6 +25,14 @@ enum MeetingSessionStatus {
   RECORDING
   PAUSED
   STOPPED
+}
+
+enum MeetingPlatform {
+  MANUAL
+  GOOGLE_MEET
+  MS_TEAMS
+  ZOOM
+  UNKNOWN
 }
 
 enum AISummaryKind {
@@ -169,6 +178,9 @@ model MeetingSession {
   userId           String               @map("user_id") @db.Uuid
   noteId           String               @map("note_id") @db.Uuid
   source           MeetingSessionSource @default(MANUAL)
+  platform         MeetingPlatform      @default(MANUAL)
+  title            String?
+  participants     String[]             @default([])
   startedAt        DateTime             @default(now()) @map("started_at")
   endedAt          DateTime?            @map("ended_at")
   consentConfirmed Boolean              @default(false) @map("consent_confirmed")
@@ -189,15 +201,18 @@ model MeetingSession {
 model TranscriptChunk {
   id               String   @id @default(uuid()) @db.Uuid
   meetingSessionId String   @map("meeting_session_id") @db.Uuid
+  sequence         Int      @default(0)
   tStartMs         Int      @map("t_start_ms")
   tEndMs           Int      @map("t_end_ms")
   speaker          String?
   text             String
+  confidence       Float?
   createdAt        DateTime @default(now()) @map("created_at")
 
   meetingSession MeetingSession @relation(fields: [meetingSessionId], references: [id], onDelete: Cascade)
 
   @@index([meetingSessionId])
+  @@index([meetingSessionId, sequence])
   @@index([meetingSessionId, tStartMs])
   @@map("transcript_chunks")
 }

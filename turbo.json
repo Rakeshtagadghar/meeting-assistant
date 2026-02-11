@@ -5,7 +5,12 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**", ".next/**", "!.next/cache/**"],
+      "outputs": [
+        "dist/**",
+        ".next/**",
+        "!.next/cache/**",
+        "src-tauri/target/release/bundle/**"
+      ],
       "env": ["NEXT_PUBLIC_*"]
     },
     "dev": {

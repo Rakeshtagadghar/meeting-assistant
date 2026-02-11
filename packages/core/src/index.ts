@@ -4,6 +4,7 @@ export {
   validateUpdateNoteInput,
   validateCreateShareLinkInput,
   validateCreateMeetingSessionInput,
+  validateCreateTranscriptChunkInput,
   validateCreateProcessingJobInput,
   validateCreateArtifactInput,
 } from "./validators";

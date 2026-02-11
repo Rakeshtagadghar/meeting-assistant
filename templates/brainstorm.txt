@@ -1,0 +1,14 @@
+Meeting context
+We're trying to solve a problem together. This discussion lets us share ideas and feedback on those ideas.
+The problem
+This section describes the problem we are trying to solve. What's the context and current state? What's been tried before?
+
+Sections
+Themes discussion
+This section describes the major themes explored in the brainstorm.
+
+Specific ideas
+This section lists the most important specific ideas or discussion points from the brainstorm
+
+Future directions
+This section is about what we should keep in mind as we move forward. Are there specific directions we decided to explore?

@@ -1,0 +1,466 @@
+{
+  "feature": {
+    "id": "ASR_LIVE_001",
+    "name": "Live Transcription (Local Whisper: Desktop + Web)",
+    "goal": "Provide real-time speech-to-text transcription fully inside the app (desktop: whisper.cpp, web: Whisper WASM), with meeting context, participant names (where possible), and explicit consent gating before capture.",
+    "scope": ["desktop_app", "web_app"],
+    "priority": "MVP+ (desktop first), web live transcription as MVP if performance allows",
+    "privacy_model": "audio_processed_locally_no_audio_upload_by_default"
+  },
+
+  "core_principles": [
+    "Model runs locally (no server inference by default)",
+    "Low-latency incremental transcript (streaming chunks)",
+    "Consent-first: never start capture without explicit confirmation",
+    "Separation of concerns: live transcript now, AI summary after stop/generate",
+    "Graceful degradation: if system audio capture is not possible, mic-only capture still works"
+  ],
+
+  "platform_asr": {
+    "desktop": {
+      "engine": "whisper.cpp",
+      "runtime": "Tauri (Rust shell) + native sidecar/binary",
+      "models": [
+        { "id": "tiny", "size": "smallest", "use": "fastest, low accuracy" },
+        { "id": "base", "size": "small", "use": "default for many laptops" },
+        { "id": "small", "size": "medium", "use": "better accuracy, slower" }
+      ],
+      "default_model": "base",
+      "model_storage": {
+        "location": "local_app_data",
+        "download_on_first_use": true,
+        "cache": true,
+        "checksums": true
+      },
+      "audio_capture": {
+        "mvp": {
+          "sources": ["microphone"],
+          "notes": "Mic-only is simplest cross-platform. System audio loopback is Phase 2."
+        },
+        "phase_2": {
+          "sources": ["microphone", "system_audio_loopback"],
+          "os_notes": {
+            "windows": "loopback capture + optional echo cancellation (beta warning UI)",
+            "macos": "system audio may require virtual device driver",
+            "linux": "PulseAudio/PipeWire loopback"
+          }
+        },
+        "format": {
+          "sample_rate_hz": 16000,
+          "channels": 1,
+          "pcm": "s16le",
+          "frame_ms": 20
+        }
+      },
+      "streaming": {
+        "chunking_strategy": "VAD + rolling window",
+        "vad": { "enabled": true, "silence_ms_to_finalize": 700 },
+        "windowing": {
+          "context_window_sec": 30,
+          "step_sec": 5,
+          "overlap_sec": 2
+        },
+        "latency_targets": {
+          "partial_text_ms": 800,
+          "final_chunk_ms": 2000
+        }
+      }
+    },
+
+    "web": {
+      "engine": "whisper-wasm (Whisper compiled to WebAssembly)",
+      "runtime": "Next.js web app",
+      "models": [
+        { "id": "tiny", "use": "recommended default for browser performance" },
+        { "id": "base", "use": "optional, higher CPU and memory" }
+      ],
+      "default_model": "tiny",
+      "model_delivery": {
+        "source": "static_assets_or_cdn",
+        "cache": "Cache Storage + IndexedDB",
+        "download_on_first_use": true,
+        "resume_download": true
+      },
+      "audio_capture": {
+        "sources": ["microphone"],
+        "browser_requirements": [
+          "HTTPS required",
+          "User gesture required to start microphone",
+          "Permission prompt handled gracefully"
+        ],
+        "format": {
+          "sample_rate_hz": 16000,
+          "channels": 1,
+          "pcm": "s16le_or_float32_then_convert"
+        }
+      },
+      "performance_constraints": {
+        "notes": [
+          "WASM transcription is CPU-heavy; use tiny model by default",
+          "Provide a 'Performance mode' toggle that reduces frequency/quality",
+          "Show device capability warning for low-end machines"
+        ],
+        "fallbacks": [
+          "If WASM model fails to load, disable live mode and offer manual notes only",
+          "Optional future: user opt-in cloud transcription"
+        ]
+      },
+      "streaming": {
+        "chunking_strategy": "VAD + small rolling windows",
+        "windowing": {
+          "context_window_sec": 20,
+          "step_sec": 4,
+          "overlap_sec": 1
+        },
+        "latency_targets": {
+          "partial_text_ms": 1200,
+          "final_chunk_ms": 3000
+        }
+      }
+    }
+  },
+
+  "meeting_context": {
+    "goal": "Attach transcript to a meeting note with optional participant list and meeting metadata.",
+    "meeting_sources": {
+      "mvp": [
+        {
+          "id": "manual",
+          "name": "Manual Meeting Mode",
+          "how": "User clicks 'Start meeting transcript' and optionally enters meeting title + participants"
+        }
+      ],
+      "phase_2": [
+        {
+          "id": "calendar_google",
+          "name": "Google Calendar Integration",
+          "how": "Auto-suggest meeting when event starts; prefill attendees"
+        },
+        {
+          "id": "calendar_microsoft",
+          "name": "Microsoft Calendar Integration",
+          "how": "Auto-suggest Teams meetings and attendees"
+        }
+      ],
+      "phase_3": [
+        {
+          "id": "meeting_platform_detection",
+          "name": "Meeting Platform Detection",
+          "how": "Detect active Google Meet / Teams / Zoom session and attempt to extract participant names where feasible"
+        }
+      ]
+    },
+    "participant_names": {
+      "mvp": {
+        "method": "user_entered",
+        "ui": [
+          "Add participants field (chips input)",
+          "Optional: paste attendee list"
+        ]
+      },
+      "future": {
+        "methods": [
+          {
+            "method": "calendar_attendees",
+            "source": "calendar_api",
+            "confidence": "high"
+          },
+          {
+            "method": "platform_ui_extraction",
+            "source": "desktop_accessibility_api_or_extension",
+            "confidence": "medium",
+            "notes": "Platform-dependent; must be opt-in and documented."
+          }
+        ],
+        "constraints": [
+          "Do not attempt invasive scraping by default",
+          "Respect OS and browser permission models",
+          "If unavailable, keep speakers as 'Speaker 1/2' (diarization optional)"
+        ]
+      }
+    }
+  },
+
+  "consent_gating": {
+    "goal": "Show a consent box when a meeting is about to start (or user starts meeting mode) and require explicit confirmation before transcription begins.",
+    "trigger_conditions": {
+      "desktop": [
+        "User clicks Start Meeting",
+        "Calendar event start time reached (phase 2)",
+        "Meeting platform detected active (phase 3)"
+      ],
+      "web": [
+        "User clicks Start Meeting",
+        "Calendar event start time reached (phase 2)"
+      ]
+    },
+    "ui": {
+      "component": "ConsentModal",
+      "required_fields": [
+        {
+          "id": "consent_checkbox",
+          "label": "I have informed participants and have consent to transcribe this meeting.",
+          "required": true
+        }
+      ],
+      "optional_fields": [
+        {
+          "id": "consent_message_generator",
+          "label": "Copy a consent message to meeting chat",
+          "enabled": true,
+          "template": "Hi all — I’m using {{product_name}} to transcribe and summarize this meeting for notes/action items. Please let me know if anyone objects."
+        },
+        {
+          "id": "meeting_title",
+          "label": "Meeting title",
+          "type": "text"
+        },
+        {
+          "id": "participants",
+          "label": "Participants (optional)",
+          "type": "chips_email_or_name"
+        }
+      ],
+      "actions": [
+        {
+          "label": "Start transcription",
+          "type": "primary",
+          "requires_valid": true
+        },
+        { "label": "Cancel", "type": "secondary" }
+      ],
+      "compliance_copy": {
+        "banner": "Always get consent when transcribing others.",
+        "learn_more_link": "/privacy"
+      }
+    },
+    "storage": {
+      "record_consent": true,
+      "fields": [
+        "timestamp",
+        "userId",
+        "noteId",
+        "meetingSessionId",
+        "consentTextOptional"
+      ]
+    }
+  },
+
+  "live_transcript_ui": {
+    "goal": "Provide a Quick Note style floating/inline transcript view with minimal distraction and clear state.",
+    "components": {
+      "desktop_quick_note_window": {
+        "always_on_top": true,
+        "states": ["idle", "listening", "paused", "processing", "completed"],
+        "header": [
+          "search_icon_optional",
+          "settings_icon",
+          "minimize",
+          "close"
+        ],
+        "banner": "Echo cancellation is in beta on Windows (if enabled)",
+        "body": {
+          "transcript_feed": {
+            "render_mode": "chat_bubbles_or_line_list",
+            "grouping": "by_pause_or_time",
+            "timestamps": "optional_toggle",
+            "speaker_labels": "best_effort"
+          }
+        },
+        "footer": [
+          "mic_level_indicator",
+          "pause_resume",
+          "stop",
+          "language_selector"
+        ]
+      },
+      "web_inline_panel": {
+        "placement": "right_panel_or_modal",
+        "states": ["idle", "listening", "paused", "processing", "completed"],
+        "controls": ["start", "pause_resume", "stop", "language_selector"]
+      }
+    }
+  },
+
+  "transcript_data_model": {
+    "entities": [
+      {
+        "name": "MeetingSession",
+        "fields": {
+          "id": "uuid",
+          "noteId": "uuid",
+          "userId": "uuid",
+          "platform": "enum:MANUAL|GOOGLE_MEET|MS_TEAMS|ZOOM|UNKNOWN",
+          "title": "string",
+          "participants": "string[]",
+          "startedAt": "datetime",
+          "endedAt": "datetime|null",
+          "consentConfirmed": "boolean",
+          "status": "enum:IDLE|RECORDING|PAUSED|STOPPED"
+        }
+      },
+      {
+        "name": "TranscriptChunk",
+        "fields": {
+          "id": "uuid",
+          "meetingSessionId": "uuid",
+          "sequence": "int",
+          "tStartMs": "int",
+          "tEndMs": "int",
+          "speaker": "string|null",
+          "text": "string",
+          "confidence": "0..1|null",
+          "createdAt": "datetime"
+        }
+      }
+    ]
+  },
+
+  "transport_and_events": {
+    "goal": "Keep audio local but allow UI to receive chunk updates in real-time.",
+    "desktop_event_bus": {
+      "method": "tauri_event_or_local_ws",
+      "events": [
+        {
+          "type": "ASR_STATUS",
+          "payload": { "state": "string", "message": "string" }
+        },
+        {
+          "type": "ASR_PARTIAL",
+          "payload": { "text": "string", "tStartMs": "int" }
+        },
+        {
+          "type": "ASR_FINAL",
+          "payload": { "text": "string", "tStartMs": "int", "tEndMs": "int" }
+        }
+      ]
+    },
+    "web_event_bus": {
+      "method": "in_app_state_stream",
+      "events": [
+        { "type": "ASR_STATUS", "payload": { "state": "string" } },
+        { "type": "ASR_PARTIAL", "payload": { "text": "string" } },
+        {
+          "type": "ASR_FINAL",
+          "payload": { "text": "string", "tStartMs": "int", "tEndMs": "int" }
+        }
+      ]
+    },
+    "persistence": {
+      "mvp": "persist finalized chunks to DB; keep partial text in memory only",
+      "offline": "desktop caches chunks locally and syncs when online"
+    }
+  },
+
+  "languages_and_settings": {
+    "language_selector": {
+      "enabled": true,
+      "modes": ["auto_detect", "fixed_language"],
+      "default": "auto_detect"
+    },
+    "user_settings": [
+      { "key": "preferred_asr_model_desktop", "default": "base" },
+      { "key": "preferred_asr_model_web", "default": "tiny" },
+      { "key": "echo_cancellation_windows", "default": false },
+      { "key": "show_timestamps", "default": false }
+    ]
+  },
+
+  "tdd_test_suite": {
+    "unit_tests": [
+      {
+        "id": "ASR_UT_001",
+        "name": "Chunk ordering and merge",
+        "assert": [
+          "chunks appended in sequence order",
+          "no overlap corruption",
+          "final transcript equals concatenated finals"
+        ]
+      },
+      {
+        "id": "CONSENT_UT_001",
+        "name": "Consent required before start",
+        "assert": [
+          "start blocked when checkbox false",
+          "consent record created when start succeeds"
+        ]
+      }
+    ],
+    "component_tests": [
+      {
+        "id": "UI_CT_001",
+        "name": "Quick Note window state transitions",
+        "assert": [
+          "idle->listening",
+          "listening->paused",
+          "paused->listening",
+          "listening->processing->completed"
+        ]
+      },
+      {
+        "id": "UI_CT_002",
+        "name": "Live transcript renders partial then final",
+        "assert": [
+          "partial replaces/updates",
+          "final is committed as a new bubble/line"
+        ]
+      }
+    ],
+    "integration_tests": [
+      {
+        "id": "DESK_IT_001",
+        "name": "Desktop whisper pipeline emits transcript chunks",
+        "approach": "feed known audio sample, assert final text contains expected phrases"
+      },
+      {
+        "id": "WEB_IT_001",
+        "name": "Web whisper-wasm loads model and transcribes short sample",
+        "approach": "load tiny model, feed audio buffer, assert output non-empty"
+      }
+    ],
+    "e2e_tests": [
+      {
+        "id": "E2E_ASR_001",
+        "name": "Meeting start triggers consent then live transcript",
+        "steps": [
+          "Start meeting mode",
+          "Consent modal appears",
+          "Confirm consent",
+          "See live transcript appear",
+          "Stop meeting",
+          "Transcript saved into meeting note"
+        ]
+      }
+    ]
+  },
+
+  "acceptance_criteria": [
+    "Desktop: whisper.cpp live transcription works locally with mic input",
+    "Web: whisper-wasm live transcription works locally with mic input (tiny model default)",
+    "Consent modal always blocks transcription until confirmed",
+    "Transcript is shown live with partial updates and finalized chunks",
+    "Meeting session stores title + participants (manual for MVP, calendar later)",
+    "After stop, transcript is persisted and ready for AI post-processing (Generate)"
+  ],
+
+  "phased_roadmap": {
+    "mvp": [
+      "Desktop mic-only whisper.cpp live transcription",
+      "Web mic-only whisper-wasm live transcription (tiny)",
+      "Manual meeting title + participants input",
+      "Consent modal gating",
+      "Persist finalized transcript chunks"
+    ],
+    "phase_2": [
+      "Google Calendar integration to prefill attendees and auto-trigger consent prompt",
+      "Microsoft Calendar integration",
+      "System audio loopback capture (desktop)",
+      "Improved diarization / speaker labels (best effort)"
+    ],
+    "phase_3": [
+      "Meeting platform detection (Meet/Teams/Zoom) to suggest meeting context",
+      "Optional participant list extraction where permitted",
+      "Advanced noise suppression + echo cancellation tuning"
+    ]
+  }
+}

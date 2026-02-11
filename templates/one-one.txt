@@ -1,0 +1,18 @@
+Meeting context
+I am having a 1:1 meeting with someone in my team, please capture these meeting notes in a concise and actionable format. Focus on immediate priorities, progress, challenges, and personal feedback, ensuring the notes are structured for clarity, efficiency and easy follow-up.
+
+Sections
+Top of mind
+What's the most pressing issue or priority? Capture the top concerns or focus areas that need immediate attention.
+
+Updates and wins
+Highlight recent achievements and progress. What's going well? Document key updates that show momentum.
+
+Challenges and blockers
+What obstacles are in the way? Note any blockers that are slowing progress.
+
+Mutual feedback
+Did they give me any feedback on what I could do differently? Is there anything I should change about our team to make us more successful? Did I share any feedback for them? List it all here.
+
+Next Milestone
+Define clear action items and next steps. Who's doing what by when? Ensure accountability and follow-up.

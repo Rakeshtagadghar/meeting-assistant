@@ -5,6 +5,7 @@ import type {
   ISODateString,
   CreateMeetingSessionInput,
 } from "./types";
+import { MeetingPlatform } from "./types";
 
 type TransitionResult =
   | { readonly ok: true; readonly session: MeetingSession }
@@ -44,12 +45,42 @@ export function createMeetingSession(
     userId: input.userId,
     noteId: input.noteId,
     source: input.source,
+    platform: input.platform ?? MeetingPlatform.MANUAL,
+    title: input.title ?? null,
+    participants: input.participants ?? [],
     startedAt: now,
     endedAt: null,
     consentConfirmed: false,
     consentText: null,
     audioStored: false,
     status: "IDLE",
+  };
+}
+
+export function confirmConsent(
+  session: MeetingSession,
+  consentText: string | null,
+  title?: string,
+  participants?: readonly string[],
+): MeetingSession {
+  return {
+    ...session,
+    consentConfirmed: true,
+    consentText: consentText ?? "User consented to recording.",
+    title: title ?? session.title,
+    participants: participants ?? session.participants,
+  };
+}
+
+export function updateMeetingContext(
+  session: MeetingSession,
+  title?: string,
+  participants?: readonly string[],
+): MeetingSession {
+  return {
+    ...session,
+    title: title ?? session.title,
+    participants: participants ?? session.participants,
   };
 }
 

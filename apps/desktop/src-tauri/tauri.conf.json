@@ -4,21 +4,40 @@
   "version": "0.1.0",
   "identifier": "com.ainotes.desktop",
   "build": {
-    "frontendDist": "../../web/out",
+    "frontendDist": "http://localhost:3000",
     "devUrl": "http://localhost:3000",
     "beforeDevCommand": "echo 'Run web dev manually'",
     "beforeBuildCommand": "echo 'Run web build manually'"
   },
+  "plugins": {
+    "shell": {
+      "open": false
+    }
+  },
   "app": {
     "windows": [
       {
-        "title": "AI Notes - Quick",
+        "label": "main",
+        "title": "AINotes",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 900,
+        "minHeight": 600,
+        "resizable": true,
+        "fullscreen": false,
+        "center": true,
+        "url": "/"
+      },
+      {
+        "label": "quick-note",
+        "title": "AINotes - Quick Note",
         "width": 400,
         "height": 600,
         "resizable": true,
         "fullscreen": false,
         "url": "/quick-note",
-        "alwaysOnTop": true
+        "alwaysOnTop": true,
+        "visible": false
       }
     ],
     "security": {

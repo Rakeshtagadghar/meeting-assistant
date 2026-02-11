@@ -7,6 +7,7 @@ import { useSession, signOut } from "next-auth/react";
 
 const NAV_ITEMS = [
   { href: "/notes", label: "My notes", icon: NotesIcon },
+  { href: "/quick-note", label: "Start Meeting", icon: MicIcon },
   { href: "/settings", label: "Settings", icon: SettingsIcon },
 ] as const;
 
@@ -194,6 +195,25 @@ function SettingsIcon({ active }: { active?: boolean }) {
         strokeLinecap="round"
         strokeLinejoin="round"
         d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
+      />
+    </svg>
+  );
+}
+
+function MicIcon({ active }: { active?: boolean }) {
+  return (
+    <svg
+      className={`h-5 w-5 ${active ? "text-white" : "text-text-muted"}`}
+      fill="none"
+      viewBox="0 0 24 24"
+      strokeWidth={1.5}
+      stroke="currentColor"
+      aria-hidden="true"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z"
       />
     </svg>
   );

@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import type { MeetingSession, UUID, ISODateString } from "./types";
 import {
   createMeetingSession,
+  confirmConsent,
+  updateMeetingContext,
   startRecording,
   pauseRecording,
   stopRecording,
@@ -17,6 +19,9 @@ function makeSession(overrides?: Partial<MeetingSession>): MeetingSession {
     userId: "user-0000-0000-0000-000000000001" as UUID,
     noteId: "note-0000-0000-0000-000000000001" as UUID,
     source: "MANUAL",
+    platform: "MANUAL",
+    title: null,
+    participants: [],
     startedAt: "2025-06-15T12:00:00.000Z" as ISODateString,
     endedAt: null,
     consentConfirmed: false,
@@ -80,6 +85,41 @@ describe("createMeetingSession", () => {
     );
 
     expect(session.startedAt).toBe(NOW);
+  });
+
+  it("defaults platform to MANUAL when not provided", () => {
+    const session = createMeetingSession(
+      {
+        noteId: "note-0000-0000-0000-000000000001" as UUID,
+        userId: "user-0000-0000-0000-000000000001" as UUID,
+        source: "MANUAL",
+      },
+      "sess-0000-0000-0000-000000000001" as UUID,
+      NOW,
+    );
+
+    expect(session.platform).toBe("MANUAL");
+    expect(session.title).toBeNull();
+    expect(session.participants).toEqual([]);
+  });
+
+  it("uses provided platform, title, and participants", () => {
+    const session = createMeetingSession(
+      {
+        noteId: "note-0000-0000-0000-000000000001" as UUID,
+        userId: "user-0000-0000-0000-000000000001" as UUID,
+        source: "MANUAL",
+        platform: "GOOGLE_MEET",
+        title: "Sprint Planning",
+        participants: ["Alice", "Bob"],
+      },
+      "sess-0000-0000-0000-000000000001" as UUID,
+      NOW,
+    );
+
+    expect(session.platform).toBe("GOOGLE_MEET");
+    expect(session.title).toBe("Sprint Planning");
+    expect(session.participants).toEqual(["Alice", "Bob"]);
   });
 });
 
@@ -307,6 +347,106 @@ describe("isValidTransition", () => {
     expect(isValidTransition("RECORDING", "RECORDING")).toBe(false);
     expect(isValidTransition("PAUSED", "PAUSED")).toBe(false);
     expect(isValidTransition("STOPPED", "STOPPED")).toBe(false);
+  });
+});
+
+// ─── confirmConsent ───
+
+describe("confirmConsent", () => {
+  it("sets consentConfirmed to true and stores consent text", () => {
+    const session = makeSession();
+    const result = confirmConsent(session, "I agree to recording");
+
+    expect(result.consentConfirmed).toBe(true);
+    expect(result.consentText).toBe("I agree to recording");
+  });
+
+  it("uses default consent text when null is provided", () => {
+    const session = makeSession();
+    const result = confirmConsent(session, null);
+
+    expect(result.consentConfirmed).toBe(true);
+    expect(result.consentText).toBe("User consented to recording.");
+  });
+
+  it("optionally updates title and participants", () => {
+    const session = makeSession();
+    const result = confirmConsent(session, "I agree", "Sprint Retro", [
+      "Alice",
+      "Bob",
+    ]);
+
+    expect(result.title).toBe("Sprint Retro");
+    expect(result.participants).toEqual(["Alice", "Bob"]);
+  });
+
+  it("preserves existing title/participants when not provided", () => {
+    const session = makeSession({
+      title: "Existing Title",
+      participants: ["Charlie"],
+    });
+    const result = confirmConsent(session, "I agree");
+
+    expect(result.title).toBe("Existing Title");
+    expect(result.participants).toEqual(["Charlie"]);
+  });
+
+  it("does not mutate the original session", () => {
+    const session = makeSession();
+    confirmConsent(session, "I agree");
+
+    expect(session.consentConfirmed).toBe(false);
+    expect(session.consentText).toBeNull();
+  });
+
+  it("allows startRecording after confirmConsent", () => {
+    const session = makeSession({ status: "IDLE" });
+    const consented = confirmConsent(session, "I agree");
+    const result = startRecording(consented, NOW);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.session.status).toBe("RECORDING");
+    }
+  });
+});
+
+// ─── updateMeetingContext ───
+
+describe("updateMeetingContext", () => {
+  it("updates title when provided", () => {
+    const session = makeSession({ title: "Old Title" });
+    const result = updateMeetingContext(session, "New Title");
+
+    expect(result.title).toBe("New Title");
+  });
+
+  it("updates participants when provided", () => {
+    const session = makeSession({ participants: ["Alice"] });
+    const result = updateMeetingContext(session, undefined, ["Alice", "Bob"]);
+
+    expect(result.participants).toEqual(["Alice", "Bob"]);
+  });
+
+  it("preserves title when not provided", () => {
+    const session = makeSession({ title: "Keep This" });
+    const result = updateMeetingContext(session, undefined, ["Bob"]);
+
+    expect(result.title).toBe("Keep This");
+  });
+
+  it("preserves participants when not provided", () => {
+    const session = makeSession({ participants: ["Alice"] });
+    const result = updateMeetingContext(session, "New Title");
+
+    expect(result.participants).toEqual(["Alice"]);
+  });
+
+  it("does not mutate the original session", () => {
+    const session = makeSession({ title: "Original" });
+    updateMeetingContext(session, "Changed");
+
+    expect(session.title).toBe("Original");
   });
 });
 

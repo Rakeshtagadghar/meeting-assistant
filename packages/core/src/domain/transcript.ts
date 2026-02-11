@@ -1,9 +1,39 @@
-import type { TranscriptChunk } from "./types";
+import type {
+  TranscriptChunk,
+  CreateTranscriptChunkInput,
+  UUID,
+  ISODateString,
+} from "./types";
+
+export function createTranscriptChunk(
+  input: CreateTranscriptChunkInput,
+  id: UUID,
+  now: ISODateString,
+): TranscriptChunk {
+  if (!isValidChunkTiming(input.tStartMs, input.tEndMs)) {
+    throw new Error("Invalid chunk timing");
+  }
+  if (!Number.isInteger(input.sequence) || input.sequence < 0) {
+    throw new Error("sequence must be a non-negative integer");
+  }
+  return {
+    id,
+    meetingSessionId: input.meetingSessionId,
+    sequence: input.sequence,
+    tStartMs: input.tStartMs,
+    tEndMs: input.tEndMs,
+    speaker: input.speaker,
+    text: input.text,
+    confidence: input.confidence,
+    createdAt: now,
+  };
+}
 
 export function sortChunks(
   chunks: readonly TranscriptChunk[],
 ): TranscriptChunk[] {
   return [...chunks].sort((a, b) => {
+    if (a.sequence !== b.sequence) return a.sequence - b.sequence;
     if (a.tStartMs !== b.tStartMs) return a.tStartMs - b.tStartMs;
     return a.tEndMs - b.tEndMs;
   });

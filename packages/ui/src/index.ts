@@ -27,3 +27,6 @@ export type { SpinnerProps, SpinnerSize } from "./Spinner";
 
 export { Dropdown } from "./Dropdown";
 export type { DropdownProps, DropdownItem } from "./Dropdown";
+
+export { ConsentModal } from "./ConsentModal";
+export type { ConsentModalProps, ConsentFormData } from "./ConsentModal";

@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { TranscriptChunk, UUID, ISODateString } from "./types";
 import {
+  createTranscriptChunk,
   sortChunks,
   mergeAdjacentChunks,
   buildTranscriptText,
@@ -16,14 +17,121 @@ function makeChunk(overrides: Partial<TranscriptChunk> = {}): TranscriptChunk {
   return {
     id: `chunk-${String(counter)}` as UUID,
     meetingSessionId: "session-1" as UUID,
+    sequence: 0,
     tStartMs: 0,
     tEndMs: 1000,
     speaker: "Alice",
     text: `chunk text ${String(counter)}`,
+    confidence: null,
     createdAt: "2025-01-01T00:00:00Z" as ISODateString,
     ...overrides,
   };
 }
+
+const NOW = "2025-06-15T12:00:00.000Z" as ISODateString;
+
+// ─── createTranscriptChunk ───
+
+describe("createTranscriptChunk", () => {
+  it("creates a chunk with all fields", () => {
+    const chunk = createTranscriptChunk(
+      {
+        meetingSessionId: "session-1" as UUID,
+        sequence: 0,
+        tStartMs: 0,
+        tEndMs: 1000,
+        speaker: "Alice",
+        text: "Hello",
+        confidence: 0.95,
+      },
+      "chunk-id" as UUID,
+      NOW,
+    );
+
+    expect(chunk.id).toBe("chunk-id");
+    expect(chunk.meetingSessionId).toBe("session-1");
+    expect(chunk.sequence).toBe(0);
+    expect(chunk.tStartMs).toBe(0);
+    expect(chunk.tEndMs).toBe(1000);
+    expect(chunk.speaker).toBe("Alice");
+    expect(chunk.text).toBe("Hello");
+    expect(chunk.confidence).toBe(0.95);
+    expect(chunk.createdAt).toBe(NOW);
+  });
+
+  it("allows null speaker and null confidence", () => {
+    const chunk = createTranscriptChunk(
+      {
+        meetingSessionId: "session-1" as UUID,
+        sequence: 1,
+        tStartMs: 1000,
+        tEndMs: 2000,
+        speaker: null,
+        text: "Some text",
+        confidence: null,
+      },
+      "chunk-id-2" as UUID,
+      NOW,
+    );
+
+    expect(chunk.speaker).toBeNull();
+    expect(chunk.confidence).toBeNull();
+  });
+
+  it("throws on invalid timing", () => {
+    expect(() =>
+      createTranscriptChunk(
+        {
+          meetingSessionId: "session-1" as UUID,
+          sequence: 0,
+          tStartMs: 1000,
+          tEndMs: 500,
+          speaker: null,
+          text: "Bad timing",
+          confidence: null,
+        },
+        "chunk-id" as UUID,
+        NOW,
+      ),
+    ).toThrow("Invalid chunk timing");
+  });
+
+  it("throws on negative sequence", () => {
+    expect(() =>
+      createTranscriptChunk(
+        {
+          meetingSessionId: "session-1" as UUID,
+          sequence: -1,
+          tStartMs: 0,
+          tEndMs: 1000,
+          speaker: null,
+          text: "Negative seq",
+          confidence: null,
+        },
+        "chunk-id" as UUID,
+        NOW,
+      ),
+    ).toThrow("sequence must be a non-negative integer");
+  });
+
+  it("throws on non-integer sequence", () => {
+    expect(() =>
+      createTranscriptChunk(
+        {
+          meetingSessionId: "session-1" as UUID,
+          sequence: 1.5,
+          tStartMs: 0,
+          tEndMs: 1000,
+          speaker: null,
+          text: "Float seq",
+          confidence: null,
+        },
+        "chunk-id" as UUID,
+        NOW,
+      ),
+    ).toThrow("sequence must be a non-negative integer");
+  });
+});
 
 // ─── sortChunks ───
 
@@ -62,6 +170,24 @@ describe("sortChunks", () => {
   it("handles single-element array", () => {
     const c1 = makeChunk({ tStartMs: 5000, tEndMs: 6000 });
     expect(sortChunks([c1])).toEqual([c1]);
+  });
+
+  it("sorts by sequence as primary key", () => {
+    const c1 = makeChunk({ sequence: 3, tStartMs: 0, tEndMs: 1000 });
+    const c2 = makeChunk({ sequence: 1, tStartMs: 2000, tEndMs: 3000 });
+    const c3 = makeChunk({ sequence: 2, tStartMs: 1000, tEndMs: 2000 });
+
+    const sorted = sortChunks([c1, c2, c3]);
+    expect(sorted.map((c) => c.sequence)).toEqual([1, 2, 3]);
+  });
+
+  it("uses tStartMs as tiebreaker when sequence is equal", () => {
+    const c1 = makeChunk({ sequence: 1, tStartMs: 3000, tEndMs: 4000 });
+    const c2 = makeChunk({ sequence: 1, tStartMs: 1000, tEndMs: 2000 });
+
+    const sorted = sortChunks([c1, c2]);
+    expect(sorted[0]!.tStartMs).toBe(1000);
+    expect(sorted[1]!.tStartMs).toBe(3000);
   });
 });
 

@@ -30,6 +30,16 @@ export const MeetingSessionSource = {
 export type MeetingSessionSource =
   (typeof MeetingSessionSource)[keyof typeof MeetingSessionSource];
 
+export const MeetingPlatform = {
+  MANUAL: "MANUAL",
+  GOOGLE_MEET: "GOOGLE_MEET",
+  MS_TEAMS: "MS_TEAMS",
+  ZOOM: "ZOOM",
+  UNKNOWN: "UNKNOWN",
+} as const;
+export type MeetingPlatform =
+  (typeof MeetingPlatform)[keyof typeof MeetingPlatform];
+
 export const MeetingSessionStatus = {
   IDLE: "IDLE",
   RECORDING: "RECORDING",
@@ -127,6 +137,9 @@ export interface MeetingSession {
   readonly userId: UUID;
   readonly noteId: UUID;
   readonly source: MeetingSessionSource;
+  readonly platform: MeetingPlatform;
+  readonly title: string | null;
+  readonly participants: readonly string[];
   readonly startedAt: ISODateString;
   readonly endedAt: ISODateString | null;
   readonly consentConfirmed: boolean;
@@ -140,10 +153,12 @@ export interface MeetingSession {
 export interface TranscriptChunk {
   readonly id: UUID;
   readonly meetingSessionId: UUID;
+  readonly sequence: number;
   readonly tStartMs: number;
   readonly tEndMs: number;
   readonly speaker: string | null;
   readonly text: string;
+  readonly confidence: number | null;
   readonly createdAt: ISODateString;
 }
 
@@ -272,6 +287,19 @@ export interface CreateMeetingSessionInput {
   readonly noteId: UUID;
   readonly userId: UUID;
   readonly source: MeetingSessionSource;
+  readonly platform?: MeetingPlatform;
+  readonly title?: string;
+  readonly participants?: readonly string[];
+}
+
+export interface CreateTranscriptChunkInput {
+  readonly meetingSessionId: UUID;
+  readonly sequence: number;
+  readonly tStartMs: number;
+  readonly tEndMs: number;
+  readonly speaker: string | null;
+  readonly text: string;
+  readonly confidence: number | null;
 }
 
 export interface CreateProcessingJobInput {
