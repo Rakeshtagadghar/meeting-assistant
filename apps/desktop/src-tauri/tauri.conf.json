@@ -1,10 +1,10 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "AI Notes",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "identifier": "com.ainotes.desktop",
   "build": {
-    "frontendDist": "http://localhost:3000",
+    "frontendDist": "https://meeting-assistant-web.vercel.app",
     "devUrl": "http://localhost:3000",
     "beforeDevCommand": "echo 'Run web dev manually'",
     "beforeBuildCommand": "echo 'Run web build manually'"
@@ -47,6 +47,8 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "externalBin": ["binaries/whisper"],
+    "resources": ["models/*"],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

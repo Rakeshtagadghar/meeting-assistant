@@ -11,6 +11,7 @@
     "clean": "rm -rf dist coverage .turbo",
     "tauri": "tauri",
     "dev": "tauri dev",
+    "prebuild": "node scripts/download-model.mjs",
     "build": "tauri build"
   },
   "dependencies": {

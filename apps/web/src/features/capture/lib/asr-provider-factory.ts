@@ -15,9 +15,13 @@ export type ASRProviderType = "whisper-wasm" | "web-speech" | "desktop";
 
 /**
  * Detect if we're running inside Tauri desktop app.
+ * Tauri v1 injects __TAURI__, Tauri v2 injects __TAURI_INTERNALS__.
  */
 function isTauriDesktop(): boolean {
-  return typeof globalThis !== "undefined" && "__TAURI__" in globalThis;
+  return (
+    typeof globalThis !== "undefined" &&
+    ("__TAURI__" in globalThis || "__TAURI_INTERNALS__" in globalThis)
+  );
 }
 
 /**

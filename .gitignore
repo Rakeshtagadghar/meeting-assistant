@@ -39,3 +39,8 @@ blob-report/
 npm-debug.log*
 pnpm-debug.log*
 nul
+
+# Desktop sidecar binaries and models (too large for git)
+# apps/desktop/src-tauri/binaries/ (committed - needed for Tauri build)
+apps/desktop/src-tauri/models/
+apps/desktop/src-tauri/target/

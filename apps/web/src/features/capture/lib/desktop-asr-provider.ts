@@ -33,15 +33,24 @@ export class DesktopASRProvider implements ASRProvider {
     modelId: string,
     onProgress?: (pct: number) => void,
   ): Promise<void> {
-    // In a full implementation, this would:
-    // 1. Check if the model exists in app data dir
-    // 2. Download if not present (with progress)
-    // For now, assume the model is pre-placed
-    const { appDataDir } = await import(
-      /* webpackIgnore: true */ "@tauri-apps/api/path"
-    );
-    const dataDir = await appDataDir();
-    this.modelPath = `${dataDir}/models/ggml-${modelId}.bin`;
+    // Desktop whisper.cpp doesn't need to download a model in the browser.
+    // The model is managed by the Tauri sidecar / local filesystem.
+    // We try to resolve the model path if @tauri-apps/api is available,
+    // but it's not critical — the sidecar handles model resolution.
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const pathApi: any = await import("@tauri-apps/api/path");
+      const resDir: string = await pathApi.resourceDir();
+      this.modelPath = await pathApi.join(
+        resDir,
+        "models",
+        `ggml-${modelId}.bin`,
+      );
+    } catch {
+      // @tauri-apps/api not available or not in Tauri context;
+      // sidecar will use its own default model path
+      this.modelPath = `models/ggml-${modelId}.bin`;
+    }
 
     onProgress?.(100);
     this.ready = true;
@@ -59,17 +68,17 @@ export class DesktopASRProvider implements ASRProvider {
 
   async startListening(options: ASROptions): Promise<void> {
     // Subscribe to Tauri events
-    const { listen } = (await import(
-      /* webpackIgnore: true */ "@tauri-apps/api/event"
-    )) as { listen: TauriListen };
+    const { listen } = (await import("@tauri-apps/api/event")) as {
+      listen: TauriListen;
+    };
     this.unlistenFn = (await listen("asr-event", (event) => {
       this.emit(event.payload);
     })) as unknown as () => void;
 
     // Invoke the start command
-    const { invoke } = (await import(
-      /* webpackIgnore: true */ "@tauri-apps/api/core"
-    )) as { invoke: TauriInvoke };
+    const { invoke } = (await import("@tauri-apps/api/core")) as {
+      invoke: TauriInvoke;
+    };
     await invoke("start_transcription", {
       modelPath: this.modelPath,
       language: options.language,
@@ -77,24 +86,24 @@ export class DesktopASRProvider implements ASRProvider {
   }
 
   async stopListening(): Promise<void> {
-    const { invoke } = (await import(
-      /* webpackIgnore: true */ "@tauri-apps/api/core"
-    )) as { invoke: TauriInvoke };
+    const { invoke } = (await import("@tauri-apps/api/core")) as {
+      invoke: TauriInvoke;
+    };
     await invoke("stop_transcription");
     this.cleanup();
   }
 
   async pauseListening(): Promise<void> {
-    const { invoke } = (await import(
-      /* webpackIgnore: true */ "@tauri-apps/api/core"
-    )) as { invoke: TauriInvoke };
+    const { invoke } = (await import("@tauri-apps/api/core")) as {
+      invoke: TauriInvoke;
+    };
     await invoke("pause_transcription");
   }
 
   async resumeListening(): Promise<void> {
-    const { invoke } = (await import(
-      /* webpackIgnore: true */ "@tauri-apps/api/core"
-    )) as { invoke: TauriInvoke };
+    const { invoke } = (await import("@tauri-apps/api/core")) as {
+      invoke: TauriInvoke;
+    };
     await invoke("resume_transcription");
   }
 

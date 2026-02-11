@@ -69,14 +69,15 @@ export default function QuickNotePage() {
   }, [finalChunks, searchQuery]);
 
   const isDesktop =
-    typeof globalThis !== "undefined" && "__TAURI__" in globalThis;
+    typeof globalThis !== "undefined" &&
+    ("__TAURI__" in globalThis || "__TAURI_INTERNALS__" in globalThis);
   const isWindows =
     typeof navigator !== "undefined" && navigator.userAgent.includes("Windows");
 
   const providerLabel: Record<string, string> = {
     "web-speech-api": "Web Speech API",
     "whisper-wasm": "Whisper WASM",
-    "desktop-whisper": "Whisper Desktop",
+    "whisper-cpp": "Whisper CPP",
   };
 
   // Speaker color palette for visual differentiation

@@ -31,7 +31,7 @@ async function load(modelId: string) {
     message: "Loading model...",
   });
 
-  const modelName = MODEL_MAP[modelId] ?? MODEL_MAP["tiny"]!;
+  const modelName = MODEL_MAP[modelId] ?? MODEL_MAP["base"]!;
 
   // Detect WebGPU support
   const gpu = "gpu" in navigator ? (navigator as { gpu?: unknown }).gpu : null;
@@ -135,7 +135,7 @@ self.addEventListener("message", (e: MessageEvent) => {
 
   switch (type) {
     case "load":
-      void load(data.modelId ?? "tiny");
+      void load(data.modelId ?? "base");
       break;
     case "transcribe":
       if (data.audio) {

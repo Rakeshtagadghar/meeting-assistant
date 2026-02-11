@@ -296,7 +296,10 @@ export function useTranscriptSession(
 
         if (!provider.isReady()) {
           setModelLoadProgress(0);
-          await provider.initialize("tiny", (pct) => {
+          // Desktop whisper.cpp uses "small" for better accuracy;
+          // Web WASM uses "base" to keep download size reasonable
+          const modelId = provider.name === "whisper-cpp" ? "small" : "base";
+          await provider.initialize(modelId, (pct) => {
             setModelLoadProgress(pct);
           });
           setModelLoadProgress(null);

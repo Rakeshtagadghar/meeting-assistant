@@ -36,12 +36,37 @@ impl AudioCapture {
             .default_input_device()
             .ok_or("No input device available")?;
 
-        let config = cpal::StreamConfig {
+        // Try 16kHz mono first; fall back to device default config
+        let desired_config = cpal::StreamConfig {
             channels: 1,
             sample_rate: cpal::SampleRate(16000),
             buffer_size: cpal::BufferSize::Default,
         };
 
+        let (config, needs_resample) =
+            match device.build_input_stream(
+                &desired_config,
+                |_data: &[f32], _: &cpal::InputCallbackInfo| {},
+                |_| {},
+                None,
+            ) {
+                Ok(_test_stream) => {
+                    // 16kHz is supported; drop the test stream and use it
+                    drop(_test_stream);
+                    (desired_config, false)
+                }
+                Err(_) => {
+                    // Fall back to device's default config (keep native channels)
+                    let default_cfg = device
+                        .default_input_config()
+                        .map_err(|e| format!("No default input config: {}", e))?;
+                    let cfg: cpal::StreamConfig = default_cfg.into();
+                    (cfg, true)
+                }
+            };
+
+        let device_sample_rate = config.sample_rate.0;
+        let device_channels = config.channels as usize;
         let buffer = self.buffer.clone();
         let level = self.level.clone();
 
@@ -49,15 +74,38 @@ impl AudioCapture {
             .build_input_stream(
                 &config,
                 move |data: &[f32], _: &cpal::InputCallbackInfo| {
+                    // Mix down to mono if multi-channel
+                    let mono: Vec<f32> = if device_channels > 1 {
+                        data.chunks(device_channels)
+                            .map(|frame| frame.iter().sum::<f32>() / device_channels as f32)
+                            .collect()
+                    } else {
+                        data.to_vec()
+                    };
+
+                    // Calculate RMS level
+                    let sum_sq: f32 = mono.iter().map(|s| s * s).sum();
+                    let rms = (sum_sq / mono.len() as f32).sqrt();
+
+                    // Downsample to 16kHz if needed (simple decimation)
+                    let resampled: Vec<f32> = if needs_resample && device_sample_rate != 16000 {
+                        let ratio = device_sample_rate as f64 / 16000.0;
+                        let out_len = (mono.len() as f64 / ratio).ceil() as usize;
+                        (0..out_len)
+                            .map(|i| {
+                                let src_idx = ((i as f64) * ratio) as usize;
+                                mono[src_idx.min(mono.len() - 1)]
+                            })
+                            .collect()
+                    } else {
+                        mono
+                    };
+
                     // Convert f32 samples to i16
-                    let samples: Vec<i16> = data
+                    let samples: Vec<i16> = resampled
                         .iter()
                         .map(|&s| (s * 32767.0).clamp(-32768.0, 32767.0) as i16)
                         .collect();
-
-                    // Calculate RMS level
-                    let sum_sq: f32 = data.iter().map(|s| s * s).sum();
-                    let rms = (sum_sq / data.len() as f32).sqrt();
 
                     if let Ok(mut buf) = buffer.lock() {
                         buf.extend_from_slice(&samples);

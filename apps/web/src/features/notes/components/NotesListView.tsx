@@ -60,7 +60,7 @@ function groupNotesByDate(notes: Note[]): [string, Note[]][] {
 export function NotesListView() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
-  const { notes, loading, error } = useNotes(
+  const { notes, loading, error, refetch } = useNotes(
     searchQuery ? { q: searchQuery } : undefined,
   );
 
@@ -70,25 +70,35 @@ export function NotesListView() {
     router.push("/note/new");
   }, [router]);
 
-  const handlePin = useCallback(async (id: string) => {
-    try {
-      await fetch(`/api/notes/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pinned: true }),
-      });
-    } catch {
-      // silently fail for now
-    }
-  }, []);
+  const handlePin = useCallback(
+    async (id: string) => {
+      try {
+        await fetch(`/api/notes/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pinned: true }),
+        });
+        refetch();
+      } catch {
+        // silently fail for now
+      }
+    },
+    [refetch],
+  );
 
-  const handleDelete = useCallback(async (id: string) => {
-    try {
-      await fetch(`/api/notes/${id}`, { method: "DELETE" });
-    } catch {
-      // silently fail for now
-    }
-  }, []);
+  const handleDelete = useCallback(
+    async (id: string) => {
+      try {
+        const res = await fetch(`/api/notes/${id}`, { method: "DELETE" });
+        if (res.ok) {
+          refetch();
+        }
+      } catch {
+        // silently fail for now
+      }
+    },
+    [refetch],
+  );
 
   return (
     <div className="min-h-screen bg-bg-secondary">
