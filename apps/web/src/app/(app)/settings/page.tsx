@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { AnalyticsSettings } from "@/features/settings/components/AnalyticsSettings";
 
 export const metadata: Metadata = {
   title: "Settings",
@@ -79,6 +80,9 @@ export default function SettingsPage() {
             </div>
           </div>
         </div>
+
+        {/* Analytics section */}
+        <AnalyticsSettings />
 
         {/* Danger zone */}
         <div className="glass-card rounded-2xl p-6 border border-red-100">

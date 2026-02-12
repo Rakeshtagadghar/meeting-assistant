@@ -2,8 +2,35 @@
 
 import { motion } from "framer-motion";
 import { signIn } from "next-auth/react";
+import { useFeatureFlagVariantKey } from "posthog-js/react";
+
+function getCtaProps(variant: string | boolean | undefined) {
+  switch (variant) {
+    case "cta_primary_blue":
+      return {
+        className:
+          "bg-blue-600 hover:bg-blue-700 px-8 py-4 rounded-2xl text-white font-semibold text-lg inline-flex items-center gap-3 transition-colors",
+        text: "Get started with Google",
+      };
+    case "cta_primary_copy_v2":
+      return {
+        className:
+          "btn-gradient-primary px-8 py-4 rounded-2xl text-white font-semibold text-lg inline-flex items-center gap-3",
+        text: "Start taking notes free",
+      };
+    default:
+      return {
+        className:
+          "btn-gradient-primary px-8 py-4 rounded-2xl text-white font-semibold text-lg inline-flex items-center gap-3",
+        text: "Get started with Google",
+      };
+  }
+}
 
 export function FinalCTA() {
+  const ctaVariant = useFeatureFlagVariantKey("exp_landing_cta");
+  const cta = getCtaProps(ctaVariant);
+
   return (
     <section className="py-24 sm:py-32 gradient-hero-bg">
       <div className="mx-auto max-w-4xl px-6 lg:px-8 text-center">
@@ -21,7 +48,7 @@ export function FinalCTA() {
           </p>
           <button
             onClick={() => signIn("google", { callbackUrl: "/notes" })}
-            className="btn-gradient-primary px-8 py-4 rounded-2xl text-white font-semibold text-lg inline-flex items-center gap-3"
+            className={cta.className}
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path
@@ -41,7 +68,7 @@ export function FinalCTA() {
                 d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
               />
             </svg>
-            Get started with Google
+            {cta.text}
           </button>
         </motion.div>
       </div>

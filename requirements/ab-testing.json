@@ -1,0 +1,371 @@
+{
+  "feature": {
+    "id": "ANALYTICS_AB_001",
+    "name": "PostHog Analytics + A/B Testing (Experiments)",
+    "goal": "Track product usage and run A/B tests safely with GDPR/CMP compliance in Next.js App Router.",
+    "region": "EU",
+    "posthog_cloud_host": "https://eu.i.posthog.com",
+    "priority": "MVP",
+    "notes": [
+      "Use PostHog for analytics + feature flags/experiments.",
+      "Gate tracking by CMP consent (EEA/UK opt-in).",
+      "Prefer reverse proxy to reduce adblocker impact (optional)."
+    ]
+  },
+
+  "dependencies": {
+    "client": [
+      {
+        "name": "posthog-js",
+        "install": "pnpm add posthog-js",
+        "required": true
+      },
+      {
+        "name": "posthog-js/react",
+        "install": "included with posthog-js",
+        "required": true
+      }
+    ],
+    "server_optional": [
+      {
+        "name": "posthog-node",
+        "install": "pnpm add posthog-node",
+        "required": false,
+        "use_case": "Capture server-side events from API routes / server actions"
+      }
+    ],
+    "installation_options": [
+      {
+        "mode": "wizard",
+        "command": "npx -y @posthog/wizard@latest --region eu",
+        "recommended": true
+      },
+      {
+        "mode": "manual",
+        "recommended": true
+      }
+    ]
+  },
+
+  "environment": {
+    "required_env_vars": [
+      {
+        "key": "NEXT_PUBLIC_POSTHOG_KEY",
+        "scope": "client",
+        "example": "phc_xxx",
+        "required": true
+      },
+      {
+        "key": "NEXT_PUBLIC_POSTHOG_HOST",
+        "scope": "client",
+        "value": "https://eu.i.posthog.com",
+        "required": true
+      }
+    ],
+    "optional_env_vars": [
+      {
+        "key": "POSTHOG_PERSONAL_API_KEY",
+        "scope": "server",
+        "purpose": "Optional admin actions (avoid in MVP)",
+        "required": false
+      },
+      {
+        "key": "NEXT_PUBLIC_POSTHOG_PROXY_PATH",
+        "scope": "client",
+        "example": "/pH9x",
+        "required": false
+      }
+    ]
+  },
+
+  "nextjs_app_router_integration": {
+    "providers_file": {
+      "path": "app/providers.tsx",
+      "client_only": true,
+      "init": {
+        "defaults": "2026-01-30",
+        "api_host": "env:NEXT_PUBLIC_POSTHOG_HOST",
+        "config": {
+          "capture_pageview": true,
+          "capture_pageleave": true,
+          "disable_session_recording_by_default": true,
+          "autocapture": true,
+          "debug": false
+        }
+      }
+    },
+    "layout_wrapping": {
+      "path": "app/layout.tsx",
+      "wrap_with": "PostHogProvider"
+    },
+    "routing_pageview_tracking": {
+      "required": true,
+      "method": "Track route changes using Next.js navigation hooks and posthog.capture('$pageview') when path/search changes",
+      "notes": ["Ensure consistent pageview capture in App Router."]
+    },
+    "defaults_note": {
+      "reason": "Use PostHog SDK defaults for Next.js-friendly recommended settings (including script injection handling guidance).",
+      "value": "2026-01-30"
+    }
+  },
+
+  "gdpr_cmp_integration": {
+    "cmp": {
+      "type": "Google CMP v2 compliant",
+      "source_of_truth": "your_cmp_state",
+      "consent_categories": ["necessary", "analytics", "marketing"],
+      "eea_uk_rule": "analytics must be opt-in"
+    },
+    "collection_policy": {
+      "before_consent": {
+        "posthog_init": "allowed_but_no_capture",
+        "mode": "cookieless_or_no_capture",
+        "recommended": "cookieless_mode_on_reject",
+        "behavior": [
+          "Do not set tracking cookies before consent",
+          "Do not autocapture events before consent decision"
+        ]
+      },
+      "on_consent_accept_analytics": {
+        "action": "posthog.opt_in_capturing() and enable capture",
+        "session_recording": "keep disabled by default unless explicitly enabled later"
+      },
+      "on_consent_reject_analytics": {
+        "action": "posthog.opt_out_capturing()",
+        "note": "Cookieless tracking can still count users in a privacy-preserving way if enabled."
+      }
+    },
+    "privacy_controls": {
+      "sanitize_properties_client_side": true,
+      "disable_sensitive_autocapture": true,
+      "notes": [
+        "Prefer PostHog privacy controls and/or cookieless tracking modes.",
+        "Do not send note content/transcripts to analytics."
+      ]
+    }
+  },
+
+  "reverse_proxy_optional": {
+    "enabled": false,
+    "goal": "Reduce adblocker impact by proxying PostHog requests through your domain.",
+    "rules": [
+      "Use a non-obvious path (not /analytics, /tracking, /telemetry, /posthog).",
+      "Match region host eu.i.posthog.com for EU."
+    ],
+    "nextjs_rewrites": {
+      "path": "next.config.js",
+      "rewrite_from": "env:NEXT_PUBLIC_POSTHOG_PROXY_PATH",
+      "rewrite_to": "https://eu.i.posthog.com"
+    },
+    "client_config_override": {
+      "api_host": "https://yourdomain.com{{NEXT_PUBLIC_POSTHOG_PROXY_PATH}}"
+    }
+  },
+
+  "identity_and_user_model": {
+    "distinct_id_strategy": {
+      "anonymous": "posthog-js default distinctId",
+      "authenticated": "identify with stable userId after login",
+      "logout": "reset identification on logout"
+    },
+    "identify_on_login": {
+      "trigger": "NextAuth sign-in success",
+      "properties": ["email_hash_only", "plan", "app_variant"],
+      "pii_policy": {
+        "no_raw_email": true,
+        "hash_method": "sha256",
+        "note": "Avoid sending raw PII where possible."
+      }
+    }
+  },
+
+  "event_taxonomy": {
+    "rule": "Only track product interactions and performance; never track note/transcript content.",
+    "events": [
+      {
+        "name": "auth_login_success",
+        "props": ["provider", "is_new_user"]
+      },
+      {
+        "name": "note_created",
+        "props": ["note_type", "source"]
+      },
+      {
+        "name": "note_generate_clicked",
+        "props": ["note_type", "template_selected", "word_count_bucket"]
+      },
+      {
+        "name": "note_generate_completed",
+        "props": ["duration_ms_bucket", "status"]
+      },
+      {
+        "name": "export_pdf_clicked",
+        "props": ["note_type"]
+      },
+      {
+        "name": "export_pdf_completed",
+        "props": ["duration_ms_bucket", "status"]
+      },
+      {
+        "name": "share_email_opened",
+        "props": ["provider", "truncated"]
+      },
+      {
+        "name": "meeting_transcription_started",
+        "props": ["platform", "device", "consent_confirmed"]
+      },
+      {
+        "name": "meeting_transcription_stopped",
+        "props": ["platform", "duration_bucket"]
+      }
+    ]
+  },
+
+  "ab_testing_and_experiments": {
+    "mechanism": "PostHog Experiments backed by Feature Flags",
+    "docs_notes": [
+      "Experiments are backed by a feature flag key; your app checks the flag variant."
+    ],
+    "flag_usage": {
+      "client": {
+        "access": "usePostHog hook; posthog.isFeatureEnabled(flag) or getFeatureFlag(flag)",
+        "bootstrapping": "load flags on app start and after identify"
+      },
+      "server_optional": {
+        "use_case": "SSR-safe decisions for experiments (optional in MVP)",
+        "note": "Prefer client gating for MVP to reduce complexity."
+      }
+    },
+    "example_experiments": [
+      {
+        "id": "EXP_LP_CTA_001",
+        "name": "Landing CTA Variant",
+        "flag_key": "exp_landing_cta",
+        "variants": ["control", "cta_primary_blue", "cta_primary_copy_v2"],
+        "target_users": "new_users_only",
+        "success_metric": "auth_login_success",
+        "secondary_metrics": ["note_created"]
+      },
+      {
+        "id": "EXP_GENERATE_UI_001",
+        "name": "Generate Progress UI",
+        "flag_key": "exp_generate_progress_ui",
+        "variants": ["control", "bottom_strip", "header_banner"],
+        "success_metric": "note_generate_completed",
+        "secondary_metrics": ["export_pdf_clicked"]
+      }
+    ],
+    "testing_feature_flags": {
+      "methods": [
+        "Assign user a specific flag value in PostHog",
+        "Override flags in code (featureFlags.overrideFeatureFlags)",
+        "Use PostHog toolbar for QA"
+      ]
+    }
+  },
+
+  "server_side_tracking_optional": {
+    "enabled": true,
+    "use_cases": [
+      "Track export completion from backend reliably",
+      "Track generation job completion from backend reliably"
+    ],
+    "constraints": [
+      "Always call shutdown/flush after capture per request (or use safe singleton strategy).",
+      "Do not use NEXT_PUBLIC keys on server if you decide to separate server keys later."
+    ],
+    "events": [
+      {
+        "name": "server_export_pdf_completed",
+        "props": ["status", "duration_ms_bucket"]
+      }
+    ]
+  },
+
+  "testing_and_tdd": {
+    "unit_tests": [
+      {
+        "id": "PH_UT_001",
+        "name": "PostHog init is gated by consent",
+        "assert": [
+          "no capture before consent decision",
+          "opt_in enables capture",
+          "opt_out disables capture"
+        ]
+      },
+      {
+        "id": "PH_UT_002",
+        "name": "Feature flag override works in tests",
+        "assert": ["UI variant changes when overrideFeatureFlags is set"]
+      }
+    ],
+    "component_tests": [
+      {
+        "id": "PH_CT_001",
+        "name": "Landing CTA variant toggles via feature flag",
+        "assert": [
+          "control renders default CTA",
+          "variant renders alternative CTA"
+        ]
+      }
+    ],
+    "e2e_tests": [
+      {
+        "id": "PH_E2E_001",
+        "name": "No analytics cookies before consent (EEA/UK)",
+        "assert": [
+          "no posthog cookies exist before opt-in",
+          "tracking starts only after opt-in"
+        ]
+      }
+    ],
+    "qa_playbook": {
+      "toolbar": "Use PostHog toolbar to validate flag variants during staging QA",
+      "flag_testing": "Use overrideFeatureFlags in dev/test builds"
+    }
+  },
+
+  "operational_guidelines": {
+    "environments": [
+      {
+        "name": "development",
+        "debug": true,
+        "capture": "optional",
+        "note": "Prefer disabling capture in local dev unless explicitly enabled."
+      },
+      {
+        "name": "staging",
+        "debug": false,
+        "capture": "enabled_with_cmp"
+      },
+      {
+        "name": "production",
+        "debug": false,
+        "capture": "enabled_with_cmp"
+      }
+    ],
+    "data_minimization": [
+      "Never send raw note/transcript text to PostHog events",
+      "Use buckets for durations/word counts instead of raw numbers where possible"
+    ]
+  },
+
+  "ui_requirements": {
+    "settings_page": {
+      "section": "Analytics",
+      "controls": [
+        "Toggle analytics consent (mirrors CMP state)",
+        "View privacy policy link",
+        "Reset analytics identity (posthog.reset)"
+      ]
+    }
+  },
+
+  "acceptance_criteria": [
+    "PostHog is installed and initialized in Next.js App Router with EU host.",
+    "Analytics is blocked until CMP analytics consent is granted in EEA/UK.",
+    "Core product events are captured without leaking note/transcript content.",
+    "Feature flags can toggle UI variants; at least one experiment is runnable.",
+    "Tests cover consent gating and flag overrides."
+  ]
+}

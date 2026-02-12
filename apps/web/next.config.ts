@@ -42,6 +42,21 @@ const nextConfig: NextConfig = {
   // Turbopack is the default bundler in Next.js 16
   turbopack: {},
 
+  // PostHog reverse proxy (uncomment to reduce adblocker impact)
+  // async rewrites() {
+  //   const proxyPath = process.env.NEXT_PUBLIC_POSTHOG_PROXY_PATH ?? "/pH9x";
+  //   return [
+  //     {
+  //       source: `${proxyPath}/static/:path*`,
+  //       destination: "https://eu-assets.i.posthog.com/static/:path*",
+  //     },
+  //     {
+  //       source: `${proxyPath}/:path*`,
+  //       destination: "https://eu.i.posthog.com/:path*",
+  //     },
+  //   ];
+  // },
+
   // Webpack fallback for explicit --webpack builds:
   // @huggingface/transformers references Node.js modules needing client-side stubs
   webpack: (config, { isServer }) => {

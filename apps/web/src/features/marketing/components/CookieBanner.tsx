@@ -1,24 +1,40 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { usePostHog } from "posthog-js/react";
 import { Button, Card } from "@ainotes/ui";
 import Link from "next/link";
 
+const CONSENT_KEY = "ainotes-consent";
+const CONSENT_EVENT = "ainotes-consent-update";
+
 export function CookieBanner() {
   const [isVisible, setIsVisible] = useState(false);
+  const posthog = usePostHog();
 
   useEffect(() => {
-    // Check local storage for consent
-    const consent = localStorage.getItem("ainotes-consent");
-    if (!consent) {
+    const consent = localStorage.getItem(CONSENT_KEY);
+    if (consent === null) {
       setIsVisible(true);
     }
   }, []);
 
   const handleAccept = () => {
-    localStorage.setItem("ainotes-consent", "true");
+    localStorage.setItem(CONSENT_KEY, "true");
     setIsVisible(false);
-    window.dispatchEvent(new CustomEvent("ainotes-consent-update"));
+
+    posthog?.opt_in_capturing();
+
+    globalThis.dispatchEvent(new CustomEvent(CONSENT_EVENT));
+  };
+
+  const handleDecline = () => {
+    localStorage.setItem(CONSENT_KEY, "false");
+    setIsVisible(false);
+
+    posthog?.opt_out_capturing();
+
+    globalThis.dispatchEvent(new CustomEvent(CONSENT_EVENT));
   };
 
   if (!isVisible) return null;
@@ -44,7 +60,7 @@ export function CookieBanner() {
             </p>
           </div>
           <div className="flex shrink-0 gap-3">
-            <Button variant="secondary" onClick={() => setIsVisible(false)}>
+            <Button variant="secondary" onClick={handleDecline}>
               Decline
             </Button>
             <Button
