@@ -195,6 +195,25 @@ export default function QuickNotePage() {
         {/* Active/paused/processing transcript feed */}
         {windowState !== "idle" && windowState !== "completed" && (
           <div className="flex flex-col gap-2.5">
+            {filteredChunks.length === 0 && !partialText && (
+              <div className="flex h-full flex-col items-center justify-center gap-3 py-24 text-center">
+                <div className="relative">
+                  <div className="h-12 w-12 rounded-full bg-red-100 p-3">
+                    <div className="h-full w-full rounded-full bg-red-400 animate-pulse" />
+                  </div>
+                </div>
+                <p className="text-sm font-medium text-gray-700">
+                  {windowState === "paused"
+                    ? "Transcription paused"
+                    : "Listening..."}
+                </p>
+                <p className="text-xs text-warm-400">
+                  {windowState === "paused"
+                    ? "Resume to continue capturing audio"
+                    : "Start speaking and your words will appear here"}
+                </p>
+              </div>
+            )}
             {filteredChunks.map((chunk) => {
               const colors = getSpeakerColor(chunk.speaker);
               return (

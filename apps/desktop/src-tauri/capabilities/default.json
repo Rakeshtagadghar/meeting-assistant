@@ -7,11 +7,20 @@
     "core:default",
     "shell:allow-execute",
     "shell:allow-open",
+    "fs:default",
+    "dialog:default",
+    "fs:allow-write-file",
+    "fs:allow-create",
+    "fs:allow-home-write",
+    {
+      "identifier": "fs:scope",
+      "allow": ["$HOME/**", "$DOWNLOAD/**", "$DOCUMENTS/**", "$DESKTOP/**"]
+    },
     {
       "identifier": "shell:allow-spawn",
       "allow": [
         {
-          "name": "binaries/whisper",
+          "name": "whisper",
           "sidecar": true,
           "args": true
         }

@@ -102,7 +102,7 @@ export function NotesListView() {
 
   return (
     <div className="min-h-screen bg-bg-secondary">
-      <div className="mx-auto max-w-3xl px-6 py-8">
+      <div className="mx-auto px-6 py-8">
         {/* Header */}
         <div className="mb-8 flex items-center justify-between">
           <h1 className="text-2xl font-bold gradient-text">My Notes</h1>

@@ -101,6 +101,7 @@ model User {
   meetingSessions MeetingSession[]
   shareLinks      ShareLink[]
   processingJobs  NoteProcessingJob[]
+  aiSummaryCount  Int               @default(0) @map("ai_summary_count")
 
   @@map("users")
 }

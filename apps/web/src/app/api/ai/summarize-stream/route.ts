@@ -36,6 +36,23 @@ export async function POST(request: NextRequest): Promise<Response> {
   const userId = await getAuthUserId();
   if (!userId) return apiError(ApiErrorCode.UNAUTHORIZED);
 
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { email: true, aiSummaryCount: true },
+  });
+
+  if (!user) return apiError(ApiErrorCode.UNAUTHORIZED);
+
+  const IS_ADMIN = user.email === "rakeshtagadghar@gmail.com";
+  const MAX_SUMMARIES = 5;
+
+  if (!IS_ADMIN && user.aiSummaryCount >= MAX_SUMMARIES) {
+    return apiError(
+      ApiErrorCode.FORBIDDEN,
+      `You have reached the limit of ${MAX_SUMMARIES} AI summaries. Please contact support to unlock more.`,
+    );
+  }
+
   let body: { noteId?: string };
   try {
     body = (await request.json()) as { noteId?: string };
@@ -199,6 +216,14 @@ export async function POST(request: NextRequest): Promise<Response> {
           message: "Summary complete",
           endedAt: new Date(),
         });
+
+        // Increment usage count
+        if (!IS_ADMIN) {
+          await prisma.user.update({
+            where: { id: userId },
+            data: { aiSummaryCount: { increment: 1 } },
+          });
+        }
 
         send("done", { jobId: job.id });
       } catch (error: unknown) {

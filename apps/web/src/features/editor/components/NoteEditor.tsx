@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { Badge, Spinner, Dropdown } from "@ainotes/ui";
 import { useNote } from "../hooks/use-note";
 import { useAutosave } from "../hooks/use-autosave";
-import { useSpeechRecognition } from "../../capture/hooks/use-speech-recognition";
+import { useDictation } from "../../capture/hooks/use-dictation";
 import { useStreamingSummary } from "../../ai/hooks/use-streaming-summary";
 import { SummaryPanel } from "./SummaryPanel";
 import { StreamingSummary } from "../../ai/components/StreamingSummary";
@@ -41,12 +41,14 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
 
   const {
     transcript,
+    partialText,
     isListening,
-    isSupported: speechSupported,
+    isProcessing,
+    modelLoadProgress,
     start: startListening,
     stop: stopListening,
     clear: clearTranscript,
-  } = useSpeechRecognition();
+  } = useDictation();
 
   const isGenerating =
     streamingStatus === "connecting" || streamingStatus === "streaming";
@@ -76,13 +78,14 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
     // Only capture snapshot when isListening transitions to true
   }, [isListening]);
 
-  // Replace content with base + transcript while listening
+  // Replace content with base + transcript + partial while listening
   useEffect(() => {
-    if (isListening && transcript) {
+    if (isListening && (transcript || partialText)) {
       const base = baseContentRef.current;
-      setContent(base + (base ? "\n" : "") + transcript);
+      const dictated = [transcript, partialText].filter(Boolean).join(" ");
+      setContent(base + (base ? "\n" : "") + dictated);
     }
-  }, [transcript, isListening]);
+  }, [transcript, partialText, isListening]);
 
   // When speech stops, save the content
   useEffect(() => {
@@ -104,15 +107,6 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
       const newTitle = e.target.value;
       setTitle(newTitle);
       save({ title: newTitle });
-    },
-    [save],
-  );
-
-  const handleContentChange = useCallback(
-    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-      const newContent = e.target.value;
-      setContent(newContent);
-      save({ contentPlain: newContent });
     },
     [save],
   );
@@ -160,7 +154,7 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
     if (isListening) {
       stopListening();
     } else {
-      startListening();
+      void startListening();
     }
   }, [isListening, startListening, stopListening]);
 
@@ -259,7 +253,7 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
   }
 
   return (
-    <div className="mx-auto max-w-3xl px-6 py-8">
+    <div className="mx-auto px-6 py-8">
       {/* Top bar */}
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-3 text-sm text-warm-400">
@@ -294,28 +288,72 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
               <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
             </svg>
           </button>
+          {error && <div className="text-sm text-red-500">{error}</div>}
+
           <button
-            onClick={handleGenerate}
-            disabled={isGenerating}
-            className="flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-gray-800 disabled:opacity-50"
+            onClick={handleToggleSpeech}
+            className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+              isListening
+                ? "bg-red-50 text-red-600 ring-1 ring-red-200 hover:bg-red-100"
+                : "bg-white text-gray-700 ring-1 ring-gray-200 hover:bg-gray-50"
+            }`}
           >
-            <svg
-              className="h-4 w-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth={1.5}
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 0 0-2.455 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z"
-              />
-            </svg>
-            {isGenerating ? "Generating..." : "Generate"}
+            {isListening ? (
+              <>
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75"></span>
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500"></span>
+                </span>
+                Stop
+              </>
+            ) : (
+              <>
+                <svg
+                  className="h-4 w-4 text-gray-500"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={1.5}
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z"
+                  />
+                </svg>
+                Dictate
+              </>
+            )}
           </button>
 
-          <DownloadMenu artifacts={artifacts} noteId={noteId} />
+          {(content.trim().length > 0 ||
+            summaries.length > 0 ||
+            artifacts.length > 0) && (
+            <button
+              onClick={handleGenerate}
+              disabled={isGenerating}
+              className="flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-gray-800 disabled:opacity-50"
+            >
+              <svg
+                className="h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={1.5}
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 0 0-2.455 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z"
+                />
+              </svg>
+              {isGenerating ? "Generating..." : "Generate"}
+            </button>
+          )}
+
+          {(summaries.length > 0 || artifacts.length > 0) && (
+            <DownloadMenu artifacts={artifacts} noteId={noteId} />
+          )}
 
           {/* More actions menu */}
           <Dropdown
@@ -400,17 +438,8 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
         />
       )}
 
-      {/* AI Summaries - Shown at the top when ready */}
-      <div className="mb-6">
-        <SummaryPanel
-          summaries={summaries}
-          artifacts={artifacts}
-          isGenerating={isGenerating}
-        />
-      </div>
-
-      {/* Note content card */}
-      <div className="rounded-2xl bg-white p-8 shadow-sm ring-1 ring-warm-200/60">
+      {/* Title & Tags Card */}
+      <div className="mb-6 rounded-2xl bg-white p-8 shadow-sm ring-1 ring-warm-200/60">
         {/* Title */}
         <input
           value={title}
@@ -477,86 +506,52 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
             style={{ width: Math.max(80, tagInput.length * 8 + 20) }}
           />
         </div>
+      </div>
 
-        {/* Transcript Header */}
-        <div className="my-6 flex items-center gap-4">
-          <div className="h-px flex-1 bg-warm-200/60" />
-          <span className="text-sm font-medium uppercase tracking-wider text-warm-400">
-            Transcript
-          </span>
-          <div className="h-px flex-1 bg-warm-200/60" />
-        </div>
-
-        {/* Content area */}
-        <textarea
-          value={content}
-          onChange={handleContentChange}
-          placeholder="Start writing or use the microphone to dictate..."
-          aria-label="Note content"
-          className="min-h-[400px] w-full resize-none border-none bg-transparent text-[15px] leading-relaxed text-gray-800 placeholder:text-warm-300 focus:outline-none"
-          rows={16}
+      <div className="mb-6">
+        <SummaryPanel
+          noteId={noteId}
+          summaries={summaries}
+          artifacts={artifacts}
+          isGenerating={isGenerating}
+          dictation={{
+            isListening,
+            isProcessing,
+            transcript,
+            partialText,
+            toggleRecording: handleToggleSpeech,
+          }}
+          transcriptContent={content}
+          onTranscriptChange={(val) => {
+            setContent(val);
+            save({ contentPlain: val });
+          }}
         />
       </div>
 
-      {/* Bottom toolbar - Speech to text */}
-      <div className="mt-4 flex items-center justify-between rounded-2xl bg-white px-5 py-3 shadow-sm ring-1 ring-warm-200/60">
-        <div className="flex items-center gap-3">
-          {speechSupported && (
-            <button
-              onClick={handleToggleSpeech}
-              aria-label={isListening ? "Stop recording" : "Start recording"}
-              className={`relative flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all ${
-                isListening
-                  ? "bg-red-50 text-red-600 ring-2 ring-red-200"
-                  : "bg-warm-100 text-warm-500 hover:bg-warm-200 hover:text-gray-700"
-              }`}
-            >
-              {isListening && (
-                <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
-                  <span className="relative inline-flex h-3 w-3 rounded-full bg-red-500" />
-                </span>
-              )}
-              <svg
-                className="h-5 w-5"
-                fill={isListening ? "currentColor" : "none"}
-                viewBox="0 0 24 24"
-                strokeWidth={1.5}
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z"
-                />
-              </svg>
-              {isListening ? "Listening..." : "Dictate"}
-            </button>
-          )}
-          {isListening && (
-            <div className="flex items-center gap-2">
-              <div className="flex gap-0.5">
-                {[0, 1, 2, 3].map((i) => (
-                  <div
-                    key={i}
-                    className="h-4 w-1 animate-pulse rounded-full bg-red-400"
-                    style={{ animationDelay: `${i * 150}ms` }}
-                  />
-                ))}
-              </div>
-              <span className="text-xs text-warm-400">
-                Speak now — text appears live above
-              </span>
+      {/* Model loading progress overlay */}
+      {modelLoadProgress !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+          <div className="w-80 rounded-xl bg-white p-6 shadow-lg">
+            <div className="mb-3 text-sm font-medium text-gray-700">
+              Downloading Whisper model...
             </div>
-          )}
+            <div className="h-2 w-full overflow-hidden rounded-full bg-warm-200">
+              <div
+                className="h-full rounded-full bg-primary transition-all duration-300"
+                style={{ width: `${modelLoadProgress}%` }}
+              />
+            </div>
+            <div className="mt-2 text-center text-xs text-warm-400">
+              {modelLoadProgress}% — First-time download, cached for future use
+            </div>
+          </div>
         </div>
+      )}
 
-        <span className="text-xs text-warm-400">
-          {content.split(/\s+/).filter(Boolean).length} words
-        </span>
+      <div className="mt-2 flex justify-end px-2 text-xs text-warm-400">
+        {content.split(/\s+/).filter(Boolean).length} words
       </div>
-
-      {/* AI Summaries */}
     </div>
   );
 }

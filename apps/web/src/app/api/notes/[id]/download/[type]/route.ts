@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { prisma, createArtifactsRepository } from "@/lib/db";
-import type { ArtifactType } from "@ainotes/core";
+import type { ArtifactType, UUID } from "@ainotes/core";
 import { getAuthUserId } from "@/lib/auth";
 import { apiError, ApiErrorCode } from "@/lib/api";
 
@@ -21,7 +21,7 @@ export async function GET(
 
   const artifactsRepo = createArtifactsRepository(prisma);
   const artifact = await artifactsRepo.findByNoteAndType(
-    id as import("@ainotes/core").UUID,
+    id as UUID,
     artifactType,
   );
 

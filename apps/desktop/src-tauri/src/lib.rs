@@ -120,6 +120,15 @@ async fn start_transcription(
                 continue;
             };
 
+            // Notify frontend that we are processing
+            let _ = app_handle.emit(
+                "asr-event",
+                ASREvent::Status {
+                    state: "processing".to_string(),
+                    message: "Processing audio...".to_string(),
+                },
+            );
+
             // Create a temporary manager for this transcription call
             // to avoid holding the Mutex across the async boundary
             let temp_wm = WhisperManager::new(mp, lang);
@@ -144,6 +153,15 @@ async fn start_transcription(
                     log::error!("Transcription error: {}", e);
                 }
             }
+
+            // Notify frontend back to listening (idle)
+            let _ = app_handle.emit(
+                "asr-event",
+                ASREvent::Status {
+                    state: "listening".to_string(),
+                    message: "Listening...".to_string(),
+                },
+            );
         }
     });
 
@@ -231,6 +249,8 @@ fn get_mic_level(state: State<'_, TranscriptionState>) -> f32 {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_dialog::init())
         .manage(TranscriptionState {
             audio: Mutex::new(AudioCapture::new()),
             whisper: Mutex::new(None),

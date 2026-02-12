@@ -122,7 +122,7 @@ export function Sidebar() {
                   </span>
                 </div>
                 <button
-                  onClick={() => signOut()}
+                  onClick={() => signOut({ callbackUrl: "/" })}
                   className="ml-2 rounded-lg p-2 text-text-muted hover:bg-gray-100 hover:text-text-heading transition-colors"
                   title="Sign out"
                   aria-label="Sign out"

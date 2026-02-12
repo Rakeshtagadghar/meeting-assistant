@@ -6,6 +6,7 @@ import {
   createArtifactsRepository,
 } from "@/lib/db";
 import {
+  type UUID,
   ArtifactType,
   ArtifactStatus,
   ProcessingJobStatus,
@@ -30,7 +31,7 @@ export async function GET(
   const userId = await getAuthUserId();
   if (!userId) return apiError(ApiErrorCode.UNAUTHORIZED);
 
-  const jobId = (await params).jobId as import("@ainotes/core").UUID;
+  const jobId = (await params).jobId as UUID;
 
   const job = await jobsRepo.findById(jobId, userId);
   if (!job) return apiError(ApiErrorCode.NOT_FOUND, "Job not found");

@@ -5,6 +5,8 @@ import { Button, Dropdown } from "@ainotes/ui";
 import type { DropdownItem } from "@ainotes/ui";
 import type { NoteArtifact } from "@ainotes/core";
 import { canDownload } from "@ainotes/core";
+import { writeFile } from "@tauri-apps/plugin-fs";
+import { save } from "@tauri-apps/plugin-dialog";
 
 export interface DownloadMenuProps {
   artifacts: NoteArtifact[];
@@ -20,6 +22,9 @@ export function DownloadMenu({ artifacts, noteId }: DownloadMenuProps) {
   const handleDownload = useCallback(
     async (type: string) => {
       const lowerType = type.toLowerCase();
+      // Simple check for Tauri environment (v2)
+      const isTauri =
+        typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
       if (lowerType !== "pdf") {
         window.open(`/api/notes/${noteId}/download/${lowerType}`, "_blank");
@@ -27,12 +32,54 @@ export function DownloadMenu({ artifacts, noteId }: DownloadMenuProps) {
       }
 
       // PDF Specific Flow
-      if (pdfArtifact?.status === "READY" && pdfArtifact.storagePath) {
-        // If already ready, just download
-        window.open(
-          `/api/notes/${noteId}/download/pdf`, // Assumes existing download route handles it
-          "_blank",
-        );
+      if (
+        pdfArtifact?.status === "READY" &&
+        pdfArtifact.storagePath &&
+        !isTauri
+      ) {
+        // Web: invalidating cache might be needed but assuming simple open works
+        window.open(`/api/notes/${noteId}/download/pdf`, "_blank");
+        return;
+      }
+
+      // If Tauri and ready, we still might need to fetch content to save it.
+      // But let's reuse the generation flow which returns a fresh signed URL usually,
+      // OR we can hit the download endpoint to get the blob.
+      // Optimally:
+      if (
+        pdfArtifact?.status === "READY" &&
+        pdfArtifact.storagePath &&
+        isTauri
+      ) {
+        try {
+          // Fetch from download endpoint which redirects to signed URL or serves content
+          setIsGeneratingPdf(true);
+          const response = await fetch(`/api/notes/${noteId}/download/pdf`);
+          if (!response.ok) throw new Error("Failed to fetch PDF");
+
+          const blob = await response.blob();
+          const arrayBuffer = await blob.arrayBuffer();
+          const uint8Array = new Uint8Array(arrayBuffer);
+
+          const filePath = await save({
+            defaultPath: `meeting-${noteId.slice(0, 8)}.pdf`,
+            filters: [
+              {
+                name: "PDF",
+                extensions: ["pdf"],
+              },
+            ],
+          });
+
+          if (filePath) {
+            await writeFile(filePath, uint8Array);
+          }
+        } catch (e) {
+          console.error("Failed to save PDF", e);
+          alert("Failed to save PDF");
+        } finally {
+          setIsGeneratingPdf(false);
+        }
         return;
       }
 
@@ -61,12 +108,39 @@ export function DownloadMenu({ artifacts, noteId }: DownloadMenuProps) {
           // TODO: Update toast/UI with progress
         });
 
-        eventSource.addEventListener("completed", (e) => {
+        eventSource.addEventListener("completed", async (e) => {
           const data = JSON.parse((e as MessageEvent).data);
           eventSource.close();
           setIsGeneratingPdf(false);
 
-          // Trigger download or open in new tab
+          if (isTauri && data.downloadUrl) {
+            try {
+              const response = await fetch(data.downloadUrl);
+              const blob = await response.blob();
+              const arrayBuffer = await blob.arrayBuffer();
+              const uint8Array = new Uint8Array(arrayBuffer);
+
+              const filePath = await save({
+                defaultPath: `meeting-${noteId.slice(0, 8)}.pdf`,
+                filters: [
+                  {
+                    name: "PDF",
+                    extensions: ["pdf"],
+                  },
+                ],
+              });
+
+              if (filePath) {
+                await writeFile(filePath, uint8Array);
+              }
+            } catch (err) {
+              console.error("Tauri save error:", err);
+              alert("Failed to save PDF to disk.");
+            }
+            return;
+          }
+
+          // Trigger download or open in new tab (Web)
           if (data.downloadUrl) {
             const isDataUri = data.downloadUrl.startsWith("data:");
 

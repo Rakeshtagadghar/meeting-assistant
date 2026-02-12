@@ -7,7 +7,7 @@ export const metadata: Metadata = {
 export default function SettingsPage() {
   return (
     <div className="min-h-screen bg-bg-secondary">
-      <div className="mx-auto max-w-3xl px-6 py-8">
+      <div className="mx-auto px-6 py-8">
         <h1 className="text-2xl font-bold gradient-text mb-8">Settings</h1>
 
         {/* Account section */}
