@@ -18,7 +18,7 @@ export function CookieBanner() {
   const handleAccept = () => {
     localStorage.setItem("ainotes-consent", "true");
     setIsVisible(false);
-    // In real app, initialize GTM here
+    window.dispatchEvent(new CustomEvent("ainotes-consent-update"));
   };
 
   if (!isVisible) return null;
