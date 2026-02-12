@@ -1,6 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
-import { https } from "follow-redirects";
+import { Readable } from "node:stream";
+import { finished } from "node:stream/promises";
+import { fileURLToPath } from "node:url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const MODEL_URL =
   "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin";
@@ -17,34 +22,22 @@ if (fs.existsSync(TARGET_FILE)) {
 }
 
 console.log(`Downloading model from ${MODEL_URL}...`);
-const file = fs.createWriteStream(TARGET_FILE);
 
-https
-  .get(MODEL_URL, (response) => {
-    if (response.statusCode !== 200) {
-      console.error(`Failed to download model: ${response.statusCode}`);
-      process.exit(1);
-    }
+try {
+  const response = await fetch(MODEL_URL);
+  if (!response.ok) {
+    throw new Error(
+      `Failed to download model: ${response.status} ${response.statusText}`,
+    );
+  }
 
-    const totalSize = parseInt(response.headers["content-length"], 10);
-    let downloaded = 0;
-
-    response.pipe(file);
-
-    response.on("data", (chunk) => {
-      downloaded += chunk.length;
-      const percentage = ((downloaded / totalSize) * 100).toFixed(2);
-      process.stdout.write(`\rDownloading: ${percentage}%`);
-    });
-
-    file.on("finish", () => {
-      file.close(() => {
-        console.log("\nModel downloaded successfully.");
-      });
-    });
-  })
-  .on("error", (err) => {
-    fs.unlink(TARGET_FILE, () => {}); // Delete partial file
-    console.error(`Error downloading model: ${err.message}`);
-    process.exit(1);
-  });
+  const fileStream = fs.createWriteStream(TARGET_FILE);
+  await finished(Readable.fromWeb(response.body).pipe(fileStream));
+  console.log("Model downloaded successfully.");
+} catch (error) {
+  console.error("Error downloading model:", error);
+  if (fs.existsSync(TARGET_FILE)) {
+    fs.unlinkSync(TARGET_FILE); // Clean up partial file
+  }
+  process.exit(1);
+}
