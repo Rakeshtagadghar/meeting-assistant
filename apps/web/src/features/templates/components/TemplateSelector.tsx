@@ -89,7 +89,7 @@ export function TemplateSelector({
                 Templates
               </span>
               <Link
-                href="/app/templates"
+                href="/templates"
                 className="text-xs text-indigo-600 hover:text-indigo-800"
               >
                 <button className="flex items-center gap-1">
@@ -177,7 +177,7 @@ export function TemplateSelector({
 
             <div className="border-t border-gray-100 mt-2 pt-1">
               <Link
-                href="/app/templates"
+                href="/templates"
                 className="flex w-full items-center gap-2 px-4 py-2 text-left text-xs text-gray-500 hover:bg-gray-50 hover:text-gray-900"
               >
                 <Settings className="h-3 w-3" />
