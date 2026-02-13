@@ -1,14 +1,22 @@
 import { getGroqClient } from "../providers/groq";
 
+export interface TemplateSectionInput {
+  title: string;
+  hint?: string | null;
+}
+
 export interface StreamSummarizeOptions {
   noteTitle: string;
   noteContent: string;
   needsTitle?: boolean; // Set to true if the note is untitled
+  templateContext?: string | null;
+  templateSections?: TemplateSectionInput[];
   signal?: AbortSignal;
 }
 
-const BASE_SYSTEM_PROMPT = `You are an expert meeting notes summarizer. Given raw meeting notes or transcript text, produce a clear, well-structured markdown summary.
+const BASE_SYSTEM_PROMPT = `You are an expert meeting notes summarizer. Given raw meeting notes or transcript text, produce a clear, well-structured markdown summary.`;
 
+const DEFAULT_STRUCTURE_INSTRUCTION = `
 Your output MUST follow this exact structure:
 
 # [Meeting Title]
@@ -25,8 +33,9 @@ Your output MUST follow this exact structure:
 
 ## Next Steps
 - [ ] [Action item description] — *[Owner if mentioned]*
-- [ ] [Action item description] — *[Owner if mentioned]*
+- [ ] [Action item description] — *[Owner if mentioned]*`;
 
+const DEFAULT_RULES = `
 Rules:
 - Be concise: each bullet should be 1-2 sentences max
 - Use markdown task list syntax (- [ ]) for next steps
@@ -48,11 +57,40 @@ This title should be:
 
 After the GENERATED_TITLE line, continue with the normal summary format starting with # [Meeting Title]`;
 
-function buildSystemPrompt(needsTitle: boolean): string {
-  if (needsTitle) {
-    return BASE_SYSTEM_PROMPT + TITLE_GENERATION_ADDENDUM;
+function buildSystemPrompt(options: StreamSummarizeOptions): string {
+  let prompt = BASE_SYSTEM_PROMPT;
+
+  // 1. Template Context
+  if (options.templateContext) {
+    prompt += `\n\nContext provided for this meeting:\n"${options.templateContext}"\nUse this context to better understand the significance of the discussion.`;
   }
-  return BASE_SYSTEM_PROMPT;
+
+  // 2. Structure Instruction
+  if (options.templateSections && options.templateSections.length > 0) {
+    prompt += `\n\nYour output MUST follow this specific structure based on the user's template:\n\n# [Meeting Title]\n`;
+
+    options.templateSections.forEach((section) => {
+      prompt += `\n## ${section.title}\n`;
+      if (section.hint) {
+        prompt += `(Instruction: ${section.hint})\n`;
+      }
+      prompt += `- [Content for this section]\n`;
+    });
+
+    prompt += `\n\nIMPORTANT: You must strictly adhere to these section headers. Do not add other top-level sections unless absolutely necessary.`;
+  } else {
+    prompt += DEFAULT_STRUCTURE_INSTRUCTION;
+  }
+
+  // 3. Rules
+  prompt += DEFAULT_RULES;
+
+  // 4. Title Generation
+  if (options.needsTitle) {
+    prompt += TITLE_GENERATION_ADDENDUM;
+  }
+
+  return prompt;
 }
 
 export async function* streamSummarize(
@@ -66,7 +104,7 @@ export async function* streamSummarize(
     {
       model: "llama-3.3-70b-versatile",
       messages: [
-        { role: "system", content: buildSystemPrompt(needsTitle) },
+        { role: "system", content: buildSystemPrompt(options) },
         {
           role: "user",
           content: needsTitle

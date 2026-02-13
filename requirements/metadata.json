@@ -1,0 +1,579 @@
+{
+  "public_site_spec": {
+    "brand": {
+      "product_name": "AINotes",
+      "positioning": "Personal AI meeting assistant — live transcript during meetings, clean summary after.",
+      "primary_cta": { "label": "Go to Notes", "href": "/app" },
+      "secondary_cta": { "label": "See how it works", "href": "#how-it-works" }
+    },
+
+    "contact": {
+      "support_email": "rakeshtagadghar@gmail.com",
+      "privacy_email": "rakeshtagadghar@gmail.com",
+      "contact_page_form": {
+        "enabled": true,
+        "fields": ["name", "email", "topic", "message"],
+        "delivery": "mailto_fallback_or_serverless",
+        "mailto_target": "rakeshtagadghar@gmail.com"
+      }
+    },
+
+    "seo_global": {
+      "site_url": "https://meeting-assistant-web.vercel.app",
+      "default_locale": "en-GB",
+      "robots": {
+        "index": true,
+        "follow": true
+      },
+      "sitemap": { "enabled": true },
+      "open_graph": {
+        "enabled": true,
+        "default_image": "/og/og-default.png",
+        "type": "website"
+      },
+      "twitter": {
+        "card": "summary_large_image",
+        "site_handle": "@ainotes"
+      },
+      "keywords_global": [
+        "AI meeting notes",
+        "AI notes app",
+        "meeting transcription",
+        "Whisper transcription",
+        "meeting minutes generator",
+        "action items extractor",
+        "AI summary generator",
+        "privacy-first AI",
+        "meeting assistant",
+        "PDF meeting summary",
+        "email meeting summary",
+        "live transcript",
+        "on-device speech to text"
+      ],
+      "technical_seo": {
+        "app_router_metadata_api": true,
+        "canonical_urls": true,
+        "hreflang": false,
+        "structured_data": true,
+        "pages_ssr_ssg": "SSG for public pages",
+        "performance_targets_lighthouse": {
+          "performance": 90,
+          "accessibility": 90,
+          "seo": 95
+        }
+      }
+    },
+
+    "routes": [
+      {
+        "route": "/",
+        "name": "Landing",
+        "rendering": "SSG",
+        "meta": {
+          "title": "AINotes — Live meeting transcript. Clean AI summary after.",
+          "description": "A privacy-first AI meeting assistant. Live transcript during meetings, then one-click summaries, action items, and exports to PDF or email.",
+          "keywords": [
+            "AI meeting notes",
+            "live transcript",
+            "AI summary",
+            "action items",
+            "meeting minutes",
+            "Whisper"
+          ],
+          "canonical": "https://meeting-assistant-web.vercel.app/",
+          "og_title": "AINotes — Write notes like normal. Get a clean summary after.",
+          "og_description": "Live transcription + post-meeting AI summaries + exports. Privacy-first, consent-first.",
+          "og_image": "/og/og-home.png"
+        },
+
+        "wow_factor_design": {
+          "style": "modern_minimal_gradient",
+          "hero_background": "soft radial gradient + subtle noise texture",
+          "micro_interactions": [
+            "hover tilt on cards",
+            "parallax glow behind mockups",
+            "scroll-based stagger animations"
+          ],
+          "animation": {
+            "library": "Framer Motion",
+            "prefers_reduced_motion": true,
+            "staggered_cards": true
+          }
+        },
+
+        "sections": [
+          {
+            "id": "hero",
+            "type": "two_column",
+            "left": {
+              "headline": "Write notes like normal.",
+              "headline_emphasis": "Get a clean summary after.",
+              "subtext": "Live transcript during meetings, then one-click AI summaries, action items, and exports. Private by default and consent-first.",
+              "ctas": [
+                {
+                  "label": "Go to Notes",
+                  "href": "/app",
+                  "variant": "primary"
+                },
+                {
+                  "label": "See how it works",
+                  "href": "#how-it-works",
+                  "variant": "secondary"
+                }
+              ],
+              "trust_bullets": [
+                "No audio stored by default",
+                "Consent-first meeting mode",
+                "Works on desktop + web"
+              ]
+            },
+            "right": {
+              "type": "interactive_mock_story",
+              "goal": "Show 4-phase product story: Meeting → Generate → Export PDF → Email Draft",
+              "slides": [
+                {
+                  "id": "phase_meeting",
+                  "title": "Phase 1 — Meeting (Live Transcript)",
+                  "visual": "floating_quick_note_window",
+                  "elements": [
+                    "recording_timer",
+                    "speaker_bubbles",
+                    "live_typing_indicator"
+                  ],
+                  "badge": "On-device Whisper"
+                },
+                {
+                  "id": "phase_generate",
+                  "title": "Phase 2 — Generate (Post-meeting AI)",
+                  "visual": "generate_progress_strip",
+                  "elements": [
+                    "progress_states",
+                    "cancel_button",
+                    "status_messages"
+                  ],
+                  "badge": "Structured output"
+                },
+                {
+                  "id": "phase_pdf",
+                  "title": "Phase 3 — Download PDF (Branded)",
+                  "visual": "pdf_preview_card",
+                  "elements": [
+                    "header_branding",
+                    "sections_summary_actions_decisions",
+                    "download_button"
+                  ],
+                  "badge": "Professional export"
+                },
+                {
+                  "id": "phase_email",
+                  "title": "Phase 4 — Share via Email (Draft)",
+                  "visual": "email_draft_preview",
+                  "elements": ["subject_prefill", "body_prefill", "share_link"],
+                  "badge": "Zero friction"
+                }
+              ],
+              "interaction": {
+                "mode": "auto_cycle_and_manual_tabs",
+                "auto_cycle_seconds": 6,
+                "manual_tabs": true
+              }
+            }
+          },
+
+          {
+            "id": "how-it-works",
+            "type": "staggered_steps",
+            "title": "How it works",
+            "steps": [
+              {
+                "title": "Start a meeting note",
+                "text": "Open Quick Note on desktop or start a meeting note on web."
+              },
+              {
+                "title": "Get live transcript",
+                "text": "Transcript appears as people speak. No interruptions."
+              },
+              {
+                "title": "Click Generate",
+                "text": "AI produces summary, key points, action items, decisions."
+              },
+              {
+                "title": "Export or share",
+                "text": "Download branded PDF or open an email draft instantly."
+              }
+            ],
+            "animation": { "stagger": true }
+          },
+
+          {
+            "id": "features",
+            "type": "staggered_feature_grid",
+            "title": "Designed for fast notes and clean outputs",
+            "cards": [
+              {
+                "title": "Quick Note (Live)",
+                "desc": "Floating window for live transcript during calls.",
+                "icon": "mic"
+              },
+              {
+                "title": "Generate Summary",
+                "desc": "One click → summary + key points + actions + decisions.",
+                "icon": "sparkles"
+              },
+              {
+                "title": "Action Items",
+                "desc": "Checklist-style action items that are easy to send and track.",
+                "icon": "check"
+              },
+              {
+                "title": "Download PDF",
+                "desc": "Branded, modern PDF that looks client-ready.",
+                "icon": "file"
+              },
+              {
+                "title": "Share via Email",
+                "desc": "Opens a pre-filled email draft—no backend email sending.",
+                "icon": "mail"
+              },
+              {
+                "title": "Privacy-first",
+                "desc": "Consent modal + local transcription by default.",
+                "icon": "shield"
+              }
+            ],
+            "animation": { "stagger": true, "hover_lift": true }
+          },
+
+          {
+            "id": "privacy",
+            "type": "privacy_block",
+            "title": "Privacy-first by design",
+            "bullets": [
+              "Consent prompt before transcription starts",
+              "Audio stays on-device by default (local Whisper)",
+              "Only transcript + summaries stored",
+              "User controls retention, exports, and sharing"
+            ],
+            "cta": { "label": "Read Privacy Policy", "href": "/privacy" }
+          },
+
+          {
+            "id": "faq",
+            "type": "faq",
+            "title": "FAQ",
+            "items": [
+              {
+                "q": "Do you store audio?",
+                "a": "By default, no. Transcription happens locally; only transcript and summaries are saved."
+              },
+              {
+                "q": "Does it work on both desktop and web?",
+                "a": "Yes. Desktop is best for live capture; web is great for managing notes, summaries, and exports."
+              },
+              {
+                "q": "Can I export or share quickly?",
+                "a": "Yes—download a branded PDF or open an email draft with everything pre-filled."
+              }
+            ],
+            "structured_data": { "type": "FAQPage", "enabled": true }
+          },
+
+          {
+            "id": "final-cta",
+            "type": "cta_banner",
+            "title": "Start capturing better meeting notes today",
+            "subtext": "Write normally. Let AI organise everything after.",
+            "cta": { "label": "Go to Notes", "href": "/app" }
+          }
+        ],
+
+        "structured_data": {
+          "enabled": true,
+          "schemas": [
+            {
+              "type": "SoftwareApplication",
+              "fields": {
+                "name": "AINotes",
+                "applicationCategory": "BusinessApplication",
+                "operatingSystem": "Web, Windows, macOS",
+                "offers": { "price": "0", "priceCurrency": "GBP" }
+              }
+            },
+            {
+              "type": "Organization",
+              "fields": {
+                "name": "AINotes",
+                "url": "https://meeting-assistant-web.vercel.app"
+              }
+            }
+          ]
+        }
+      },
+
+      {
+        "route": "/features",
+        "name": "Features",
+        "rendering": "SSG",
+        "meta": {
+          "title": "Features — AINotes",
+          "description": "Explore AINotes features: live transcript, AI summaries, action items, exports to PDF, and email drafts.",
+          "keywords": [
+            "AI notes",
+            "meeting transcript",
+            "action items",
+            "PDF export",
+            "email draft"
+          ],
+          "canonical": "https://meeting-assistant-web.vercel.app/features",
+          "og_image": "/og/og-features.png"
+        },
+        "sections": [
+          {
+            "type": "hero",
+            "title": "Everything you need for meeting notes",
+            "subtext": "Capture live. Summarize after. Export instantly."
+          },
+          {
+            "type": "feature_deep_dives",
+            "items": [
+              "Quick Note",
+              "Generate",
+              "PDF Export",
+              "Email Share",
+              "Consent + Privacy"
+            ]
+          }
+        ]
+      },
+
+      {
+        "route": "/how-it-works",
+        "name": "How it works",
+        "rendering": "SSG",
+        "meta": {
+          "title": "How it works — AINotes",
+          "description": "See the full flow: meeting transcript → generate AI summary → export to PDF or email draft.",
+          "keywords": [
+            "meeting workflow",
+            "AI summary pipeline",
+            "meeting minutes"
+          ],
+          "canonical": "https://meeting-assistant-web.vercel.app/how-it-works",
+          "og_image": "/og/og-how.png"
+        },
+        "sections": [
+          {
+            "type": "timeline_story",
+            "steps": [
+              "Meeting",
+              "Transcript",
+              "Generate",
+              "Artifacts (Markdown/HTML)",
+              "Export PDF",
+              "Email Draft Share"
+            ]
+          }
+        ]
+      },
+
+      {
+        "route": "/privacy",
+        "name": "Privacy Policy",
+        "rendering": "SSG",
+        "meta": {
+          "title": "Privacy Policy — AINotes",
+          "description": "Privacy-first AI notes app. Learn how AINotes handles data, consent, transcripts, and retention.",
+          "keywords": ["privacy policy", "GDPR", "consent", "transcription"],
+          "canonical": "https://meeting-assistant-web.vercel.app/privacy",
+          "og_image": "/og/og-privacy.png"
+        },
+        "contact_email": "rakeshtagadghar@gmail.com",
+        "must_include": [
+          "Who we are",
+          "Data we collect",
+          "How we use it",
+          "Consent for transcription",
+          "Retention and deletion",
+          "User rights (GDPR)",
+          "Contact for privacy requests: rakeshtagadghar@gmail.com"
+        ]
+      },
+
+      {
+        "route": "/terms",
+        "name": "Terms & Conditions",
+        "rendering": "SSG",
+        "meta": {
+          "title": "Terms — AINotes",
+          "description": "Terms and conditions for using AINotes, including consent responsibility and AI limitations.",
+          "keywords": ["terms", "AI limitations", "meeting consent"],
+          "canonical": "https://meeting-assistant-web.vercel.app/terms",
+          "og_image": "/og/og-terms.png"
+        },
+        "must_include": [
+          "Service description",
+          "User responsibilities",
+          "Consent responsibility for meeting transcription",
+          "AI limitations disclaimer",
+          "Limitation of liability",
+          "Governing law"
+        ]
+      },
+
+      {
+        "route": "/cookies",
+        "name": "Cookie Policy",
+        "rendering": "SSG",
+        "meta": {
+          "title": "Cookie Policy — AINotes",
+          "description": "Learn about cookies and consent management in AINotes.",
+          "keywords": ["cookie policy", "CMP v2", "consent"],
+          "canonical": "https://meeting-assistant-web.vercel.app/cookies",
+          "og_image": "/og/og-cookies.png"
+        },
+        "must_include": [
+          "What cookies are",
+          "What we use them for",
+          "How to manage consent"
+        ]
+      },
+
+      {
+        "route": "/contact",
+        "name": "Contact",
+        "rendering": "SSG",
+        "meta": {
+          "title": "Contact — AINotes",
+          "description": "Contact the AINotes team for support, privacy questions, or partnerships.",
+          "keywords": ["contact", "support", "privacy"],
+          "canonical": "https://meeting-assistant-web.vercel.app/contact",
+          "og_image": "/og/og-contact.png"
+        },
+        "contact_email": "rakeshtagadghar@gmail.com",
+        "sections": [
+          {
+            "type": "contact_card",
+            "title": "Get in touch",
+            "items": [
+              { "label": "Email", "value": "rakeshtagadghar@gmail.com" },
+              {
+                "label": "Privacy requests",
+                "value": "rakeshtagadghar@gmail.com"
+              }
+            ]
+          },
+          {
+            "type": "contact_form",
+            "enabled": true,
+            "submit_behavior": "mailto",
+            "mailto_target": "rakeshtagadghar@gmail.com"
+          }
+        ]
+      },
+
+      {
+        "route": "/pricing",
+        "name": "Pricing",
+        "rendering": "SSG",
+        "meta": {
+          "title": "Pricing — AINotes",
+          "description": "Start for free. Transparent pricing for AINotes exports, summaries, and integrations.",
+          "keywords": ["pricing", "free AI notes", "meeting assistant"],
+          "canonical": "https://meeting-assistant-web.vercel.app/pricing",
+          "og_image": "/og/og-pricing.png"
+        },
+        "sections": [
+          {
+            "type": "pricing_cards",
+            "cards": [
+              {
+                "name": "Free",
+                "price": "£0",
+                "features": [
+                  "Notes",
+                  "Local transcription",
+                  "Generate summaries",
+                  "Email draft share"
+                ]
+              },
+              {
+                "name": "Pro (future)",
+                "price": "TBD",
+                "features": [
+                  "More exports",
+                  "Integrations",
+                  "Team sharing",
+                  "Advanced templates"
+                ],
+                "disabled": true
+              }
+            ]
+          }
+        ]
+      }
+    ],
+
+    "meta_tag_requirements": {
+      "applies_to_all_public_pages": true,
+      "required_tags": [
+        "title",
+        "meta description",
+        "canonical",
+        "robots",
+        "open graph title",
+        "open graph description",
+        "open graph image",
+        "twitter card",
+        "twitter title",
+        "twitter description"
+      ],
+      "nextjs_metadata_api": {
+        "use_generateMetadata": true,
+        "noindex_for_app_routes": ["/app", "/settings", "/shared/*"]
+      }
+    },
+
+    "og_image_generation": {
+      "enabled": true,
+      "approach": "Next.js OG Image generation route",
+      "templates": ["home", "features", "privacy", "pricing"],
+      "style": "brand_gradient + subtle noise + product mock mini"
+    },
+
+    "tests": {
+      "seo_tests": [
+        {
+          "id": "SEO_001",
+          "name": "All public routes have required metadata",
+          "assert": [
+            "title exists",
+            "description exists",
+            "canonical exists",
+            "og:image exists"
+          ]
+        },
+        {
+          "id": "SEO_002",
+          "name": "Sitemap and robots exist",
+          "assert": ["GET /sitemap.xml 200", "GET /robots.txt 200"]
+        }
+      ],
+      "ui_motion_tests": [
+        {
+          "id": "LP_UI_001",
+          "name": "Staggered animations disabled for reduced motion",
+          "assert": [
+            "prefers-reduced-motion disables Framer Motion transitions"
+          ]
+        }
+      ],
+      "accessibility_tests": [
+        {
+          "id": "A11Y_001",
+          "name": "Landing CTA and nav keyboard accessible",
+          "assert": ["tab order correct", "focus visible"]
+        }
+      ]
+    }
+  }
+}

@@ -118,7 +118,7 @@ export default function QuickNotePage() {
   };
 
   return (
-    <div className="flex h-screen flex-col bg-warm-50">
+    <div className="flex h-screen flex-col bg-bg-secondary">
       {/* Header */}
       <TranscriptHeader onClose={handleClose} onSearch={setSearchQuery} />
 

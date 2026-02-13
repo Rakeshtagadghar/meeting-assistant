@@ -40,6 +40,11 @@ function toDomainNote(row: PrismaNote): Note {
     folderId: row.folderId ? (row.folderId as UUID) : null,
     createdAt: row.createdAt.toISOString() as ISODateString,
     updatedAt: row.updatedAt.toISOString() as ISODateString,
+    templateId: row.templateId as UUID | null,
+    templateMode: row.templateMode as "AUTO" | "SELECTED",
+    templateSelectedAt: row.templateSelectedAt
+      ? (row.templateSelectedAt.toISOString() as ISODateString)
+      : null,
     deletedAt: row.deletedAt
       ? (row.deletedAt.toISOString() as ISODateString)
       : null,

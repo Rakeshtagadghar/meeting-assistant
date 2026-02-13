@@ -9,13 +9,11 @@ export function getServerPostHog(): PostHog | null {
 
   if (!key) return null;
 
-  if (!serverPostHog) {
-    serverPostHog = new PostHog(key, {
-      host,
-      flushAt: 1,
-      flushInterval: 0,
-    });
-  }
+  serverPostHog ??= new PostHog(key, {
+    host,
+    flushAt: 1,
+    flushInterval: 0,
+  });
 
   return serverPostHog;
 }

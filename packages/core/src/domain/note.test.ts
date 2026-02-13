@@ -31,6 +31,9 @@ function makeNote(overrides?: Partial<Note>): Note {
     createdAt: "2025-01-01T00:00:00.000Z" as ISODateString,
     updatedAt: "2025-01-01T00:00:00.000Z" as ISODateString,
     deletedAt: null,
+    templateId: null,
+    templateMode: "AUTO",
+    templateSelectedAt: null,
     ...overrides,
   };
 }

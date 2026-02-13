@@ -49,5 +49,5 @@ export async function createTestUser(
       displayName: overrides?.displayName ?? "Test User",
     },
   });
-  return { id: user.id as UUID, email: user.email };
+  return { id: user.id as UUID, email: user.email! };
 }

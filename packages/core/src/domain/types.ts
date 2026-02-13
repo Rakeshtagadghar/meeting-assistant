@@ -125,6 +125,9 @@ export interface Note {
   readonly tags: readonly string[];
   readonly pinned: boolean;
   readonly folderId: UUID | null;
+  readonly templateId: UUID | null;
+  readonly templateMode: "AUTO" | "SELECTED";
+  readonly templateSelectedAt: ISODateString | null;
   readonly createdAt: ISODateString;
   readonly updatedAt: ISODateString;
   readonly deletedAt: ISODateString | null;

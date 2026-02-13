@@ -1,0 +1,408 @@
+{
+  "feature": {
+    "id": "TEMPLATES_001",
+    "name": "Note Templates (Select + Manage + Use in Generate)",
+    "goal": "Let users select a meeting template to shape AI generation, and manage templates (create/edit/reorder/duplicate/delete).",
+    "scope": ["web_app", "desktop_app_optional"],
+    "priority": "MVP",
+    "key_outcome": "Generated summary follows the chosen template’s context + sections."
+  },
+
+  "product_behavior": {
+    "template_usage_in_generate": {
+      "when": "User clicks Generate",
+      "input_to_ai_prompt": [
+        "Template.meetingContext",
+        "Template.sections (ordered)",
+        "Transcript text (final)",
+        "Note metadata (title, participants, date, meeting type)"
+      ],
+      "prompt_contract": {
+        "instruction": "Use the template sections as the required output structure. Fill each section with concise, actionable content based on transcript.",
+        "output_format": "Markdown with headings matching template section names, in the same order."
+      }
+    },
+    "regenerate_behavior": {
+      "allow_regenerate_with_different_template": true,
+      "history": {
+        "store_previous_generations": true,
+        "keep_last_n": 10,
+        "diff_view_optional": true
+      }
+    }
+  },
+
+  "ui": {
+    "template_selector": {
+      "locations": [
+        {
+          "page": "Note Editor",
+          "control": "Template dropdown near note header"
+        },
+        {
+          "page": "Quick Note (desktop)",
+          "control": "Template dropdown in header (optional MVP)"
+        }
+      ],
+      "options": [
+        {
+          "id": "auto",
+          "label": "Auto",
+          "behavior": "AI chooses best structure based on transcript"
+        },
+        { "id": "user_templates", "label": "My templates", "group": true },
+        { "id": "predefined_templates", "label": "Recommended", "group": true },
+        {
+          "id": "manage_templates",
+          "label": "Manage templates…",
+          "action": "OPEN_MANAGE_TEMPLATES"
+        }
+      ],
+      "default_selection": "auto",
+      "search": { "enabled": true, "placeholder": "Search templates…" },
+      "create_button": { "label": "New template", "action": "CREATE_TEMPLATE" }
+    },
+
+    "manage_templates_page": {
+      "route": "/app/templates",
+      "layout": "two_panel",
+      "left_panel": {
+        "title": "Note templates",
+        "primary_action": {
+          "label": "New template",
+          "icon": "plus",
+          "action": "CREATE_TEMPLATE"
+        },
+        "groups": [
+          { "label": "My templates", "filter": "owner=user" },
+          { "label": "Recommended", "filter": "owner=system" }
+        ],
+        "list_item": {
+          "shows": ["icon", "name", "owner_label"],
+          "select_behavior": "loads template into right panel editor",
+          "context_menu": [
+            "Duplicate",
+            "Delete (if owner=user)",
+            "Reset (if owner=system)"
+          ]
+        }
+      },
+      "right_panel": {
+        "header": {
+          "template_icon": "editable_optional",
+          "template_name": { "editable": true, "inline_edit": true },
+          "owner": "display_only",
+          "overflow_menu": [
+            "Duplicate",
+            "Delete",
+            "Reset to default (system templates)"
+          ]
+        },
+        "meeting_context": {
+          "label": "Meeting Context",
+          "control": "multiline_textarea",
+          "editable": true,
+          "placeholder": "Describe what this meeting is and how notes should be structured…",
+          "helper": "This context will be injected into the AI prompt during Generate."
+        },
+        "sections": {
+          "label": "Sections",
+          "description": "Drag to reorder. Hover a card to delete.",
+          "controls": {
+            "add_section": { "label": "Add section", "action": "ADD_SECTION" },
+            "drag_and_drop": {
+              "enabled": true,
+              "library": "dnd-kit",
+              "handle": "grip_icon_left"
+            }
+          },
+          "card": {
+            "fields": [
+              {
+                "key": "title",
+                "type": "text",
+                "editable": true,
+                "placeholder": "Section title"
+              },
+              {
+                "key": "hint",
+                "type": "text",
+                "editable": true,
+                "placeholder": "Optional guidance for AI (what to capture)"
+              }
+            ],
+            "hover_actions": [
+              {
+                "icon": "x",
+                "action": "DELETE_SECTION",
+                "tooltip": "Delete section"
+              }
+            ]
+          },
+          "validation": {
+            "min_sections": 1,
+            "max_sections": 25,
+            "unique_titles_required": true
+          }
+        },
+        "footer_actions": [
+          { "label": "Save", "variant": "primary", "action": "SAVE_TEMPLATE" },
+          {
+            "label": "Cancel",
+            "variant": "secondary",
+            "action": "CANCEL_CHANGES"
+          }
+        ]
+      },
+      "empty_states": [
+        {
+          "case": "no_template_selected",
+          "title": "Select a template to edit",
+          "action": {
+            "label": "Create a template",
+            "action": "CREATE_TEMPLATE"
+          }
+        }
+      ]
+    },
+
+    "template_actions": {
+      "create": {
+        "flow": [
+          "Click New template",
+          "Create draft with default fields",
+          "Open editor with focus on name",
+          "Autosave disabled; explicit Save"
+        ],
+        "default_template_values": {
+          "name": "Untitled template",
+          "meetingContext": "Capture concise, actionable meeting notes in a structured format.",
+          "sections": [
+            {
+              "title": "Summary",
+              "hint": "Brief overview of what was discussed."
+            },
+            {
+              "title": "Key points",
+              "hint": "Important details and insights."
+            },
+            {
+              "title": "Action items",
+              "hint": "Tasks with owners and due dates if mentioned."
+            }
+          ]
+        }
+      },
+      "duplicate": {
+        "behavior": "Creates a copy under user ownership",
+        "name_rule": "Append (Copy) and ensure uniqueness"
+      },
+      "delete": {
+        "allowed_if": "owner=user",
+        "confirm_modal": {
+          "title": "Delete template?",
+          "body": "This will remove the template from your account. Notes that used it will keep their generated content.",
+          "confirm_label": "Delete"
+        }
+      },
+      "reset_system_template": {
+        "allowed_if": "owner=system",
+        "behavior": "Reverts to original system version for that user"
+      }
+    }
+  },
+
+  "data_model": {
+    "entities": [
+      {
+        "name": "Template",
+        "fields": {
+          "id": "uuid",
+          "ownerType": "enum:user|system",
+          "ownerUserId": "uuid|null",
+          "name": "string",
+          "icon": "string|null",
+          "meetingContext": "string",
+          "sections": "TemplateSection[]",
+          "createdAt": "datetime",
+          "updatedAt": "datetime",
+          "isDeleted": "boolean"
+        },
+        "constraints": [
+          "name length 1..80",
+          "meetingContext length 0..4000",
+          "sections length 1..25"
+        ]
+      },
+      {
+        "name": "TemplateSection",
+        "fields": {
+          "id": "uuid",
+          "templateId": "uuid",
+          "order": "int",
+          "title": "string",
+          "hint": "string|null"
+        },
+        "constraints": ["title length 1..60", "hint length 0..240"]
+      },
+      {
+        "name": "NoteTemplateSelection",
+        "fields": {
+          "noteId": "uuid",
+          "templateId": "uuid|null",
+          "mode": "enum:auto|selected",
+          "selectedAt": "datetime"
+        }
+      },
+      {
+        "name": "AIGenerationRun",
+        "fields": {
+          "id": "uuid",
+          "noteId": "uuid",
+          "templateId": "uuid|null",
+          "templateSnapshot": "json",
+          "status": "enum:queued|running|completed|failed",
+          "outputMarkdown": "string|null",
+          "outputHtml": "string|null",
+          "createdAt": "datetime"
+        },
+        "notes": [
+          "Store templateSnapshot so past runs remain reproducible even if template changes."
+        ]
+      }
+    ]
+  },
+
+  "api_contracts": {
+    "routes": [
+      { "method": "GET", "path": "/api/templates", "returns": "Template[]" },
+      {
+        "method": "POST",
+        "path": "/api/templates",
+        "body": "TemplateCreateDTO",
+        "returns": "Template"
+      },
+      {
+        "method": "PUT",
+        "path": "/api/templates/:id",
+        "body": "TemplateUpdateDTO",
+        "returns": "Template"
+      },
+      {
+        "method": "POST",
+        "path": "/api/templates/:id/duplicate",
+        "returns": "Template"
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/templates/:id",
+        "returns": "{ok:true}"
+      },
+      {
+        "method": "POST",
+        "path": "/api/templates/:id/reset",
+        "returns": "Template",
+        "optional": true
+      },
+      {
+        "method": "PUT",
+        "path": "/api/notes/:noteId/template",
+        "body": "{mode:'auto'|'selected', templateId?:uuid}",
+        "returns": "{ok:true}"
+      }
+    ],
+    "validation": {
+      "schema": "zod",
+      "errors": ["400 invalid", "401 unauth", "403 forbidden", "404 not found"]
+    }
+  },
+
+  "ai_prompt_injection": {
+    "system_prompt": "You are an assistant that produces structured meeting notes.",
+    "template_prompt": [
+      "Meeting Context:",
+      "{{template.meetingContext}}",
+      "",
+      "Required Output Sections (in order):",
+      "{{#each template.sections}}- {{title}}: {{hint}}{{/each}}",
+      "",
+      "Rules:",
+      "- Use the section titles exactly as headings in Markdown.",
+      "- Fill each section with concise, actionable content.",
+      "- Extract owners and due dates only if explicitly mentioned; otherwise leave blank or 'TBD'.",
+      "- Do not invent facts."
+    ],
+    "output_format": {
+      "type": "markdown",
+      "heading_level": "###",
+      "example": "### Summary\n...\n\n### Action items\n- [ ] ..."
+    }
+  },
+
+  "tdd_test_suite": {
+    "unit_tests": [
+      {
+        "id": "TMP_UT_001",
+        "name": "Template validation rejects empty name or zero sections",
+        "assert": ["400 on empty name", "400 on empty sections"]
+      },
+      {
+        "id": "TMP_UT_002",
+        "name": "Reorder sections persists correct order",
+        "assert": ["order indexes reflect drag-drop order"]
+      },
+      {
+        "id": "TMP_UT_003",
+        "name": "Duplicate template creates new id and owner=user",
+        "assert": ["new templateId", "ownerType=user"]
+      }
+    ],
+    "component_tests": [
+      {
+        "id": "TMP_CT_001",
+        "name": "Hover delete (x) appears on section card",
+        "assert": ["x visible on hover", "click removes section"]
+      },
+      {
+        "id": "TMP_CT_002",
+        "name": "Drag & drop reorder updates UI and Save payload",
+        "assert": ["cards reorder", "save sends reordered sections"]
+      }
+    ],
+    "integration_tests": [
+      {
+        "id": "TMP_IT_001",
+        "name": "Generate uses selected template snapshot",
+        "assert": [
+          "AIGenerationRun.templateSnapshot equals selected template at time of run"
+        ]
+      }
+    ],
+    "e2e_tests": [
+      {
+        "id": "TMP_E2E_001",
+        "name": "User selects template and regenerates",
+        "steps": [
+          "Open note",
+          "Select template 'Stand-up'",
+          "Click Generate",
+          "Verify output headings match template sections",
+          "Switch to '1:1' template",
+          "Click Regenerate",
+          "Verify output headings updated"
+        ]
+      }
+    ]
+  },
+
+  "acceptance_criteria": [
+    "User can select a template before clicking Generate",
+    "Manage Templates page exists with list + editor panels",
+    "Template name/context/sections are editable",
+    "Sections can be reordered via drag and drop",
+    "Sections can be deleted with an X icon on hover",
+    "User can create, duplicate, and delete templates",
+    "Generate uses the selected template to structure output",
+    "Template snapshot is stored per generation run"
+  ]
+}

@@ -9,6 +9,7 @@ import { useStreamingSummary } from "../../ai/hooks/use-streaming-summary";
 import { SummaryPanel } from "./SummaryPanel";
 import { StreamingSummary } from "../../ai/components/StreamingSummary";
 import { DownloadMenu } from "../../ai/components/DownloadMenu";
+import { TemplateSelector } from "@/features/templates/components/TemplateSelector";
 import {
   generateEmailContent,
   getComposeUrl,
@@ -57,6 +58,7 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
   const [content, setContent] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [pinned, setPinned] = useState(false);
+  const [templateId, setTemplateId] = useState<string | null>(null);
   const [tagInput, setTagInput] = useState("");
   const baseContentRef = useRef("");
 
@@ -67,6 +69,7 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
       setContent(note.contentPlain);
       setTags([...note.tags]);
       setPinned(note.pinned);
+      setTemplateId(note.templateId);
     }
   }, [note]);
 
@@ -243,6 +246,25 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
     );
   }
 
+  const handleTemplateSelect = async (newTemplateId: string | null) => {
+    const prev = templateId;
+    setTemplateId(newTemplateId);
+    try {
+      const res = await fetch(`/api/notes/${noteId}/template`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          templateId: newTemplateId,
+          mode: newTemplateId ? "SELECTED" : "AUTO",
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to update template");
+    } catch (error) {
+      console.error(error);
+      setTemplateId(prev); // Revert
+    }
+  };
+
   if (error) {
     return (
       <div className="p-8" role="alert">
@@ -353,7 +375,13 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
           )}
 
           {(summaries.length > 0 || artifacts.length > 0) && (
-            <DownloadMenu artifacts={artifacts} noteId={noteId} />
+            <>
+              <TemplateSelector
+                selectedTemplateId={templateId}
+                onSelect={handleTemplateSelect}
+              />
+              <DownloadMenu artifacts={artifacts} noteId={noteId} />
+            </>
           )}
 
           {/* More actions menu */}

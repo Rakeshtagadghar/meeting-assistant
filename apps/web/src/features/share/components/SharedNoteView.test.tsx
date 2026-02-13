@@ -17,6 +17,9 @@ const mockNote: Note = {
   deletedAt: null,
   createdAt: "2024-01-15T10:00:00.000Z" as ISODateString,
   updatedAt: "2024-01-20T14:30:00.000Z" as ISODateString,
+  templateId: null,
+  templateMode: "AUTO",
+  templateSelectedAt: null,
 };
 
 const mockSummaries: AISummary[] = [

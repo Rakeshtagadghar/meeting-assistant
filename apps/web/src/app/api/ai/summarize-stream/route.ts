@@ -122,6 +122,24 @@ export async function POST(request: NextRequest): Promise<Response> {
     await artifactsRepo.create({ noteId, jobId: job.id, type });
   }
 
+  // Fetch template if assigned
+  let templateContext: string | null = null;
+  let templateSections: { title: string; hint?: string | null }[] | undefined;
+
+  if (note.templateId) {
+    const template = await prisma.template.findUnique({
+      where: { id: note.templateId },
+      include: { sections: { orderBy: { order: "asc" } } },
+    });
+    if (template) {
+      templateContext = template.meetingContext;
+      templateSections = template.sections.map((s) => ({
+        title: s.title,
+        hint: s.hint,
+      }));
+    }
+  }
+
   // Set up abort controller linked to client disconnect
   const abortController = new AbortController();
   request.signal.addEventListener("abort", () => abortController.abort());
@@ -143,6 +161,8 @@ export async function POST(request: NextRequest): Promise<Response> {
           noteTitle: note.title,
           noteContent,
           needsTitle,
+          templateContext,
+          templateSections,
           signal: abortController.signal,
         });
 

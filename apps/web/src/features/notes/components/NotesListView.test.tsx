@@ -38,6 +38,9 @@ const mockNotes: Note[] = [
     deletedAt: null,
     createdAt: "2024-01-10T10:00:00.000Z" as ISODateString,
     updatedAt: "2024-01-15T10:00:00.000Z" as ISODateString,
+    templateId: null,
+    templateMode: "AUTO",
+    templateSelectedAt: null,
   },
   {
     id: "note-2" as UUID,
@@ -52,6 +55,9 @@ const mockNotes: Note[] = [
     deletedAt: null,
     createdAt: "2024-01-12T10:00:00.000Z" as ISODateString,
     updatedAt: "2024-01-18T10:00:00.000Z" as ISODateString,
+    templateId: null,
+    templateMode: "AUTO",
+    templateSelectedAt: null,
   },
 ];
 

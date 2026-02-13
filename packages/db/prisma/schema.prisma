@@ -166,6 +166,14 @@ model Note {
   processingJobs  NoteProcessingJob[]
   artifacts       NoteArtifact[]
 
+  // Template fields
+  templateId         String?       @map("template_id") @db.Uuid
+  templateMode       TemplateMode  @default(AUTO) @map("template_mode")
+  templateSelectedAt DateTime?     @map("template_selected_at")
+
+  template         Template?         @relation(fields: [templateId], references: [id])
+  aiGenerationRuns AIGenerationRun[]
+
   @@index([userId])
   @@index([userId, deletedAt])
   @@index([userId, pinned])
@@ -295,4 +303,65 @@ model NoteArtifact {
   @@index([jobId])
   @@index([noteId, type])
   @@map("note_artifacts")
+}
+
+// ─── Templates ───
+
+enum TemplateOwnerType {
+  SYSTEM
+  USER
+}
+
+enum TemplateMode {
+  AUTO
+  SELECTED
+}
+
+model Template {
+  id            String            @id @default(uuid()) @db.Uuid
+  ownerType     TemplateOwnerType
+  ownerUserId   String?           @map("owner_user_id") @db.Uuid
+  name          String
+  icon          String?
+  meetingContext String           @map("meeting_context")
+  createdAt     DateTime          @default(now()) @map("created_at")
+  updatedAt     DateTime          @updatedAt @map("updated_at")
+  isDeleted     Boolean           @default(false) @map("is_deleted")
+
+  sections      TemplateSection[]
+  notes         Note[]
+  aiRuns        AIGenerationRun[]
+
+  @@index([ownerType, ownerUserId])
+  @@map("templates")
+}
+
+model TemplateSection {
+  id         String   @id @default(uuid()) @db.Uuid
+  templateId String   @map("template_id") @db.Uuid
+  order      Int
+  title      String
+  hint       String?
+
+  template   Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([templateId])
+  @@map("template_sections")
+}
+
+model AIGenerationRun {
+  id               String   @id @default(uuid()) @db.Uuid
+  noteId           String   @map("note_id") @db.Uuid
+  templateId       String?  @map("template_id") @db.Uuid
+  templateSnapshot Json     @map("template_snapshot") // Snapshot of template at run time
+  status           String   // queued, running, completed, failed
+  outputMarkdown   String?  @map("output_markdown")
+  outputHtml       String?  @map("output_html")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  note     Note      @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  template Template? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+
+  @@index([noteId])
+  @@map("ai_generation_runs")
 }

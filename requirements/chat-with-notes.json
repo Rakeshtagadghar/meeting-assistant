@@ -1,0 +1,422 @@
+{
+  "feature": {
+    "id": "CHAT_NOTES_001",
+    "name": "Chat with Your Notes",
+    "goal": "Let users ask questions across their notes/meetings and get grounded answers with citations, optional actions (create note, export, draft email), and streaming UX.",
+    "scope": ["web_app", "desktop_app"],
+    "priority": "MVP (RAG Q&A) + Phase 2 (toolcalling/actions)",
+    "langchain_required": false,
+    "notes_on_langchain": {
+      "mvp": "Do not use LangChain. Implement lightweight RAG + tool router yourself.",
+      "phase_2": "Consider LangChain/LlamaIndex only if you add many tools, agents, or complex multi-step planning."
+    }
+  },
+
+  "ux": {
+    "navigation": {
+      "sidebar_item": "Chat",
+      "route": "/app/chat"
+    },
+    "layout": {
+      "left_sidebar": {
+        "items": [
+          "Home",
+          "Shared with me",
+          "Chat",
+          "Spaces",
+          "My notes",
+          "Folders"
+        ],
+        "search": true
+      },
+      "main": {
+        "title": "Ask anything about your notes",
+        "scope_selector": {
+          "enabled": true,
+          "default": "My notes",
+          "options": [
+            { "id": "my_notes", "label": "My notes" },
+            { "id": "all_meetings", "label": "All meetings" },
+            { "id": "folder", "label": "Specific folder…" },
+            { "id": "tag", "label": "Specific tag…" },
+            { "id": "date_range", "label": "Date range…" },
+            { "id": "shared_with_me", "label": "Shared with me" }
+          ]
+        },
+        "input": {
+          "placeholder": "Ask about decisions, action items, or summaries…",
+          "controls": ["attach", "mic_optional", "send"],
+          "mode_selector": {
+            "enabled": true,
+            "options": [
+              "Auto",
+              "Q&A",
+              "Summarize",
+              "Extract action items",
+              "Draft email"
+            ],
+            "default": "Auto"
+          }
+        },
+        "quick_prompts": [
+          "List recent todos",
+          "Write weekly recap",
+          "Summarize last meeting",
+          "What did we decide about X?",
+          "Find all action items for me"
+        ],
+        "response": {
+          "streaming": true,
+          "markdown_rendering": "streamdown_optional",
+          "citations_panel": true,
+          "actions_bar": [
+            "Create note from answer",
+            "Export PDF",
+            "Draft email",
+            "Copy",
+            "Save to note"
+          ]
+        }
+      }
+    }
+  },
+
+  "capabilities_mvp": {
+    "rag_qa": true,
+    "answer_with_citations": true,
+    "filters": ["folder", "tag", "date_range", "note_type"],
+    "streaming_response": true,
+    "no_toolcalling_by_default": true,
+    "fallback_behavior": {
+      "if_low_confidence": "Ask a clarifying question and show top relevant notes",
+      "if_no_results": "Explain no matching notes found and suggest changing scope"
+    }
+  },
+
+  "capabilities_phase_2": {
+    "toolcalling_actions": {
+      "enabled": true,
+      "tools": [
+        "create_note",
+        "append_to_note",
+        "create_action_items",
+        "export_pdf",
+        "share_email_draft",
+        "send_to_notion",
+        "send_to_slack",
+        "search_notes_advanced"
+      ],
+      "policy": "Tools require explicit user confirmation before executing any side-effect."
+    },
+    "agentic_mode": {
+      "enabled": false,
+      "notes": "Avoid autonomous agents. Keep assistant deterministic with confirm-to-act."
+    }
+  },
+
+  "data_and_indexing": {
+    "sources": [
+      "Note.title",
+      "Note.body_markdown",
+      "MeetingSession.metadata",
+      "Transcript.final_text",
+      "AISummary.markdown"
+    ],
+    "chunking": {
+      "strategy": "semantic + heading-aware",
+      "target_tokens": 350,
+      "overlap_tokens": 60,
+      "store_metadata_per_chunk": [
+        "noteId",
+        "meetingSessionId",
+        "chunkIndex",
+        "createdAt",
+        "sourceType:note|transcript|summary",
+        "title",
+        "participants_optional"
+      ]
+    },
+    "embeddings": {
+      "provider": "free_or_low_cost",
+      "recommended_options": [
+        {
+          "name": "Local embeddings (desktop-only)",
+          "notes": "Best privacy; heavier local compute."
+        },
+        {
+          "name": "Server embeddings (web)",
+          "notes": "Use a free-tier model/provider; do not embed raw audio."
+        }
+      ],
+      "vector_store": {
+        "default": "pgvector (Supabase Postgres)",
+        "tables": ["note_chunks", "chunk_embeddings"]
+      }
+    },
+    "indexing_triggers": [
+      "note_created",
+      "note_updated",
+      "transcript_finalized",
+      "ai_summary_completed"
+    ],
+    "reindex_policy": {
+      "debounce_ms": 1000,
+      "batching": true
+    }
+  },
+
+  "rag_pipeline": {
+    "steps": [
+      {
+        "name": "query_normalization",
+        "details": [
+          "detect intent (Q&A vs summary vs todo extraction)",
+          "apply scope filters",
+          "rewrite query for retrieval (optional)"
+        ]
+      },
+      {
+        "name": "retrieve",
+        "details": {
+          "k": 8,
+          "hybrid_search": {
+            "enabled": true,
+            "bm25_weight": 0.4,
+            "vector_weight": 0.6
+          },
+          "rerank": { "enabled": true, "top_n": 5 }
+        }
+      },
+      {
+        "name": "compose_context",
+        "details": [
+          "dedupe overlapping chunks",
+          "sort by relevance then recency",
+          "build citations mapping"
+        ]
+      },
+      {
+        "name": "generate_answer",
+        "details": {
+          "model_provider": "Groq (or chosen LLM)",
+          "response": "stream tokens to UI",
+          "guardrails": [
+            "Answer only using provided context",
+            "If not in context, say you don't know",
+            "Always cite sources for factual claims"
+          ]
+        }
+      }
+    ],
+    "output_contract": {
+      "format": "markdown",
+      "must_include": [
+        "Answer",
+        "Citations list with note titles + timestamps",
+        "Action suggestions (optional)"
+      ],
+      "citations_schema": [
+        {
+          "citation_id": "c1",
+          "noteId": "uuid",
+          "title": "string",
+          "sourceType": "note|transcript|summary",
+          "snippet": "string",
+          "time_range_optional": "tStartMs..tEndMs"
+        }
+      ]
+    }
+  },
+
+  "toolcalling_router_phase_2": {
+    "enabled": false,
+    "design": {
+      "approach": "explicit tool router (no agent) with JSON function calls",
+      "confirmation": {
+        "required_for_side_effects": true,
+        "ui": "Show a confirm card: 'Do you want me to create a note / export / send to Notion?'"
+      },
+      "tools": [
+        {
+          "name": "search_notes",
+          "input_schema": {
+            "query": "string",
+            "scope": "string",
+            "filters": "object"
+          },
+          "output_schema": { "results": "array" }
+        },
+        {
+          "name": "create_note",
+          "input_schema": {
+            "title": "string",
+            "body_markdown": "string",
+            "folderId_optional": "uuid"
+          },
+          "output_schema": { "noteId": "uuid" }
+        },
+        {
+          "name": "append_to_note",
+          "input_schema": { "noteId": "uuid", "append_markdown": "string" },
+          "output_schema": { "ok": "boolean" }
+        },
+        {
+          "name": "export_pdf",
+          "input_schema": { "noteId": "uuid" },
+          "output_schema": { "downloadUrl": "string" }
+        },
+        {
+          "name": "share_email_draft",
+          "input_schema": {
+            "noteId": "uuid",
+            "provider": "gmail|mailto",
+            "to_optional": "string"
+          },
+          "output_schema": { "composeUrl": "string" }
+        }
+      ]
+    }
+  },
+
+  "privacy_and_security": {
+    "rules": [
+      "Never send raw transcripts/notes to analytics tools",
+      "RAG context is limited to user-selected scope",
+      "Respect sharing permissions: shared notes only if user has access",
+      "No cross-tenant leakage"
+    ],
+    "sensitive_content": {
+      "enabled": true,
+      "behavior": "Do not output sensitive personal data beyond what exists in notes; always cite source note."
+    }
+  },
+
+  "api_contracts": {
+    "chat_endpoint": {
+      "method": "POST",
+      "path": "/api/chat",
+      "body": {
+        "message": "string",
+        "scope": "my_notes|all_meetings|folder|tag|date_range|shared_with_me",
+        "filters": "object",
+        "mode": "auto|qa|summarize|action_items|email_draft",
+        "conversationId": "uuid_optional"
+      },
+      "returns": "SSE stream",
+      "sse_events": [
+        { "type": "status", "payload": { "message": "string" } },
+        { "type": "citations", "payload": { "citations": "array" } },
+        { "type": "token", "payload": { "text": "string" } },
+        { "type": "done", "payload": { "conversationId": "uuid" } },
+        { "type": "error", "payload": { "error": "string" } }
+      ]
+    },
+    "search_endpoint": {
+      "method": "POST",
+      "path": "/api/chat/search",
+      "body": { "query": "string", "scope": "string", "filters": "object" },
+      "returns": { "results": "array" }
+    }
+  },
+
+  "conversation_memory": {
+    "mvp": {
+      "enabled": true,
+      "type": "short_context",
+      "strategy": "store last N user/assistant turns; do not store full retrieved context",
+      "max_turns": 10
+    },
+    "phase_2": {
+      "long_term_memory": false,
+      "note": "Avoid magical memory; rely on retrieval from notes."
+    }
+  },
+
+  "observability": {
+    "metrics": [
+      "chat_request_count",
+      "retrieval_latency_ms",
+      "llm_latency_ms",
+      "stream_duration_ms",
+      "no_results_rate",
+      "user_satisfaction_thumbsup_rate"
+    ],
+    "logging": {
+      "store_prompts": false,
+      "store_retrieved_chunk_ids": true,
+      "store_error_traces": true
+    }
+  },
+
+  "tdd_test_suite": {
+    "unit_tests": [
+      {
+        "id": "CHAT_UT_001",
+        "name": "Scope filters applied to retrieval query",
+        "assert": [
+          "folder filter restricts results",
+          "date range restricts results"
+        ]
+      },
+      {
+        "id": "CHAT_UT_002",
+        "name": "Citations map to correct note/chunk metadata",
+        "assert": [
+          "citation noteId matches chunk",
+          "snippet is from retrieved text"
+        ]
+      },
+      {
+        "id": "CHAT_UT_003",
+        "name": "Guardrail refuses to hallucinate when context missing",
+        "assert": [
+          "answer contains 'I couldn't find' wording",
+          "suggests changing scope"
+        ]
+      }
+    ],
+    "integration_tests": [
+      {
+        "id": "CHAT_IT_001",
+        "name": "RAG pipeline returns grounded answer for seeded notes",
+        "setup": "seed notes + embeddings",
+        "assert": ["answer references seeded content", "citations length > 0"]
+      }
+    ],
+    "e2e_tests": [
+      {
+        "id": "CHAT_E2E_001",
+        "name": "Chat page streams response + shows citations",
+        "steps": [
+          "Open /app/chat",
+          "Select scope = All meetings",
+          "Ask: 'What did we decide about the API?'",
+          "See streaming text",
+          "Citations panel shows at least 1 citation",
+          "Click citation opens linked note"
+        ]
+      }
+    ]
+  },
+
+  "acceptance_criteria": [
+    "User can chat with notes using scope selector and get grounded answers with citations.",
+    "Responses stream in real time and render cleanly as Markdown.",
+    "Citations link back to the source note/meeting chunk.",
+    "No LangChain is required for MVP; toolcalling is optional and gated with confirmation."
+  ],
+
+  "implementation_phases": {
+    "phase_1_mvp": [
+      "Index notes/transcripts into pgvector",
+      "RAG Q&A with citations",
+      "Streaming responses in UI",
+      "Scope filters"
+    ],
+    "phase_2": [
+      "Toolcalling router with confirm-to-act",
+      "Integrations: Notion export from chat",
+      "Saved prompts and templates for chat"
+    ]
+  }
+}

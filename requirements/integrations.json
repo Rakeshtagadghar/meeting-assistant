@@ -1,0 +1,231 @@
+{
+  "integrations_module": {
+    "version": "1.0",
+    "primary_goal": "Allow users to export AI meeting summaries and action items into external productivity tools.",
+    "first_target": "Notion",
+    "strategy": "Start with push-based exports (one-click send), later move to bi-directional sync.",
+    "architecture_pattern": "OAuth + Integration Registry + Connector Service Layer"
+  },
+
+  "public_page": {
+    "route": "/integrations",
+    "rendering": "SSG",
+    "meta": {
+      "title": "Integrations — Connect AINotes to your workflow",
+      "description": "Send AI meeting summaries and action items directly to Notion, Slack, Trello and more.",
+      "keywords": [
+        "Notion integration",
+        "Slack integration",
+        "meeting notes to Notion",
+        "AI summary export",
+        "Zapier automation",
+        "Trello integration"
+      ],
+      "canonical": "env:NEXT_PUBLIC_SITE_URL/integrations",
+      "og_image": "/og/og-integrations.png"
+    },
+    "sections": [
+      {
+        "type": "hero",
+        "title": "Connect AINotes to your workflow",
+        "subtext": "Send summaries, action items and decisions directly to the tools your team already uses."
+      },
+      {
+        "type": "integration_grid",
+        "items": [
+          { "name": "Notion", "status": "live" },
+          { "name": "Slack", "status": "planned" },
+          { "name": "Trello", "status": "planned" },
+          { "name": "Zapier", "status": "planned" },
+          { "name": "Google Docs", "status": "planned" },
+          { "name": "Microsoft Teams", "status": "future" }
+        ]
+      }
+    ]
+  },
+
+  "integration_registry": {
+    "storage": "database_table",
+    "table_name": "user_integrations",
+    "fields": [
+      "id",
+      "user_id",
+      "provider",
+      "access_token",
+      "refresh_token",
+      "expires_at",
+      "metadata_json",
+      "created_at",
+      "updated_at"
+    ],
+    "providers_supported": [
+      "notion",
+      "slack",
+      "trello",
+      "zapier",
+      "google_docs"
+    ]
+  },
+
+  "notion_integration": {
+    "type": "OAuth2",
+    "status": "live",
+    "features": [
+      "Create new page in selected database",
+      "Append summary to existing page",
+      "Create structured action items table",
+      "Add meeting metadata (date, participants, template)"
+    ],
+    "oauth_flow": {
+      "auth_url": "https://api.notion.com/v1/oauth/authorize",
+      "token_url": "https://api.notion.com/v1/oauth/token",
+      "redirect_uri": "/api/integrations/notion/callback",
+      "scopes": ["insert_content", "read_content"]
+    },
+    "mapping_structure": {
+      "summary_block": "rich_text",
+      "key_points": "bulleted_list",
+      "action_items": "todo_block",
+      "decisions": "toggle_block"
+    },
+    "export_flow": [
+      "User clicks Export to Notion",
+      "Check OAuth connection",
+      "If not connected → start OAuth",
+      "Select database",
+      "Create page with structured blocks"
+    ],
+    "error_handling": [
+      "Token expired → refresh",
+      "Missing permissions → prompt reconnect",
+      "Rate limit → retry with backoff"
+    ]
+  },
+
+  "slack_integration": {
+    "status": "planned",
+    "type": "OAuth2",
+    "features": [
+      "Post summary to selected channel",
+      "Send action items to thread",
+      "DM participants summary"
+    ],
+    "future_enhancement": "Slash command /ainotes summary"
+  },
+
+  "trello_integration": {
+    "status": "planned",
+    "type": "OAuth",
+    "features": [
+      "Create card per action item",
+      "Attach meeting summary to card",
+      "Set due date if detected"
+    ]
+  },
+
+  "zapier_integration": {
+    "status": "planned",
+    "type": "Webhook",
+    "features": [
+      "Trigger: Summary generated",
+      "Trigger: Action items created",
+      "Custom webhook event payload"
+    ],
+    "event_payload_example": {
+      "note_id": "uuid",
+      "summary": "string",
+      "action_items": ["string"],
+      "decisions": ["string"],
+      "meeting_date": "ISO8601"
+    }
+  },
+
+  "google_docs_integration": {
+    "status": "planned",
+    "type": "OAuth2",
+    "features": [
+      "Create Google Doc",
+      "Insert structured headings",
+      "Share with participants"
+    ]
+  },
+
+  "backend_connector_layer": {
+    "pattern": "Strategy Pattern",
+    "folder_structure": [
+      "/lib/integrations/index.ts",
+      "/lib/integrations/notion.ts",
+      "/lib/integrations/slack.ts",
+      "/lib/integrations/trello.ts"
+    ],
+    "interface_contract": {
+      "method": "exportSummary(noteId, userId)",
+      "returns": {
+        "status": "success | error",
+        "external_url": "string"
+      }
+    }
+  },
+
+  "security": {
+    "token_storage": "encrypted_at_rest",
+    "refresh_token_rotation": true,
+    "scopes_minimized": true,
+    "audit_log": true
+  },
+
+  "analytics_events": [
+    "integration_connected",
+    "integration_disconnected",
+    "export_to_notion_clicked",
+    "export_to_slack_clicked",
+    "integration_export_success",
+    "integration_export_failed"
+  ],
+
+  "ui_requirements": {
+    "dashboard_section": "Settings → Integrations",
+    "states": ["not_connected", "connected", "token_expired", "sync_error"],
+    "buttons": ["Connect", "Reconnect", "Disconnect", "Export Now"]
+  },
+
+  "future_integrations_roadmap": [
+    {
+      "name": "Asana",
+      "use_case": "Create tasks from action items"
+    },
+    {
+      "name": "Linear",
+      "use_case": "Create issues from discussion"
+    },
+    {
+      "name": "ClickUp",
+      "use_case": "Push checklist"
+    },
+    {
+      "name": "Microsoft OneNote",
+      "use_case": "Enterprise integration"
+    },
+    {
+      "name": "Confluence",
+      "use_case": "Team documentation"
+    }
+  ],
+
+  "testing": {
+    "unit_tests": [
+      "OAuth token exchange success",
+      "Token refresh logic",
+      "Block structure mapping to Notion"
+    ],
+    "integration_tests": [
+      "Create Notion page with summary",
+      "Retry on rate limit"
+    ],
+    "e2e_tests": [
+      "Connect Notion",
+      "Export meeting summary",
+      "Verify page created"
+    ]
+  }
+}
