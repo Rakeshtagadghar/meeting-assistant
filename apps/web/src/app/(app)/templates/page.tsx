@@ -58,7 +58,7 @@ export default function TemplatesPage() {
         name: `${source.name} (Copy)`,
         icon: source.icon,
         meetingContext: source.meetingContext,
-        sections: source.sections.map((s: { title: string; hint: string }) => ({
+        sections: source.sections.map((s) => ({
           title: s.title,
           hint: s.hint,
         })),
@@ -95,7 +95,9 @@ export default function TemplatesPage() {
     }
   };
 
-  const handleSave = async (data: Partial<TemplateWithSections>) => {
+  const handleSave = async (
+    data: Partial<Template> & { sections?: Partial<TemplateSection>[] },
+  ) => {
     try {
       if (isCreating) {
         // Create
