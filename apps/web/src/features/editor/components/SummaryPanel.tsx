@@ -464,7 +464,7 @@ export function SummaryPanel({
                       onBlur={handleBlur}
                       onKeyDown={handleKeyDown}
                       placeholder="Summary content..."
-                      className="min-h-[150px] w-full resize-none border-none bg-transparent p-0 text-sm leading-relaxed text-gray-700 placeholder:text-warm-300 focus:outline-none focus:ring-0"
+                      className="min-h-[600px] w-full resize-none border-none bg-transparent p-0 text-sm leading-relaxed text-gray-700 placeholder:text-warm-300 focus:outline-none focus:ring-0"
                       spellCheck={false}
                     />
                   )}

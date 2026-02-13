@@ -53,9 +53,9 @@ export async function POST(request: NextRequest): Promise<Response> {
     );
   }
 
-  let body: { noteId?: string };
+  let body: { noteId?: string; content?: string };
   try {
-    body = (await request.json()) as { noteId?: string };
+    body = (await request.json()) as { noteId?: string; content?: string };
   } catch {
     return apiError(ApiErrorCode.VALIDATION_ERROR, "Invalid JSON body");
   }
@@ -68,7 +68,9 @@ export async function POST(request: NextRequest): Promise<Response> {
   const note = await notesRepo.findById(noteId, userId);
   if (!note) return apiError(ApiErrorCode.NOT_FOUND);
 
-  const noteContent = note.contentPlain || "";
+  // Use content from body if provided (avoids race conditions), otherwise from DB
+  const noteContent = body.content ?? note.contentPlain ?? "";
+
   if (!noteContent.trim()) {
     return apiError(
       ApiErrorCode.VALIDATION_ERROR,

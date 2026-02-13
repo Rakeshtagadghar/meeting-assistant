@@ -61,8 +61,15 @@ export function TranscriptFooter({
             </Button>
           </>
         )}
-        {windowState === "processing" && (
-          <span className="text-xs text-warm-400">Finalizing...</span>
+        {(windowState === "processing" || windowState === "listening") && (
+          <span className="flex items-center gap-1.5 text-xs text-indigo-600">
+            {windowState === "processing" ? (
+              <>
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-indigo-400" />
+                Finalizing...
+              </>
+            ) : null}
+          </span>
         )}
         {windowState === "completed" && (
           <span className="text-xs text-green-600">Transcript saved</span>

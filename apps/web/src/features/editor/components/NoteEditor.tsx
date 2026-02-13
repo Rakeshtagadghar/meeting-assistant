@@ -143,8 +143,9 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
   );
 
   const handleGenerate = useCallback(async () => {
-    await generateStream();
-  }, [generateStream]);
+    // Pass current content to avoid race condition where DB isn't updated yet
+    await generateStream(content);
+  }, [generateStream, content]);
 
   const handleCancelGenerate = useCallback(() => {
     cancelStream();

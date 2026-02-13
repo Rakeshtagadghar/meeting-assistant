@@ -149,8 +149,14 @@ export function useDictation(): UseDictationResult {
   const stop = useCallback(() => {
     providerRef.current?.stopListening();
     setIsListening(false);
+
+    // Finalize any partial text
+    if (partialText) {
+      transcriptRef.current += (transcriptRef.current ? " " : "") + partialText;
+      setTranscript(transcriptRef.current);
+    }
     setPartialText("");
-  }, []);
+  }, [partialText]);
 
   const clear = useCallback(() => {
     transcriptRef.current = "";

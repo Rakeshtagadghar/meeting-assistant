@@ -371,11 +371,34 @@ export function useTranscriptSession(
     providerRef.current?.stopListening();
     unsubscribeRef.current?.();
     unsubscribeRef.current = null;
+
+    // Capture the current partial text at the moment of stopping
+    const finalPartialText = partialText;
     setPartialText(null);
     setWindowState("processing");
 
     // Flush remaining chunks, save transcript to note, then stop session
     void (async () => {
+      // If we have partial text, treat it as a final chunk
+      if (finalPartialText?.trim()) {
+        const chunk: TranscriptSessionChunk = {
+          id: crypto.randomUUID(),
+          sequence: sequenceRef.current++,
+          tStartMs: Date.now(), // Approximate
+          tEndMs: Date.now(),
+          speaker: null, // Unknown speaker for partial
+          text: finalPartialText.trim(),
+          confidence: 1, // Assume high confidence since user accepted it by stopping
+          isFinal: true,
+        };
+
+        // Add to pending chunks for API flush
+        pendingChunksRef.current.push(chunk);
+
+        // Update local state so it appears in UI immediately
+        setFinalChunks((prev) => [...prev, chunk]);
+      }
+
       await flushChunks();
 
       if (sessionIdRef.current) {
@@ -397,6 +420,11 @@ export function useTranscriptSession(
                 return `${speaker}${c.text}`;
               })
               .join("\n");
+
+            // Also append the partial text if it wasn't already in currentChunks
+            // (Note: we added it to state above, but react batching might delay it,
+            // so we should check or just rely on the new chunk we created)
+
             if (transcriptText) {
               void apiUpdateNoteContent(noteIdRef.current!, transcriptText);
             }
@@ -409,7 +437,7 @@ export function useTranscriptSession(
 
       setWindowState("completed");
     })();
-  }, [flushChunks]);
+  }, [flushChunks, partialText]);
 
   // Cleanup on unmount
   useEffect(() => {
