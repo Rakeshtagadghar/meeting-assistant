@@ -19,6 +19,8 @@ struct TranscriptionState {
 /// Tracks meeting providers currently detected so we do not spam notifications.
 struct MeetingDetectorState {
     active_providers: Mutex<HashSet<String>>,
+    bootstrapped: Mutex<bool>,
+    last_notified_ms: Mutex<std::collections::HashMap<String, i64>>,
 }
 
 /// ASR event emitted to the frontend.
@@ -141,24 +143,58 @@ fn start_windows_meeting_detector(app: tauri::AppHandle) {
                 }
             }
 
-            let newly_detected: Vec<String> = {
+            let now_ms = chrono_like_timestamp();
+            let should_notify: Vec<String> = {
                 let state = app.state::<MeetingDetectorState>();
+
+                let mut bootstrapped = match state.bootstrapped.lock() {
+                    Ok(v) => v,
+                    Err(poisoned) => poisoned.into_inner(),
+                };
                 let mut active = match state.active_providers.lock() {
                     Ok(v) => v,
                     Err(poisoned) => poisoned.into_inner(),
                 };
+                let mut last_notified_ms = match state.last_notified_ms.lock() {
+                    Ok(v) => v,
+                    Err(poisoned) => poisoned.into_inner(),
+                };
 
-                let fresh = detected_now
-                    .iter()
-                    .filter(|provider| !active.contains(*provider))
-                    .cloned()
-                    .collect::<Vec<_>>();
+                if !*bootstrapped {
+                    *active = detected_now;
+                    *bootstrapped = true;
+                    Vec::new()
+                } else {
+                    let fresh = detected_now
+                        .iter()
+                        .filter(|provider| !active.contains(*provider))
+                        .cloned()
+                        .collect::<Vec<_>>();
 
-                *active = detected_now;
-                fresh
+                    let reminder_due = detected_now
+                        .iter()
+                        .filter_map(|provider| {
+                            last_notified_ms
+                                .get(provider)
+                                .map(|last| (provider.clone(), *last))
+                        })
+                        .filter(|(_, last)| now_ms - *last >= ALERT_REMINDER_INTERVAL_MS)
+                        .map(|(provider, _)| provider)
+                        .collect::<Vec<_>>();
+
+                    *active = detected_now;
+
+                    let mut notify = fresh;
+                    for provider in reminder_due {
+                        if !notify.contains(&provider) {
+                            notify.push(provider);
+                        }
+                    }
+                    notify
+                }
             };
 
-            for provider in newly_detected {
+            for provider in should_notify {
                 match provider.as_str() {
                     "zoom" => {
                         emit_meeting_detected(&app, "Zoom".to_string(), "zoom");
@@ -171,6 +207,11 @@ fn start_windows_meeting_detector(app: tauri::AppHandle) {
                     }
                     _ => {}
                 }
+
+                let state = app.state::<MeetingDetectorState>();
+                if let Ok(mut last_notified_ms) = state.last_notified_ms.lock() {
+                    last_notified_ms.insert(provider, now_ms);
+                }
             }
 
             tokio::time::sleep(Duration::from_secs(5)).await;
@@ -182,6 +223,8 @@ fn start_windows_meeting_detector(app: tauri::AppHandle) {
 fn start_windows_meeting_detector(_app: tauri::AppHandle) {
     // No-op outside Windows in MVP.
 }
+
+const ALERT_REMINDER_INTERVAL_MS: i64 = 120_000;
 
 fn chrono_like_timestamp() -> i64 {
     use std::time::{SystemTime, UNIX_EPOCH};
@@ -469,6 +512,8 @@ pub fn run() {
         })
         .manage(MeetingDetectorState {
             active_providers: Mutex::new(HashSet::new()),
+            bootstrapped: Mutex::new(false),
+            last_notified_ms: Mutex::new(std::collections::HashMap::new()),
         })
         .setup(|app| {
             if cfg!(debug_assertions) {

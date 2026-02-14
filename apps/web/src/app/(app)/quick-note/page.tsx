@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useMemo } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { ASRProvider } from "@ainotes/core";
 import { Button, ConsentModal } from "@ainotes/ui";
@@ -11,7 +11,7 @@ import { TranscriptHeader } from "@/features/capture/components/TranscriptHeader
 import { TranscriptFooter } from "@/features/capture/components/TranscriptFooter";
 import { EchoCancellationBanner } from "@/features/capture/components/EchoCancellationBanner";
 
-export default function QuickNotePage() {
+function QuickNotePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [asrProvider, setAsrProvider] = useState<ASRProvider | null>(null);
@@ -344,5 +344,14 @@ export default function QuickNotePage() {
         onConfirm={confirmConsent}
       />
     </div>
+  );
+}
+
+
+export default function QuickNotePage() {
+  return (
+    <Suspense fallback={<div className="h-screen bg-bg-secondary" />}>
+      <QuickNotePageContent />
+    </Suspense>
   );
 }
