@@ -44,6 +44,21 @@ export default function MeetingAlertPage() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!payload.meetingSessionId) {
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      void handleDismiss();
+    }, 5_000);
+
+    return () => {
+      clearTimeout(timeout);
+    };
+    // Re-arm auto-dismiss each time a new meeting alert payload arrives.
+  }, [payload.meetingSessionId]);
+
   const handleTakeNotes = async () => {
     try {
       const { invoke } = await import("@tauri-apps/api/core");
@@ -86,6 +101,7 @@ export default function MeetingAlertPage() {
           onClick={handleDismiss}
           className="rounded p-1 text-gray-400 hover:bg-gray-100"
           aria-label="Dismiss"
+          title="Dismiss"
         >
           <svg
             className="h-4 w-4"
