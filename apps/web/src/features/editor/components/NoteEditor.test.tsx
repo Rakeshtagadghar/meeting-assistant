@@ -75,11 +75,13 @@ vi.mock("../hooks/use-job-progress", () => ({
   })),
 }));
 
-vi.mock("../../capture/hooks/use-speech-recognition", () => ({
-  useSpeechRecognition: vi.fn(() => ({
+vi.mock("../../capture/hooks/use-dictation", () => ({
+  useDictation: vi.fn(() => ({
     transcript: "",
+    partialText: "",
     isListening: false,
-    isSupported: true,
+    isProcessing: false,
+    modelLoadProgress: null,
     start: vi.fn(),
     stop: vi.fn(),
     clear: vi.fn(),
@@ -142,14 +144,15 @@ describe("NoteEditor", () => {
     expect(titleInput).toHaveValue("Test Note Title");
   });
 
-  it("renders content area", () => {
+  it("renders content area", async () => {
     mockedUseNote.mockReturnValue(mockUseNoteLoaded);
 
     render(<NoteEditor noteId="note-1" />);
 
-    const contentArea = screen.getByLabelText("Note content");
+    const contentArea = await screen.findByDisplayValue(
+      "Some plain text content",
+    );
     expect(contentArea).toBeInTheDocument();
-    expect(contentArea).toHaveValue("Some plain text content");
   });
 
   it("renders tags as badges", () => {
@@ -171,14 +174,11 @@ describe("NoteEditor", () => {
     expect(pinButton).toHaveAttribute("aria-pressed", "false");
   });
 
-  it("renders dictate button when speech is supported", () => {
+  it("renders dictate button when speech is supported", async () => {
     mockedUseNote.mockReturnValue(mockUseNoteLoaded);
 
     render(<NoteEditor noteId="note-1" />);
-
-    expect(
-      screen.getByRole("button", { name: "Start recording" }),
-    ).toBeInTheDocument();
+    expect(await screen.findByTestId("dictate-btn")).toBeInTheDocument();
   });
 
   it("renders word count", () => {

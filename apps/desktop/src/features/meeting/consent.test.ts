@@ -10,7 +10,9 @@ describe("validateConsent", () => {
   it("returns true with default text when confirmed without text", () => {
     const result = validateConsent(true, null);
     expect(result.confirmed).toBe(true);
-    expect(result.text).toBe("Always get consent before transcribing others. Confirm you have permission to record and transcribe this meeting.");
+    expect(result.text).toBe(
+      "Always get consent before transcribing others. Confirm you have permission to record and transcribe this meeting.",
+    );
   });
 
   it("returns true with custom text when confirmed with text", () => {

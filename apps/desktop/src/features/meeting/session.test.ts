@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { startMeetingFromNotification, startMeetingTranscription } from "./session";
+import {
+  startMeetingFromNotification,
+  startMeetingTranscription,
+} from "./session";
 
 describe("AUD_UT_003 consent gating", () => {
   it("blocks start when checkbox consent is not granted", () => {
@@ -34,7 +37,6 @@ describe("AUD_UT_003 consent gating", () => {
     });
   });
 });
-
 
 describe("meeting-detected action", () => {
   it("auto-starts recording when notification action is clicked", () => {

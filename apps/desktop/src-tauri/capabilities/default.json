@@ -2,11 +2,7 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "enables the default permissions",
-  "windows": [
-    "main",
-    "quick-note",
-    "meeting-alert"
-  ],
+  "windows": ["main", "quick-note", "meeting-alert"],
   "permissions": [
     "core:default",
     "shell:allow-execute",
@@ -18,12 +14,7 @@
     "fs:allow-home-write",
     {
       "identifier": "fs:scope",
-      "allow": [
-        "$HOME/**",
-        "$DOWNLOAD/**",
-        "$DOCUMENTS/**",
-        "$DESKTOP/**"
-      ]
+      "allow": ["$HOME/**", "$DOWNLOAD/**", "$DOCUMENTS/**", "$DESKTOP/**"]
     },
     {
       "identifier": "shell:allow-spawn",

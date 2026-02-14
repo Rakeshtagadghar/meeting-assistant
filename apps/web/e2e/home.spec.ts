@@ -8,15 +8,17 @@ test.describe("Home Page", () => {
 
   test("renders the heading", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText("AINotes");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      /Write notes like normal/i,
+    );
   });
 });
 
 test.describe("Public Pages", () => {
   const publicRoutes = [
-    { path: "/pricing", heading: "Pricing" },
+    { path: "/pricing", heading: "Simple, transparent pricing" },
     { path: "/privacy", heading: "Privacy Policy" },
-    { path: "/terms", heading: "Terms and Conditions" },
+    { path: "/terms", heading: "Terms of Service" },
     { path: "/cookies", heading: "Cookie Policy" },
     { path: "/contact", heading: "Contact Us" },
   ];

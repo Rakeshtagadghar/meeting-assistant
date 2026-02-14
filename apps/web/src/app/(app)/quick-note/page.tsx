@@ -80,7 +80,8 @@ function QuickNotePageContent() {
     ("__TAURI__" in globalThis || "__TAURI_INTERNALS__" in globalThis);
   const isWindows =
     isClientRuntime &&
-    typeof navigator !== "undefined" && navigator.userAgent.includes("Windows");
+    typeof navigator !== "undefined" &&
+    navigator.userAgent.includes("Windows");
 
   const providerLabel: Record<string, string> = {
     "web-speech-api": "Web Speech API",
@@ -103,7 +104,6 @@ function QuickNotePageContent() {
           label: "text-warm-600",
         })
       : null;
-
 
   const autoStartTriggeredRef = useRef(false);
 
@@ -353,7 +353,6 @@ function QuickNotePageContent() {
     </div>
   );
 }
-
 
 export default function QuickNotePage() {
   return (

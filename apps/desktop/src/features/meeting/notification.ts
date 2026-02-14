@@ -13,7 +13,8 @@ export function detectMeetingProvider(input: {
   windowTitle?: string | null;
   processName?: string | null;
 }): MeetingProvider {
-  const haystack = `${input.windowTitle ?? ""} ${input.processName ?? ""}`.toLowerCase();
+  const haystack =
+    `${input.windowTitle ?? ""} ${input.processName ?? ""}`.toLowerCase();
 
   if (haystack.includes("teams")) {
     return "teams";

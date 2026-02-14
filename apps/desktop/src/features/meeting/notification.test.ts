@@ -16,7 +16,10 @@ describe("meeting detection notification", () => {
   });
 
   it("builds a top-right notification with quick-note autostart route", () => {
-    const notification = buildMeetingDetectedNotification("zoom", "meeting-123");
+    const notification = buildMeetingDetectedNotification(
+      "zoom",
+      "meeting-123",
+    );
 
     expect(notification.title).toBe("Meeting detected");
     expect(notification.subtitle).toBe("Zoom");
