@@ -81,11 +81,14 @@ export function mixMeetingAudio(
   let maxAmplitude = 0;
 
   for (let i = 0; i < mixed.length; i += 1) {
-    if (Math.abs(mixed[i]) > 1.0) {
+    const sample = mixed[i] ?? 0;
+
+    if (Math.abs(sample) > 1.0) {
       limiterEngaged = true;
-      mixed[i] = Math.max(-1.0, Math.min(1.0, mixed[i]));
+      mixed[i] = Math.max(-1.0, Math.min(1.0, sample));
     }
-    maxAmplitude = Math.max(maxAmplitude, Math.abs(mixed[i]));
+
+    maxAmplitude = Math.max(maxAmplitude, Math.abs(mixed[i] ?? 0));
   }
 
   const activeSources: Array<"microphone" | "system_output"> = [];
