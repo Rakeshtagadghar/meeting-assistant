@@ -218,7 +218,7 @@ fn start_windows_meeting_detector(app: tauri::AppHandle) {
                             let mut last_notified_ms = poisoned.into_inner();
                             last_notified_ms.insert(provider, now_ms);
                         }
-                    }
+                    };
                 }
             }
 
