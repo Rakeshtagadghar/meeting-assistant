@@ -7,6 +7,14 @@ export const POSTHOG_HOST =
 export function initPostHog(): typeof posthog | null {
   if (typeof window === "undefined") return null;
   if (!POSTHOG_KEY) return null;
+
+  if (
+    window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1"
+  ) {
+    return null;
+  }
+
   if (posthog.__loaded) return posthog;
 
   posthog.init(POSTHOG_KEY, {
