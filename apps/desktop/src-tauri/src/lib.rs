@@ -405,6 +405,11 @@ async fn trigger_meeting_detected_notification(
 ) -> Result<(), String> {
     let subtitle = meeting_app.unwrap_or_else(|| "Online meeting".to_string());
 
+    let route = format!(
+        "/quick-note?meetingSessionId={}&autostart=1",
+        meeting_session_id
+    );
+
     app.emit(
         "meeting-detected",
         MeetingDetectedEvent {
@@ -413,10 +418,7 @@ async fn trigger_meeting_detected_notification(
             actionLabel: "Take Notes".to_string(),
             meetingSessionId: meeting_session_id,
             autoStartOnAction: true,
-            route: format!(
-                "/quick-note?meetingSessionId={}&autostart=1",
-                meeting_session_id
-            ),
+            route,
         },
     )
     .map_err(|e| e.to_string())?;
