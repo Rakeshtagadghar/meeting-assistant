@@ -7,7 +7,7 @@ use std::collections::{HashMap, HashSet};
 use std::process::Command;
 use std::sync::Mutex;
 use std::time::Duration;
-use tauri::{Emitter, Manager, State};
+use tauri::{Emitter, Manager, PhysicalPosition, State};
 use whisper::WhisperManager;
 
 /// Global state for the audio/transcription pipeline.
@@ -68,6 +68,20 @@ fn show_quick_note_window(app: &tauri::AppHandle) -> Result<(), String> {
 
 fn show_meeting_alert_window(app: &tauri::AppHandle) -> Result<(), String> {
     if let Some(window) = app.get_webview_window("meeting-alert") {
+        if let Ok(Some(monitor)) = window.current_monitor() {
+            let monitor_pos = monitor.position();
+            let monitor_size = monitor.size();
+            let window_size = window
+                .outer_size()
+                .unwrap_or(tauri::PhysicalSize::new(460_u32, 92_u32));
+
+            let margin_px: i32 = 16;
+            let x = monitor_pos.x + monitor_size.width as i32 - window_size.width as i32 - margin_px;
+            let y = monitor_pos.y + margin_px;
+
+            let _ = window.set_position(PhysicalPosition::new(x, y));
+        }
+
         window.show().map_err(|e| e.to_string())?;
         window.set_focus().map_err(|e| e.to_string())?;
     }

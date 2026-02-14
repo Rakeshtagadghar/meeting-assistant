@@ -17,6 +17,7 @@ function QuickNotePageContent() {
   const [asrProvider, setAsrProvider] = useState<ASRProvider | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [copyFeedback, setCopyFeedback] = useState(false);
+  const [isClientRuntime, setIsClientRuntime] = useState(false);
 
   // Initialize ASR provider on mount
   useEffect(() => {
@@ -28,6 +29,10 @@ function QuickNotePageContent() {
       disposed = true;
       asrProvider?.dispose();
     };
+  }, []);
+
+  useEffect(() => {
+    setIsClientRuntime(true);
   }, []);
 
   const {
@@ -70,9 +75,11 @@ function QuickNotePageContent() {
   }, [finalChunks, searchQuery]);
 
   const isDesktop =
+    isClientRuntime &&
     typeof globalThis !== "undefined" &&
     ("__TAURI__" in globalThis || "__TAURI_INTERNALS__" in globalThis);
   const isWindows =
+    isClientRuntime &&
     typeof navigator !== "undefined" && navigator.userAgent.includes("Windows");
 
   const providerLabel: Record<string, string> = {
