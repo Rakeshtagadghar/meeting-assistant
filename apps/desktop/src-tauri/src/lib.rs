@@ -155,7 +155,7 @@ fn start_windows_meeting_detector(app: tauri::AppHandle) {
                     Ok(v) => v,
                     Err(poisoned) => poisoned.into_inner(),
                 };
-                let mut last_notified_ms = match state.last_notified_ms.lock() {
+                let last_notified_ms = match state.last_notified_ms.lock() {
                     Ok(v) => v,
                     Err(poisoned) => poisoned.into_inner(),
                 };
@@ -208,9 +208,17 @@ fn start_windows_meeting_detector(app: tauri::AppHandle) {
                     _ => {}
                 }
 
-                let state = app.state::<MeetingDetectorState>();
-                if let Ok(mut last_notified_ms) = state.last_notified_ms.lock() {
-                    last_notified_ms.insert(provider, now_ms);
+                {
+                    let state = app.state::<MeetingDetectorState>();
+                    match state.last_notified_ms.lock() {
+                        Ok(mut last_notified_ms) => {
+                            last_notified_ms.insert(provider, now_ms);
+                        }
+                        Err(poisoned) => {
+                            let mut last_notified_ms = poisoned.into_inner();
+                            last_notified_ms.insert(provider, now_ms);
+                        }
+                    }
                 }
             }
 
