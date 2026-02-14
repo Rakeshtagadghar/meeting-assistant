@@ -66,3 +66,24 @@ export function startMeetingTranscription(
     error: null,
   };
 }
+
+export interface NotificationStartInput extends StartMeetingInput {
+  route: string;
+}
+
+export interface NotificationStartResult extends StartMeetingResult {
+  route: string;
+  autoStarted: boolean;
+}
+
+export function startMeetingFromNotification(
+  input: NotificationStartInput,
+): NotificationStartResult {
+  const result = startMeetingTranscription(input);
+
+  return {
+    ...result,
+    route: input.route,
+    autoStarted: result.started,
+  };
+}

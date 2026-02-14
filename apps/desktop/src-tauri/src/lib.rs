@@ -34,6 +34,26 @@ enum ASREvent {
     },
 }
 
+#[derive(Debug, Serialize, Clone)]
+#[allow(non_snake_case)]
+struct MeetingDetectedEvent {
+    title: String,
+    subtitle: String,
+    actionLabel: String,
+    meetingSessionId: String,
+    autoStartOnAction: bool,
+}
+
+fn show_quick_note_window(app: &tauri::AppHandle) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window("quick-note") {
+        window.show().map_err(|e| e.to_string())?;
+        let _ = window.unminimize();
+        window.set_focus().map_err(|e| e.to_string())?;
+    }
+
+    Ok(())
+}
+
 #[tauri::command]
 async fn start_transcription(
     app: tauri::AppHandle,
@@ -58,6 +78,8 @@ async fn start_transcription(
         *recording = true;
     }
 
+    show_quick_note_window(&app)?;
+
     app.emit(
         "asr-event",
         ASREvent::Status {
@@ -78,11 +100,7 @@ async fn start_transcription(
             // Check if still recording
             let is_recording = {
                 let state_ref = app_handle.state::<TranscriptionState>();
-                state_ref
-                    .is_recording
-                    .lock()
-                    .map(|r| *r)
-                    .unwrap_or(false)
+                state_ref.is_recording.lock().map(|r| *r).unwrap_or(false)
             };
             if !is_recording {
                 break;
@@ -111,9 +129,9 @@ async fn start_transcription(
             let wm_config = {
                 let state_ref = app_handle.state::<TranscriptionState>();
                 let guard = state_ref.whisper.lock().unwrap();
-                guard.as_ref().map(|wm| {
-                    (wm.model_path().to_string(), wm.language().to_string())
-                })
+                guard
+                    .as_ref()
+                    .map(|wm| (wm.model_path().to_string(), wm.language().to_string()))
             };
 
             let Some((mp, lang)) = wm_config else {
@@ -227,11 +245,36 @@ async fn resume_transcription(
         *recording = true;
     }
 
+    show_quick_note_window(&app)?;
+
     app.emit(
         "asr-event",
         ASREvent::Status {
             state: "listening".to_string(),
             message: "Transcription resumed".to_string(),
+        },
+    )
+    .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
+async fn trigger_meeting_detected_notification(
+    app: tauri::AppHandle,
+    meeting_app: Option<String>,
+    meeting_session_id: String,
+) -> Result<(), String> {
+    let subtitle = meeting_app.unwrap_or_else(|| "Online meeting".to_string());
+
+    app.emit(
+        "meeting-detected",
+        MeetingDetectedEvent {
+            title: "Meeting detected".to_string(),
+            subtitle,
+            actionLabel: "Take Notes".to_string(),
+            meetingSessionId: meeting_session_id,
+            autoStartOnAction: true,
         },
     )
     .map_err(|e| e.to_string())?;
@@ -271,6 +314,7 @@ pub fn run() {
             stop_transcription,
             pause_transcription,
             resume_transcription,
+            trigger_meeting_detected_notification,
             get_mic_level,
         ])
         .run(tauri::generate_context!())

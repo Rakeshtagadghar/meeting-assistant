@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { startMeetingTranscription } from "./session";
+import { startMeetingFromNotification, startMeetingTranscription } from "./session";
 
 describe("AUD_UT_003 consent gating", () => {
   it("blocks start when checkbox consent is not granted", () => {
@@ -32,5 +32,24 @@ describe("AUD_UT_003 consent gating", () => {
       meetingSessionId: "m_10",
       captureMode: "mixed",
     });
+  });
+});
+
+
+describe("meeting-detected action", () => {
+  it("auto-starts recording when notification action is clicked", () => {
+    const result = startMeetingFromNotification({
+      hasConsent: true,
+      captureMode: "mixed",
+      userId: "u_11",
+      meetingSessionId: "m_11",
+      isSystemOutputAvailable: true,
+      route: "/quick-note?meetingSessionId=m_11&autostart=1",
+    });
+
+    expect(result.autoStarted).toBe(true);
+    expect(result.route).toContain("/quick-note");
+    expect(result.route).toContain("autostart=1");
+    expect(result.state).toBe("listening");
   });
 });

@@ -19,6 +19,17 @@ export {
 export {
   startMeetingTranscription,
   type StartMeetingInput,
+  startMeetingFromNotification,
   type StartMeetingResult,
+  type NotificationStartInput,
+  type NotificationStartResult,
   type TranscriptionState,
 } from "./session";
+
+export {
+  buildMeetingDetectedNotification,
+  buildQuickNoteRoute,
+  detectMeetingProvider,
+  type MeetingNotification,
+  type MeetingProvider,
+} from "./notification";
