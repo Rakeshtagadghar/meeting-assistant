@@ -49,6 +49,7 @@ struct MeetingDetectedEvent {
     actionLabel: String,
     meetingSessionId: String,
     autoStartOnAction: bool,
+    route: String,
 }
 
 fn show_quick_note_window(app: &tauri::AppHandle) -> Result<(), String> {
@@ -61,25 +62,49 @@ fn show_quick_note_window(app: &tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+fn show_meeting_alert_window(app: &tauri::AppHandle) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window("meeting-alert") {
+        window.show().map_err(|e| e.to_string())?;
+        window.set_focus().map_err(|e| e.to_string())?;
+    }
+
+    Ok(())
+}
+
+fn navigate_main_to(app: &tauri::AppHandle, route: &str) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window("main") {
+        window.show().map_err(|e| e.to_string())?;
+        let _ = window.unminimize();
+        window.set_focus().map_err(|e| e.to_string())?;
+
+        let route_json = serde_json::to_string(route).map_err(|e| e.to_string())?;
+        let script = format!("window.location.assign({});", route_json);
+        window.eval(&script).map_err(|e| e.to_string())?;
+    }
+
+    Ok(())
+}
+
 fn emit_meeting_detected(app: &tauri::AppHandle, subtitle: String, provider_key: &str) {
     let meeting_session_id = format!("auto-{}-{}", provider_key, chrono_like_timestamp());
+    let route = format!(
+        "/quick-note?meetingSessionId={}&autostart=1",
+        meeting_session_id
+    );
 
     let _ = app.emit(
         "meeting-detected",
         MeetingDetectedEvent {
             title: "Meeting detected".to_string(),
-            subtitle: subtitle.clone(),
+            subtitle,
             actionLabel: "Take Notes".to_string(),
             meetingSessionId: meeting_session_id,
             autoStartOnAction: true,
+            route,
         },
     );
 
-    let _ = tauri_plugin_notification::NotificationExt::notification(app)
-        .builder()
-        .title("Meeting detected")
-        .body(&format!("{} — Click Take Notes in app", subtitle))
-        .show();
+    let _ = show_meeting_alert_window(app);
 }
 
 #[cfg(target_os = "windows")]
@@ -388,11 +413,38 @@ async fn trigger_meeting_detected_notification(
             actionLabel: "Take Notes".to_string(),
             meetingSessionId: meeting_session_id,
             autoStartOnAction: true,
+            route: format!(
+                "/quick-note?meetingSessionId={}&autostart=1",
+                meeting_session_id
+            ),
         },
     )
     .map_err(|e| e.to_string())?;
 
     Ok(())
+}
+
+#[tauri::command]
+fn open_meeting_capture(app: tauri::AppHandle, meeting_session_id: String) -> Result<(), String> {
+    let route = format!(
+        "/quick-note?meetingSessionId={}&autostart=1",
+        meeting_session_id
+    );
+
+    navigate_main_to(&app, &route)?;
+
+    if let Some(alert) = app.get_webview_window("meeting-alert") {
+        let _ = alert.hide();
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+fn dismiss_meeting_alert(app: tauri::AppHandle) {
+    if let Some(alert) = app.get_webview_window("meeting-alert") {
+        let _ = alert.hide();
+    }
 }
 
 #[tauri::command]
@@ -434,6 +486,8 @@ pub fn run() {
             pause_transcription,
             resume_transcription,
             trigger_meeting_detected_notification,
+            open_meeting_capture,
+            dismiss_meeting_alert,
             get_mic_level,
         ])
         .run(tauri::generate_context!())

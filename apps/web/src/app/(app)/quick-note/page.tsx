@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { ASRProvider } from "@ainotes/core";
 import { Button, ConsentModal } from "@ainotes/ui";
 import { useTranscriptSession } from "@/features/capture/hooks/use-transcript-session";
@@ -13,6 +13,7 @@ import { EchoCancellationBanner } from "@/features/capture/components/EchoCancel
 
 export default function QuickNotePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [asrProvider, setAsrProvider] = useState<ASRProvider | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [copyFeedback, setCopyFeedback] = useState(false);
@@ -95,6 +96,22 @@ export default function QuickNotePage() {
           label: "text-warm-600",
         })
       : null;
+
+
+  const autoStartTriggeredRef = useRef(false);
+
+  useEffect(() => {
+    const shouldAutoStart = searchParams.get("autostart") === "1";
+    if (!shouldAutoStart || autoStartTriggeredRef.current) {
+      return;
+    }
+    if (windowState !== "idle") {
+      return;
+    }
+
+    autoStartTriggeredRef.current = true;
+    requestStart();
+  }, [requestStart, searchParams, windowState]);
 
   const handleClose = () => {
     if (windowState === "listening" || windowState === "paused") {
