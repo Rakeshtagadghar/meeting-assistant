@@ -3,7 +3,9 @@ mod whisper;
 
 use audio::AudioCapture;
 use serde::Serialize;
+use std::collections::HashSet;
 use std::sync::Mutex;
+use std::time::Duration;
 use tauri::{Emitter, Manager, State};
 use whisper::WhisperManager;
 
@@ -12,6 +14,11 @@ struct TranscriptionState {
     audio: Mutex<AudioCapture>,
     whisper: Mutex<Option<WhisperManager>>,
     is_recording: Mutex<bool>,
+}
+
+/// Tracks meeting providers currently detected so we do not spam notifications.
+struct MeetingDetectorState {
+    active_providers: Mutex<HashSet<String>>,
 }
 
 /// ASR event emitted to the frontend.
@@ -52,6 +59,108 @@ fn show_quick_note_window(app: &tauri::AppHandle) -> Result<(), String> {
     }
 
     Ok(())
+}
+
+fn emit_meeting_detected(app: &tauri::AppHandle, subtitle: String, provider_key: &str) {
+    let meeting_session_id = format!("auto-{}-{}", provider_key, chrono_like_timestamp());
+
+    let _ = app.emit(
+        "meeting-detected",
+        MeetingDetectedEvent {
+            title: "Meeting detected".to_string(),
+            subtitle: subtitle.clone(),
+            actionLabel: "Take Notes".to_string(),
+            meetingSessionId: meeting_session_id,
+            autoStartOnAction: true,
+        },
+    );
+
+    let _ = tauri_plugin_notification::NotificationExt::notification(app)
+        .builder()
+        .title("Meeting detected")
+        .body(&format!("{} — Click Take Notes in app", subtitle))
+        .show();
+}
+
+#[cfg(target_os = "windows")]
+fn start_windows_meeting_detector(app: tauri::AppHandle) {
+    tauri::async_runtime::spawn(async move {
+        use sysinfo::{ProcessesToUpdate, System};
+
+        let mut system = System::new_all();
+
+        loop {
+            system.refresh_processes(ProcessesToUpdate::All, true);
+
+            let mut detected_now: HashSet<String> = HashSet::new();
+
+            for process in system.processes().values() {
+                let name = process.name().to_string_lossy().to_lowercase();
+                let cmd = process
+                    .cmd()
+                    .iter()
+                    .map(|v| v.to_string_lossy().to_lowercase())
+                    .collect::<Vec<_>>()
+                    .join(" ");
+
+                if name.contains("zoom") || cmd.contains("zoom") {
+                    detected_now.insert("zoom".to_string());
+                }
+
+                if name.contains("teams") || cmd.contains("teams") {
+                    detected_now.insert("teams".to_string());
+                }
+
+                if cmd.contains("meet.google.com") || cmd.contains("google meet") {
+                    detected_now.insert("google_meet".to_string());
+                }
+            }
+
+            let state = app.state::<MeetingDetectorState>();
+            let mut active = match state.active_providers.lock() {
+                Ok(v) => v,
+                Err(_) => {
+                    tokio::time::sleep(Duration::from_secs(5)).await;
+                    continue;
+                }
+            };
+
+            for provider in &detected_now {
+                if !active.contains(provider) {
+                    match provider.as_str() {
+                        "zoom" => {
+                            emit_meeting_detected(&app, "Zoom".to_string(), "zoom");
+                        }
+                        "teams" => {
+                            emit_meeting_detected(&app, "Microsoft Teams".to_string(), "teams");
+                        }
+                        "google_meet" => {
+                            emit_meeting_detected(&app, "Google Meet".to_string(), "google_meet");
+                        }
+                        _ => {}
+                    }
+                }
+            }
+
+            *active = detected_now;
+
+            tokio::time::sleep(Duration::from_secs(5)).await;
+        }
+    });
+}
+
+#[cfg(not(target_os = "windows"))]
+fn start_windows_meeting_detector(_app: tauri::AppHandle) {
+    // No-op outside Windows in MVP.
+}
+
+fn chrono_like_timestamp() -> i64 {
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default();
+    now.as_millis() as i64
 }
 
 #[tauri::command]
@@ -294,10 +403,14 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_notification::init())
         .manage(TranscriptionState {
             audio: Mutex::new(AudioCapture::new()),
             whisper: Mutex::new(None),
             is_recording: Mutex::new(false),
+        })
+        .manage(MeetingDetectorState {
+            active_providers: Mutex::new(HashSet::new()),
         })
         .setup(|app| {
             if cfg!(debug_assertions) {
@@ -307,6 +420,8 @@ pub fn run() {
                         .build(),
                 )?;
             }
+
+            start_windows_meeting_detector(app.handle().clone());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
