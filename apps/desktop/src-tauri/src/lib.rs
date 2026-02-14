@@ -116,33 +116,37 @@ fn start_windows_meeting_detector(app: tauri::AppHandle) {
                 }
             }
 
-            let state = app.state::<MeetingDetectorState>();
-            let mut active = match state.active_providers.lock() {
-                Ok(v) => v,
-                Err(_) => {
-                    tokio::time::sleep(Duration::from_secs(5)).await;
-                    continue;
-                }
+            let newly_detected: Vec<String> = {
+                let state = app.state::<MeetingDetectorState>();
+                let mut active = match state.active_providers.lock() {
+                    Ok(v) => v,
+                    Err(poisoned) => poisoned.into_inner(),
+                };
+
+                let fresh = detected_now
+                    .iter()
+                    .filter(|provider| !active.contains(*provider))
+                    .cloned()
+                    .collect::<Vec<_>>();
+
+                *active = detected_now;
+                fresh
             };
 
-            for provider in &detected_now {
-                if !active.contains(provider) {
-                    match provider.as_str() {
-                        "zoom" => {
-                            emit_meeting_detected(&app, "Zoom".to_string(), "zoom");
-                        }
-                        "teams" => {
-                            emit_meeting_detected(&app, "Microsoft Teams".to_string(), "teams");
-                        }
-                        "google_meet" => {
-                            emit_meeting_detected(&app, "Google Meet".to_string(), "google_meet");
-                        }
-                        _ => {}
+            for provider in newly_detected {
+                match provider.as_str() {
+                    "zoom" => {
+                        emit_meeting_detected(&app, "Zoom".to_string(), "zoom");
                     }
+                    "teams" => {
+                        emit_meeting_detected(&app, "Microsoft Teams".to_string(), "teams");
+                    }
+                    "google_meet" => {
+                        emit_meeting_detected(&app, "Google Meet".to_string(), "google_meet");
+                    }
+                    _ => {}
                 }
             }
-
-            *active = detected_now;
 
             tokio::time::sleep(Duration::from_secs(5)).await;
         }
