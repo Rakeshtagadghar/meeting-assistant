@@ -3,7 +3,7 @@ mod whisper;
 
 use audio::AudioCapture;
 use serde::Serialize;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::Mutex;
 use std::time::Duration;
 use tauri::{Emitter, Manager, State};
@@ -18,7 +18,7 @@ struct TranscriptionState {
 
 /// Tracks meeting providers currently detected so we do not spam notifications.
 struct MeetingDetectorState {
-    active_providers: Mutex<HashSet<String>>,
+    active_provider_pids: Mutex<HashMap<String, HashSet<String>>>,
     bootstrapped: Mutex<bool>,
     last_notified_ms: Mutex<std::collections::HashMap<String, i64>>,
 }
@@ -119,7 +119,7 @@ fn start_windows_meeting_detector(app: tauri::AppHandle) {
         loop {
             system.refresh_processes(ProcessesToUpdate::All, true);
 
-            let mut detected_now: HashSet<String> = HashSet::new();
+            let mut detected_now: HashMap<String, HashSet<String>> = HashMap::new();
 
             for process in system.processes().values() {
                 let name = process.name().to_string_lossy().to_lowercase();
@@ -129,17 +129,27 @@ fn start_windows_meeting_detector(app: tauri::AppHandle) {
                     .map(|v| v.to_string_lossy().to_lowercase())
                     .collect::<Vec<_>>()
                     .join(" ");
+                let pid = format!("{:?}", process.pid());
 
                 if name.contains("zoom") || cmd.contains("zoom") {
-                    detected_now.insert("zoom".to_string());
+                    detected_now
+                        .entry("zoom".to_string())
+                        .or_default()
+                        .insert(pid.clone());
                 }
 
                 if name.contains("teams") || cmd.contains("teams") {
-                    detected_now.insert("teams".to_string());
+                    detected_now
+                        .entry("teams".to_string())
+                        .or_default()
+                        .insert(pid.clone());
                 }
 
                 if cmd.contains("meet.google.com") || cmd.contains("google meet") {
-                    detected_now.insert("google_meet".to_string());
+                    detected_now
+                        .entry("google_meet".to_string())
+                        .or_default()
+                        .insert(pid);
                 }
             }
 
@@ -151,7 +161,7 @@ fn start_windows_meeting_detector(app: tauri::AppHandle) {
                     Ok(v) => v,
                     Err(poisoned) => poisoned.into_inner(),
                 };
-                let mut active = match state.active_providers.lock() {
+                let mut active_provider_pids = match state.active_provider_pids.lock() {
                     Ok(v) => v,
                     Err(poisoned) => poisoned.into_inner(),
                 };
@@ -161,18 +171,29 @@ fn start_windows_meeting_detector(app: tauri::AppHandle) {
                 };
 
                 if !*bootstrapped {
-                    *active = detected_now;
+                    *active_provider_pids = detected_now;
                     *bootstrapped = true;
                     Vec::new()
                 } else {
                     let fresh = detected_now
                         .iter()
-                        .filter(|provider| !active.contains(*provider))
-                        .cloned()
+                        .filter_map(|(provider, pids)| {
+                            let is_new_provider = !active_provider_pids.contains_key(provider);
+                            let has_new_pid = active_provider_pids
+                                .get(provider)
+                                .map(|existing| pids.iter().any(|pid| !existing.contains(pid)))
+                                .unwrap_or(false);
+
+                            if is_new_provider || has_new_pid {
+                                Some(provider.clone())
+                            } else {
+                                None
+                            }
+                        })
                         .collect::<Vec<_>>();
 
                     let reminder_due = detected_now
-                        .iter()
+                        .keys()
                         .filter_map(|provider| {
                             last_notified_ms
                                 .get(provider)
@@ -182,7 +203,7 @@ fn start_windows_meeting_detector(app: tauri::AppHandle) {
                         .map(|(provider, _)| provider)
                         .collect::<Vec<_>>();
 
-                    *active = detected_now;
+                    *active_provider_pids = detected_now;
 
                     let mut notify = fresh;
                     for provider in reminder_due {
@@ -519,7 +540,7 @@ pub fn run() {
             is_recording: Mutex::new(false),
         })
         .manage(MeetingDetectorState {
-            active_providers: Mutex::new(HashSet::new()),
+            active_provider_pids: Mutex::new(HashMap::new()),
             bootstrapped: Mutex::new(false),
             last_notified_ms: Mutex::new(std::collections::HashMap::new()),
         })
