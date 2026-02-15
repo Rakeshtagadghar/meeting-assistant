@@ -11,6 +11,7 @@ import type {
   MeetingSessionStatus,
   MeetingPlatform,
   ShareVisibility,
+  IntegrationProvider,
   ProcessingJobKind,
   ProcessingJobStatus,
   JsonValue,
@@ -122,6 +123,39 @@ export interface CreateShareLinkResponse {
 export interface GetSharedNoteResponse {
   readonly noteReadOnly: Note;
   readonly summaries: AISummary[];
+}
+
+// ─── Integrations ───
+
+export interface IntegrationConnection {
+  readonly provider: IntegrationProvider;
+  readonly expiresAt: string | null;
+  readonly metadataJson: JsonValue;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+export interface ListIntegrationsResponse {
+  readonly integrations: IntegrationConnection[];
+}
+
+export interface DisconnectIntegrationRequest {
+  readonly provider: IntegrationProvider;
+}
+
+export interface DisconnectIntegrationResponse {
+  readonly ok: true;
+}
+
+export interface ExportIntegrationRequest {
+  readonly noteId: UUID;
+  readonly provider: IntegrationProvider;
+}
+
+export interface ExportIntegrationResponse {
+  readonly status: "success" | "error";
+  readonly externalUrl: string | null;
+  readonly error?: string;
 }
 
 // ─── Streaming Summarize SSE Events ───

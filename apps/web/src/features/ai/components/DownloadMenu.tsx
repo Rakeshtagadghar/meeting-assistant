@@ -11,12 +11,18 @@ import { save } from "@tauri-apps/plugin-dialog";
 export interface DownloadMenuProps {
   artifacts: NoteArtifact[];
   noteId: string;
+  notionConnected?: boolean;
 }
 
-export function DownloadMenu({ artifacts, noteId }: DownloadMenuProps) {
+export function DownloadMenu({
+  artifacts,
+  noteId,
+  notionConnected = true,
+}: DownloadMenuProps) {
   const pdfArtifact = artifacts.find((a) => a.type === "PDF");
   const docxArtifact = artifacts.find((a) => a.type === "DOCX");
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [isExportingNotion, setIsExportingNotion] = useState(false);
   // You might want to use a toast hook here if available, e.g. useToast()
 
   const handleDownload = useCallback(
@@ -191,6 +197,41 @@ export function DownloadMenu({ artifacts, noteId }: DownloadMenuProps) {
     [noteId, pdfArtifact],
   );
 
+  const handleExportToNotion = useCallback(async () => {
+    setIsExportingNotion(true);
+    try {
+      const res = await fetch("/api/integrations/export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ noteId, provider: "NOTION" }),
+      });
+
+      const data = (await res.json()) as {
+        status?: "success" | "error";
+        externalUrl?: string | null;
+        error?: string;
+      };
+
+      if (!res.ok || data.status === "error") {
+        throw new Error(data.error ?? "Failed to export note to Notion");
+      }
+
+      if (data.externalUrl) {
+        window.open(data.externalUrl, "_blank");
+      } else {
+        alert("Exported to Notion, but no page URL was returned.");
+      }
+    } catch (error: unknown) {
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Failed to export note to Notion",
+      );
+    } finally {
+      setIsExportingNotion(false);
+    }
+  }, [noteId]);
+
   const items: DropdownItem[] = [
     {
       label: isGeneratingPdf ? "Generating PDF..." : "Download PDF",
@@ -209,13 +250,27 @@ export function DownloadMenu({ artifacts, noteId }: DownloadMenuProps) {
       onClick: () => handleDownload("docx"),
       disabled: !docxArtifact || !canDownload(docxArtifact),
     },
+    ...(notionConnected
+      ? [
+          {
+            label: isExportingNotion
+              ? "Exporting to Notion..."
+              : "Export to Notion",
+            onClick: () => void handleExportToNotion(),
+            disabled: isExportingNotion,
+          },
+        ]
+      : []),
   ];
 
   return (
     <Dropdown
       trigger={
-        <Button variant="secondary" disabled={isGeneratingPdf}>
-          {isGeneratingPdf ? "Exporting..." : "Download"}
+        <Button
+          variant="secondary"
+          disabled={isGeneratingPdf || isExportingNotion}
+        >
+          {isGeneratingPdf || isExportingNotion ? "Exporting..." : "Download"}
         </Button>
       }
       items={items}

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { AnalyticsSettings } from "@/features/settings/components/AnalyticsSettings";
+import { IntegrationsSettings } from "@/features/settings/components/IntegrationsSettings";
 
 export const metadata: Metadata = {
   title: "Settings",
@@ -83,6 +84,9 @@ export default function SettingsPage() {
 
         {/* Analytics section */}
         <AnalyticsSettings />
+
+        {/* Integrations section */}
+        <IntegrationsSettings />
 
         {/* Danger zone */}
         <div className="glass-card rounded-2xl p-6 border border-red-100">

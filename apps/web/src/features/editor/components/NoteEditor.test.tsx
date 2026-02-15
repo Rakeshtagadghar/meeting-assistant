@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import type {
   UUID,
   ISODateString,
@@ -123,6 +123,15 @@ const mockedUseNote = vi.mocked(useNote);
 describe("NoteEditor", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          integrations: [{ provider: "NOTION" }],
+        }),
+      } as Response),
+    );
   });
 
   it("shows loading spinner while loading", () => {
@@ -179,6 +188,47 @@ describe("NoteEditor", () => {
 
     render(<NoteEditor noteId="note-1" />);
     expect(await screen.findByTestId("dictate-btn")).toBeInTheDocument();
+  });
+
+  it("renders export to notion button when notion is connected", async () => {
+    mockedUseNote.mockReturnValue(mockUseNoteLoaded);
+
+    render(<NoteEditor noteId="note-1" />);
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith("/api/integrations", {
+        method: "GET",
+      });
+    });
+
+    expect(
+      await screen.findByRole("button", { name: "Export to Notion" }),
+    ).toBeInTheDocument();
+  });
+
+  it("hides export to notion button when notion is disconnected", async () => {
+    mockedUseNote.mockReturnValue(mockUseNoteLoaded);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          integrations: [],
+        }),
+      } as Response),
+    );
+
+    render(<NoteEditor noteId="note-1" />);
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith("/api/integrations", {
+        method: "GET",
+      });
+    });
+
+    expect(
+      screen.queryByRole("button", { name: "Export to Notion" }),
+    ).not.toBeInTheDocument();
   });
 
   it("renders word count", () => {

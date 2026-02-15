@@ -12,3 +12,5 @@ export { createMeetingSessionsRepository } from "./meeting-sessions.repo";
 export type { MeetingSessionsRepository } from "./meeting-sessions.repo";
 export { createTranscriptChunksRepository } from "./transcript-chunks.repo";
 export type { TranscriptChunksRepository } from "./transcript-chunks.repo";
+export { createUserIntegrationsRepository } from "./user-integrations.repo";
+export type { UserIntegrationsRepository } from "./user-integrations.repo";

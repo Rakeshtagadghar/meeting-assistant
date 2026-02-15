@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { ProcessingJobKind, ShareVisibility, type UUID } from "@ainotes/core";
+import {
+  ProcessingJobKind,
+  ShareVisibility,
+  IntegrationProvider,
+  type UUID,
+} from "@ainotes/core";
 import { createApiClient, type ApiClient } from "./index";
 
 // ─── Shared helpers ───
@@ -190,6 +195,60 @@ describe("share", () => {
     expect(mockFetch).toHaveBeenCalledWith(
       "https://api.test/api/shared/tok_abc",
       expect.objectContaining({ method: "GET" }),
+    );
+  });
+});
+
+// ─── Integrations ───
+
+describe("integrations", () => {
+  it("list sends GET /api/integrations", async () => {
+    const response = { integrations: [] };
+    mockFetch.mockResolvedValueOnce(jsonResponse(response));
+
+    const result = await client.integrations.list();
+
+    expect(result).toEqual(response);
+    expect(mockFetch).toHaveBeenCalledWith(
+      "https://api.test/api/integrations",
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
+
+  it("disconnect sends DELETE /api/integrations with provider", async () => {
+    const body = { provider: IntegrationProvider.NOTION };
+    const response = { ok: true as const };
+    mockFetch.mockResolvedValueOnce(jsonResponse(response));
+
+    const result = await client.integrations.disconnect(body);
+
+    expect(result).toEqual(response);
+    expect(mockFetch).toHaveBeenCalledWith(
+      "https://api.test/api/integrations",
+      expect.objectContaining({
+        method: "DELETE",
+        body: JSON.stringify(body),
+      }),
+    );
+  });
+
+  it("exportSummary sends POST /api/integrations/export", async () => {
+    const body = {
+      noteId: "n-1" as UUID,
+      provider: IntegrationProvider.NOTION,
+    };
+    const response = { status: "success" as const, externalUrl: "https://x.y" };
+    mockFetch.mockResolvedValueOnce(jsonResponse(response));
+
+    const result = await client.integrations.exportSummary(body);
+
+    expect(result).toEqual(response);
+    expect(mockFetch).toHaveBeenCalledWith(
+      "https://api.test/api/integrations/export",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
     );
   });
 });

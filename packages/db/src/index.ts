@@ -13,4 +13,6 @@ export { createMeetingSessionsRepository } from "./repositories/meeting-sessions
 export type { MeetingSessionsRepository } from "./repositories/meeting-sessions.repo";
 export { createTranscriptChunksRepository } from "./repositories/transcript-chunks.repo";
 export type { TranscriptChunksRepository } from "./repositories/transcript-chunks.repo";
+export { createUserIntegrationsRepository } from "./repositories/user-integrations.repo";
+export type { UserIntegrationsRepository } from "./repositories/user-integrations.repo";
 export type { PrismaClient } from "@prisma/client";

@@ -65,6 +65,16 @@ export const ShareVisibility = {
 export type ShareVisibility =
   (typeof ShareVisibility)[keyof typeof ShareVisibility];
 
+export const IntegrationProvider = {
+  NOTION: "NOTION",
+  SLACK: "SLACK",
+  TRELLO: "TRELLO",
+  ZAPIER: "ZAPIER",
+  GOOGLE_DOCS: "GOOGLE_DOCS",
+} as const;
+export type IntegrationProvider =
+  (typeof IntegrationProvider)[keyof typeof IntegrationProvider];
+
 export const ProcessingJobKind = {
   SUMMARIZE: "SUMMARIZE",
   EXTRACT_ACTIONS: "EXTRACT_ACTIONS",
@@ -227,6 +237,20 @@ export interface ShareLink {
   readonly createdAt: ISODateString;
 }
 
+// ─── Entity: UserIntegration ───
+
+export interface UserIntegration {
+  readonly id: UUID;
+  readonly userId: UUID;
+  readonly provider: IntegrationProvider;
+  readonly accessToken: string;
+  readonly refreshToken: string | null;
+  readonly expiresAt: ISODateString | null;
+  readonly metadataJson: JsonValue;
+  readonly createdAt: ISODateString;
+  readonly updatedAt: ISODateString;
+}
+
 // ─── Entity: NoteProcessingJob ───
 
 export interface NoteProcessingJob {
@@ -284,6 +308,15 @@ export interface CreateShareLinkInput {
   readonly visibility: ShareVisibility;
   readonly allowedEmails: readonly string[];
   readonly expiresAt: ISODateString | null;
+}
+
+export interface CreateUserIntegrationInput {
+  readonly userId: UUID;
+  readonly provider: IntegrationProvider;
+  readonly accessToken: string;
+  readonly refreshToken: string | null;
+  readonly expiresAt: ISODateString | null;
+  readonly metadataJson: JsonValue;
 }
 
 export interface CreateMeetingSessionInput {

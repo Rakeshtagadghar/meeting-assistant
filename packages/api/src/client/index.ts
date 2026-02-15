@@ -15,6 +15,11 @@ import type {
   CreateShareLinkRequest,
   CreateShareLinkResponse,
   GetSharedNoteResponse,
+  ListIntegrationsResponse,
+  DisconnectIntegrationRequest,
+  DisconnectIntegrationResponse,
+  ExportIntegrationRequest,
+  ExportIntegrationResponse,
   CreateMeetingSessionRequest,
   MeetingSessionResponse,
   MeetingSessionWithChunksResponse,
@@ -56,6 +61,15 @@ export interface ApiClient {
   share: {
     createLink(body: CreateShareLinkRequest): Promise<CreateShareLinkResponse>;
     getShared(token: string): Promise<GetSharedNoteResponse>;
+  };
+  integrations: {
+    list(): Promise<ListIntegrationsResponse>;
+    disconnect(
+      body: DisconnectIntegrationRequest,
+    ): Promise<DisconnectIntegrationResponse>;
+    exportSummary(
+      body: ExportIntegrationRequest,
+    ): Promise<ExportIntegrationResponse>;
   };
   meetings: {
     create(body: CreateMeetingSessionRequest): Promise<MeetingSessionResponse>;
@@ -191,6 +205,20 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
 
       getShared: (token) =>
         req<GetSharedNoteResponse>("GET", `/api/shared/${token}`),
+    },
+
+    integrations: {
+      list: () => req<ListIntegrationsResponse>("GET", "/api/integrations"),
+
+      disconnect: (body) =>
+        req<DisconnectIntegrationResponse>("DELETE", "/api/integrations", {
+          body,
+        }),
+
+      exportSummary: (body) =>
+        req<ExportIntegrationResponse>("POST", "/api/integrations/export", {
+          body,
+        }),
     },
 
     meetings: {

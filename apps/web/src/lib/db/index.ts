@@ -7,6 +7,7 @@ export {
   createArtifactsRepository,
   createMeetingSessionsRepository,
   createTranscriptChunksRepository,
+  createUserIntegrationsRepository,
 } from "@ainotes/db";
 
 export type {
@@ -17,4 +18,5 @@ export type {
   ArtifactsRepository,
   MeetingSessionsRepository,
   TranscriptChunksRepository,
+  UserIntegrationsRepository,
 } from "@ainotes/db";

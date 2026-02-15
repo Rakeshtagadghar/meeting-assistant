@@ -60,7 +60,33 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
   const [pinned, setPinned] = useState(false);
   const [templateId, setTemplateId] = useState<string | null>(null);
   const [tagInput, setTagInput] = useState("");
+  const [isExportingToNotion, setIsExportingToNotion] = useState(false);
+  const [notionConnected, setNotionConnected] = useState(false);
   const baseContentRef = useRef("");
+
+  const refreshNotionConnection = useCallback(async () => {
+    try {
+      const res = await fetch("/api/integrations", { method: "GET" });
+      if (!res.ok) {
+        setNotionConnected(false);
+        return;
+      }
+
+      const data = (await res.json()) as {
+        integrations?: Array<{ provider?: string }>;
+      };
+
+      const connected = Array.isArray(data.integrations)
+        ? data.integrations.some(
+            (integration) => integration.provider === "NOTION",
+          )
+        : false;
+
+      setNotionConnected(connected);
+    } catch {
+      setNotionConnected(false);
+    }
+  }, []);
 
   // Sync local state when note loads
   useEffect(() => {
@@ -72,6 +98,19 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
       setTemplateId(note.templateId);
     }
   }, [note]);
+
+  useEffect(() => {
+    void refreshNotionConnection();
+  }, [refreshNotionConnection]);
+
+  useEffect(() => {
+    const onFocus = () => {
+      void refreshNotionConnection();
+    };
+
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [refreshNotionConnection]);
 
   // Snapshot content when recording starts
   useEffect(() => {
@@ -235,6 +274,39 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
     }
   }, [getBestSummaryText, title]);
 
+  const handleExportToNotion = useCallback(async () => {
+    setIsExportingToNotion(true);
+    try {
+      const res = await fetch("/api/integrations/export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ noteId, provider: "NOTION" }),
+      });
+
+      const data = (await res.json()) as {
+        status?: "success" | "error";
+        externalUrl?: string | null;
+        error?: string;
+      };
+
+      if (!res.ok || data.status === "error") {
+        throw new Error(data.error ?? "Failed to export note to Notion");
+      }
+
+      if (data.externalUrl) {
+        window.open(data.externalUrl, "_blank");
+      } else {
+        alert("Exported to Notion, but no page URL was returned.");
+      }
+    } catch (err: unknown) {
+      alert(
+        err instanceof Error ? err.message : "Failed to export note to Notion",
+      );
+    } finally {
+      setIsExportingToNotion(false);
+    }
+  }, [noteId]);
+
   if (loading) {
     return (
       <div
@@ -375,13 +447,36 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
             </button>
           )}
 
+          {notionConnected && (
+            <button
+              onClick={() => {
+                void handleExportToNotion();
+              }}
+              disabled={isExportingToNotion}
+              className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-indigo-700 disabled:opacity-50"
+              aria-label="Export to Notion"
+            >
+              <img
+                src="https://www.notion.so/images/favicon.ico"
+                alt=""
+                aria-hidden="true"
+                className="h-4 w-4 rounded-sm bg-white"
+              />
+              {isExportingToNotion ? "Exporting..." : "Export to Notion"}
+            </button>
+          )}
+
           {(summaries.length > 0 || artifacts.length > 0) && (
             <>
               <TemplateSelector
                 selectedTemplateId={templateId}
                 onSelect={handleTemplateSelect}
               />
-              <DownloadMenu artifacts={artifacts} noteId={noteId} />
+              <DownloadMenu
+                artifacts={artifacts}
+                noteId={noteId}
+                notionConnected={notionConnected}
+              />
             </>
           )}
 

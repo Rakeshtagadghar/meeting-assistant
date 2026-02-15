@@ -63,7 +63,13 @@ describe("DownloadMenu", () => {
 
   it("shows PDF and DOCX options when dropdown is opened", async () => {
     const user = userEvent.setup();
-    render(<DownloadMenu artifacts={[readyPdf, readyDocx]} noteId="note-1" />);
+    render(
+      <DownloadMenu
+        artifacts={[readyPdf, readyDocx]}
+        noteId="note-1"
+        notionConnected
+      />,
+    );
 
     await user.click(getDownloadTrigger());
 
@@ -73,6 +79,26 @@ describe("DownloadMenu", () => {
     expect(
       screen.getByRole("menuitem", { name: "Download DOCX" }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: "Export to Notion" }),
+    ).toBeInTheDocument();
+  });
+
+  it("hides notion export option when notion is disconnected", async () => {
+    const user = userEvent.setup();
+    render(
+      <DownloadMenu
+        artifacts={[readyPdf, readyDocx]}
+        noteId="note-1"
+        notionConnected={false}
+      />,
+    );
+
+    await user.click(getDownloadTrigger());
+
+    expect(
+      screen.queryByRole("menuitem", { name: "Export to Notion" }),
+    ).not.toBeInTheDocument();
   });
 
   it.skip("disables options when artifacts are not READY", async () => {

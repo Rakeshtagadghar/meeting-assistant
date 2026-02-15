@@ -32,6 +32,7 @@ export async function cleanDatabase(prisma: PrismaClient): Promise<void> {
     prisma.transcriptChunk.deleteMany(),
     prisma.aISummary.deleteMany(),
     prisma.shareLink.deleteMany(),
+    prisma.userIntegration.deleteMany(),
     prisma.meetingSession.deleteMany(),
     prisma.note.deleteMany(),
     prisma.user.deleteMany(),
