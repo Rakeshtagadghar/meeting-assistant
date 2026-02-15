@@ -20,6 +20,9 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
   },
+  verification: {
+    google: "AYCHjs_y4yxgXdKULXw5n_h97yeWBHxw7aicgeTN3l0",
+  },
   robots: {
     index: true,
     follow: true,
