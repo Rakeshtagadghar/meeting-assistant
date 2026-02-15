@@ -10,14 +10,10 @@ const footerLinks = [
 export function Footer() {
   return (
     <footer className="relative pb-10 pt-6">
-      <div
-        className="mx-auto max-w-7xl overflow-hidden px-6 lg:px-8"
-        data-stagger-group
-      >
+      <div className="mx-auto max-w-7xl overflow-hidden px-6 lg:px-8">
         <div className="landing-glass-card flex flex-col items-center justify-between gap-6 rounded-3xl px-6 py-8 sm:flex-row">
           <Link
             href="/"
-            data-stagger-item
             className="landing-section-title text-xl font-bold landing-gradient-title"
           >
             Golden Minutes
@@ -31,7 +27,6 @@ export function Footer() {
               <Link
                 key={link.label}
                 href={link.href}
-                data-stagger-item
                 className="text-sm font-medium text-text-muted transition-colors hover:text-text-heading"
               >
                 {link.label}
