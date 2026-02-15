@@ -38,6 +38,21 @@
         "url": "/quick-note",
         "alwaysOnTop": true,
         "visible": false
+      },
+      {
+        "label": "meeting-alert",
+        "title": "AINotes - Meeting Alert",
+        "width": 460,
+        "height": 92,
+        "resizable": false,
+        "fullscreen": false,
+        "url": "/meeting-alert",
+        "alwaysOnTop": true,
+        "visible": false,
+        "decorations": false,
+        "skipTaskbar": true,
+        "transparent": true,
+        "focus": true
       }
     ],
     "security": {

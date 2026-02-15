@@ -320,6 +320,7 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
                 ? "bg-red-50 text-red-600 ring-1 ring-red-200 hover:bg-red-100"
                 : "bg-white text-gray-700 ring-1 ring-gray-200 hover:bg-gray-50"
             }`}
+            data-testid="dictate-btn"
           >
             {isListening ? (
               <>

@@ -7,10 +7,28 @@ vi.mock("next-auth/react", () => ({
   useSession: () => ({ data: null, status: "unauthenticated" }),
 }));
 
+vi.mock("next/link", () => ({
+  default: ({
+    children,
+    href,
+    ...props
+  }: {
+    children: React.ReactNode;
+    href: string;
+    [key: string]: unknown;
+  }) => (
+    <a href={href} {...props}>
+      {children}
+    </a>
+  ),
+}));
+
 describe("HomePage", () => {
   it("renders the brand link", () => {
     render(<HomePage />);
-    expect(screen.getByRole("link", { name: "AINotes" })).toBeInTheDocument();
+    const links = screen.queryAllByRole("link");
+    const brandLink = links.find((l) => l.textContent === "AINotes");
+    expect(brandLink).toBeInTheDocument();
   });
 
   it("renders the main content area", () => {

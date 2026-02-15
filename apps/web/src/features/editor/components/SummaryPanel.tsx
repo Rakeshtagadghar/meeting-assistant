@@ -258,6 +258,23 @@ export function SummaryPanel({
     }
   }, [dictation?.isListening]);
 
+  // Auto-switch to transcript if summary is empty and transcript becomes available (e.g. initial load)
+  const hasAttemptedAutoSwitch = useRef(false);
+  useEffect(() => {
+    if (hasAttemptedAutoSwitch.current) return;
+
+    const hasSummary =
+      summaries.length > 0 ||
+      artifacts.some(
+        (a) => a.type === "MARKDOWN_SUMMARY" && a.status === "READY",
+      );
+
+    if (!hasSummary && transcriptContent.trim().length > 0) {
+      setActiveTab("transcript");
+      hasAttemptedAutoSwitch.current = true;
+    }
+  }, [transcriptContent, summaries, artifacts]);
+
   // Handlers
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newVal = e.target.value;

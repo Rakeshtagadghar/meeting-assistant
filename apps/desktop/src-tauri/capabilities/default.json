@@ -2,7 +2,7 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "enables the default permissions",
-  "windows": ["main", "quick-note"],
+  "windows": ["main", "quick-note", "meeting-alert"],
   "permissions": [
     "core:default",
     "shell:allow-execute",
@@ -25,6 +25,7 @@
           "args": true
         }
       ]
-    }
+    },
+    "notification:default"
   ]
 }

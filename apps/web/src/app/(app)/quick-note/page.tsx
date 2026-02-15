@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { ASRProvider } from "@ainotes/core";
 import { Button, ConsentModal } from "@ainotes/ui";
 import { useTranscriptSession } from "@/features/capture/hooks/use-transcript-session";
@@ -11,11 +11,13 @@ import { TranscriptHeader } from "@/features/capture/components/TranscriptHeader
 import { TranscriptFooter } from "@/features/capture/components/TranscriptFooter";
 import { EchoCancellationBanner } from "@/features/capture/components/EchoCancellationBanner";
 
-export default function QuickNotePage() {
+function QuickNotePageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [asrProvider, setAsrProvider] = useState<ASRProvider | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [copyFeedback, setCopyFeedback] = useState(false);
+  const [isClientRuntime, setIsClientRuntime] = useState(false);
 
   // Initialize ASR provider on mount
   useEffect(() => {
@@ -27,6 +29,10 @@ export default function QuickNotePage() {
       disposed = true;
       asrProvider?.dispose();
     };
+  }, []);
+
+  useEffect(() => {
+    setIsClientRuntime(true);
   }, []);
 
   const {
@@ -69,10 +75,13 @@ export default function QuickNotePage() {
   }, [finalChunks, searchQuery]);
 
   const isDesktop =
+    isClientRuntime &&
     typeof globalThis !== "undefined" &&
     ("__TAURI__" in globalThis || "__TAURI_INTERNALS__" in globalThis);
   const isWindows =
-    typeof navigator !== "undefined" && navigator.userAgent.includes("Windows");
+    isClientRuntime &&
+    typeof navigator !== "undefined" &&
+    navigator.userAgent.includes("Windows");
 
   const providerLabel: Record<string, string> = {
     "web-speech-api": "Web Speech API",
@@ -95,6 +104,21 @@ export default function QuickNotePage() {
           label: "text-warm-600",
         })
       : null;
+
+  const autoStartTriggeredRef = useRef(false);
+
+  useEffect(() => {
+    const shouldAutoStart = searchParams.get("autostart") === "1";
+    if (!shouldAutoStart || autoStartTriggeredRef.current) {
+      return;
+    }
+    if (windowState !== "idle") {
+      return;
+    }
+
+    autoStartTriggeredRef.current = true;
+    requestStart();
+  }, [requestStart, searchParams, windowState]);
 
   const handleClose = () => {
     if (windowState === "listening" || windowState === "paused") {
@@ -327,5 +351,13 @@ export default function QuickNotePage() {
         onConfirm={confirmConsent}
       />
     </div>
+  );
+}
+
+export default function QuickNotePage() {
+  return (
+    <Suspense fallback={<div className="h-screen bg-bg-secondary" />}>
+      <QuickNotePageContent />
+    </Suspense>
   );
 }

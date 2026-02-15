@@ -3,8 +3,11 @@ mod whisper;
 
 use audio::AudioCapture;
 use serde::Serialize;
+use std::collections::{HashMap, HashSet};
+use std::process::Command;
 use std::sync::Mutex;
-use tauri::{Emitter, Manager, State};
+use std::time::Duration;
+use tauri::{Emitter, Manager, PhysicalPosition, State};
 use whisper::WhisperManager;
 
 /// Global state for the audio/transcription pipeline.
@@ -12,6 +15,14 @@ struct TranscriptionState {
     audio: Mutex<AudioCapture>,
     whisper: Mutex<Option<WhisperManager>>,
     is_recording: Mutex<bool>,
+}
+
+/// Tracks meeting providers currently detected so we do not spam notifications.
+struct MeetingDetectorState {
+    active_provider_pids: Mutex<HashMap<String, HashSet<String>>>,
+    active_meeting_providers: Mutex<HashSet<String>>,
+    bootstrapped: Mutex<bool>,
+    last_notified_ms: Mutex<HashMap<String, i64>>,
 }
 
 /// ASR event emitted to the frontend.
@@ -32,6 +43,322 @@ enum ASREvent {
         confidence: Option<f64>,
         sequence: u32,
     },
+}
+
+#[derive(Debug, Serialize, Clone)]
+#[allow(non_snake_case)]
+struct MeetingDetectedEvent {
+    title: String,
+    subtitle: String,
+    actionLabel: String,
+    meetingSessionId: String,
+    autoStartOnAction: bool,
+    route: String,
+}
+
+fn show_quick_note_window(app: &tauri::AppHandle) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window("quick-note") {
+        window.show().map_err(|e| e.to_string())?;
+        let _ = window.unminimize();
+        window.set_focus().map_err(|e| e.to_string())?;
+    }
+
+    Ok(())
+}
+
+fn show_meeting_alert_window(app: &tauri::AppHandle) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window("meeting-alert") {
+        if let Ok(Some(monitor)) = window.current_monitor() {
+            let monitor_pos = monitor.position();
+            let monitor_size = monitor.size();
+            let window_size = window
+                .outer_size()
+                .unwrap_or(tauri::PhysicalSize::new(460_u32, 92_u32));
+
+            let margin_px: i32 = 16;
+            let x = monitor_pos.x + monitor_size.width as i32 - window_size.width as i32 - margin_px;
+            let y = monitor_pos.y + margin_px;
+
+            let _ = window.set_position(PhysicalPosition::new(x, y));
+        }
+
+        window.show().map_err(|e| e.to_string())?;
+        window.set_focus().map_err(|e| e.to_string())?;
+    }
+
+    Ok(())
+}
+
+fn navigate_main_to(app: &tauri::AppHandle, route: &str) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window("main") {
+        window.show().map_err(|e| e.to_string())?;
+        let _ = window.unminimize();
+        window.set_focus().map_err(|e| e.to_string())?;
+
+        let route_json = serde_json::to_string(route).map_err(|e| e.to_string())?;
+        let script = format!("window.location.assign({});", route_json);
+        window.eval(&script).map_err(|e| e.to_string())?;
+    }
+
+    Ok(())
+}
+
+fn emit_meeting_detected(app: &tauri::AppHandle, subtitle: String, provider_key: &str) {
+    let meeting_session_id = format!("auto-{}-{}", provider_key, chrono_like_timestamp());
+    let route = format!(
+        "/quick-note?meetingSessionId={}&autostart=1",
+        meeting_session_id
+    );
+
+    let _ = app.emit(
+        "meeting-detected",
+        MeetingDetectedEvent {
+            title: "Meeting detected".to_string(),
+            subtitle,
+            actionLabel: "Take Notes".to_string(),
+            meetingSessionId: meeting_session_id,
+            autoStartOnAction: true,
+            route,
+        },
+    );
+
+    let _ = show_meeting_alert_window(app);
+}
+
+#[cfg(target_os = "windows")]
+fn read_main_window_titles_by_pid() -> HashMap<String, String> {
+    let script = r#"Get-Process | ForEach-Object { "$($_.Id)`t$($_.MainWindowTitle)" }"#;
+
+    let output = Command::new("powershell")
+        .args(["-NoProfile", "-Command", script])
+        .output();
+
+    let Ok(output) = output else {
+        return HashMap::new();
+    };
+
+    if !output.status.success() {
+        return HashMap::new();
+    }
+
+    String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .filter_map(|line| {
+            let mut parts = line.splitn(2, '\t');
+            let pid = parts.next()?.trim();
+            let title = parts.next()?.trim();
+            if pid.is_empty() {
+                return None;
+            }
+            Some((pid.to_string(), title.to_lowercase()))
+        })
+        .collect()
+}
+
+#[cfg(target_os = "windows")]
+fn is_active_meeting_process(provider: &str, cmd: &str, title: &str) -> bool {
+    match provider {
+        "zoom" => {
+            title.contains("zoom meeting")
+                || title.contains("zoom workplace") && title.contains("meeting")
+                || cmd.contains("zoommtg")
+        }
+        "teams" => {
+            (title.contains("meeting") || title.contains("call"))
+                && (title.contains("teams") || cmd.contains("teams"))
+        }
+        "google_meet" => {
+            cmd.contains("meet.google.com") && (title.contains("meet") || title.contains("meeting"))
+        }
+        _ => false,
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn start_windows_meeting_detector(app: tauri::AppHandle) {
+    tauri::async_runtime::spawn(async move {
+        use sysinfo::{ProcessesToUpdate, System};
+
+        let mut system = System::new_all();
+
+        loop {
+            system.refresh_processes(ProcessesToUpdate::All, true);
+
+            let window_titles_by_pid = read_main_window_titles_by_pid();
+            let mut detected_now: HashMap<String, HashSet<String>> = HashMap::new();
+            let mut active_meeting_now: HashSet<String> = HashSet::new();
+
+            for process in system.processes().values() {
+                let name = process.name().to_string_lossy().to_lowercase();
+                let cmd = process
+                    .cmd()
+                    .iter()
+                    .map(|v| v.to_string_lossy().to_lowercase())
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                let pid = format!("{:?}", process.pid());
+
+                let title = window_titles_by_pid.get(&pid).cloned().unwrap_or_default();
+
+                if name.contains("zoom") || cmd.contains("zoom") {
+                    detected_now
+                        .entry("zoom".to_string())
+                        .or_default()
+                        .insert(pid.clone());
+
+                    if is_active_meeting_process("zoom", &cmd, &title) {
+                        active_meeting_now.insert("zoom".to_string());
+                    }
+                }
+
+                if name.contains("teams") || cmd.contains("teams") {
+                    detected_now
+                        .entry("teams".to_string())
+                        .or_default()
+                        .insert(pid.clone());
+
+                    if is_active_meeting_process("teams", &cmd, &title) {
+                        active_meeting_now.insert("teams".to_string());
+                    }
+                }
+
+                if cmd.contains("meet.google.com") || cmd.contains("google meet") {
+                    detected_now
+                        .entry("google_meet".to_string())
+                        .or_default()
+                        .insert(pid.clone());
+
+                    if is_active_meeting_process("google_meet", &cmd, &title) {
+                        active_meeting_now.insert("google_meet".to_string());
+                    }
+                }
+            }
+
+            let now_ms = chrono_like_timestamp();
+            let should_notify: Vec<String> = {
+                let state = app.state::<MeetingDetectorState>();
+
+                let mut bootstrapped = match state.bootstrapped.lock() {
+                    Ok(v) => v,
+                    Err(poisoned) => poisoned.into_inner(),
+                };
+                let mut active_provider_pids = match state.active_provider_pids.lock() {
+                    Ok(v) => v,
+                    Err(poisoned) => poisoned.into_inner(),
+                };
+                let mut active_meeting_providers = match state.active_meeting_providers.lock() {
+                    Ok(v) => v,
+                    Err(poisoned) => poisoned.into_inner(),
+                };
+                let last_notified_ms = match state.last_notified_ms.lock() {
+                    Ok(v) => v,
+                    Err(poisoned) => poisoned.into_inner(),
+                };
+
+                if !*bootstrapped {
+                    *active_provider_pids = detected_now;
+                    *active_meeting_providers = active_meeting_now;
+                    *bootstrapped = true;
+                    Vec::new()
+                } else {
+                    let meeting_started = active_meeting_now
+                        .iter()
+                        .filter(|provider| !active_meeting_providers.contains(*provider))
+                        .cloned()
+                        .collect::<Vec<_>>();
+
+                    let meeting_new_pid = active_meeting_now
+                        .iter()
+                        .filter_map(|provider| {
+                            let pids = detected_now.get(provider)?;
+                            let has_new_pid = active_provider_pids
+                                .get(provider)
+                                .map(|existing| pids.iter().any(|pid| !existing.contains(pid)))
+                                .unwrap_or(true);
+                            if has_new_pid {
+                                Some(provider.clone())
+                            } else {
+                                None
+                            }
+                        })
+                        .collect::<Vec<_>>();
+
+                    let reminder_due = active_meeting_now
+                        .iter()
+                        .filter_map(|provider| {
+                            last_notified_ms
+                                .get(provider)
+                                .map(|last| (provider.clone(), *last))
+                        })
+                        .filter(|(_, last)| now_ms - *last >= ALERT_REMINDER_INTERVAL_MS)
+                        .map(|(provider, _)| provider)
+                        .collect::<Vec<_>>();
+
+                    *active_provider_pids = detected_now;
+                    *active_meeting_providers = active_meeting_now;
+
+                    let mut notify = meeting_started;
+                    for provider in meeting_new_pid {
+                        if !notify.contains(&provider) {
+                            notify.push(provider);
+                        }
+                    }
+                    for provider in reminder_due {
+                        if !notify.contains(&provider) {
+                            notify.push(provider);
+                        }
+                    }
+                    notify
+                }
+            };
+
+            for provider in should_notify {
+                match provider.as_str() {
+                    "zoom" => {
+                        emit_meeting_detected(&app, "Zoom".to_string(), "zoom");
+                    }
+                    "teams" => {
+                        emit_meeting_detected(&app, "Microsoft Teams".to_string(), "teams");
+                    }
+                    "google_meet" => {
+                        emit_meeting_detected(&app, "Google Meet".to_string(), "google_meet");
+                    }
+                    _ => {}
+                }
+
+                {
+                    let state = app.state::<MeetingDetectorState>();
+                    match state.last_notified_ms.lock() {
+                        Ok(mut last_notified_ms) => {
+                            last_notified_ms.insert(provider, now_ms);
+                        }
+                        Err(poisoned) => {
+                            let mut last_notified_ms = poisoned.into_inner();
+                            last_notified_ms.insert(provider, now_ms);
+                        }
+                    };
+                }
+            }
+
+            tokio::time::sleep(Duration::from_secs(5)).await;
+        }
+    });
+}
+
+#[cfg(not(target_os = "windows"))]
+fn start_windows_meeting_detector(_app: tauri::AppHandle) {
+    // No-op outside Windows in MVP.
+}
+
+const ALERT_REMINDER_INTERVAL_MS: i64 = 120_000;
+
+fn chrono_like_timestamp() -> i64 {
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default();
+    now.as_millis() as i64
 }
 
 #[tauri::command]
@@ -58,6 +385,8 @@ async fn start_transcription(
         *recording = true;
     }
 
+    show_quick_note_window(&app)?;
+
     app.emit(
         "asr-event",
         ASREvent::Status {
@@ -78,11 +407,7 @@ async fn start_transcription(
             // Check if still recording
             let is_recording = {
                 let state_ref = app_handle.state::<TranscriptionState>();
-                state_ref
-                    .is_recording
-                    .lock()
-                    .map(|r| *r)
-                    .unwrap_or(false)
+                state_ref.is_recording.lock().map(|r| *r).unwrap_or(false)
             };
             if !is_recording {
                 break;
@@ -111,9 +436,9 @@ async fn start_transcription(
             let wm_config = {
                 let state_ref = app_handle.state::<TranscriptionState>();
                 let guard = state_ref.whisper.lock().unwrap();
-                guard.as_ref().map(|wm| {
-                    (wm.model_path().to_string(), wm.language().to_string())
-                })
+                guard
+                    .as_ref()
+                    .map(|wm| (wm.model_path().to_string(), wm.language().to_string()))
             };
 
             let Some((mp, lang)) = wm_config else {
@@ -227,6 +552,8 @@ async fn resume_transcription(
         *recording = true;
     }
 
+    show_quick_note_window(&app)?;
+
     app.emit(
         "asr-event",
         ASREvent::Status {
@@ -237,6 +564,58 @@ async fn resume_transcription(
     .map_err(|e| e.to_string())?;
 
     Ok(())
+}
+
+#[tauri::command]
+async fn trigger_meeting_detected_notification(
+    app: tauri::AppHandle,
+    meeting_app: Option<String>,
+    meeting_session_id: String,
+) -> Result<(), String> {
+    let subtitle = meeting_app.unwrap_or_else(|| "Online meeting".to_string());
+
+    let route = format!(
+        "/quick-note?meetingSessionId={}&autostart=1",
+        meeting_session_id
+    );
+
+    app.emit(
+        "meeting-detected",
+        MeetingDetectedEvent {
+            title: "Meeting detected".to_string(),
+            subtitle,
+            actionLabel: "Take Notes".to_string(),
+            meetingSessionId: meeting_session_id,
+            autoStartOnAction: true,
+            route,
+        },
+    )
+    .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
+fn open_meeting_capture(app: tauri::AppHandle, meeting_session_id: String) -> Result<(), String> {
+    let route = format!(
+        "/quick-note?meetingSessionId={}&autostart=1",
+        meeting_session_id
+    );
+
+    navigate_main_to(&app, &route)?;
+
+    if let Some(alert) = app.get_webview_window("meeting-alert") {
+        let _ = alert.hide();
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+fn dismiss_meeting_alert(app: tauri::AppHandle) {
+    if let Some(alert) = app.get_webview_window("meeting-alert") {
+        let _ = alert.hide();
+    }
 }
 
 #[tauri::command]
@@ -251,10 +630,17 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_notification::init())
         .manage(TranscriptionState {
             audio: Mutex::new(AudioCapture::new()),
             whisper: Mutex::new(None),
             is_recording: Mutex::new(false),
+        })
+        .manage(MeetingDetectorState {
+            active_provider_pids: Mutex::new(HashMap::new()),
+            active_meeting_providers: Mutex::new(HashSet::new()),
+            bootstrapped: Mutex::new(false),
+            last_notified_ms: Mutex::new(HashMap::new()),
         })
         .setup(|app| {
             if cfg!(debug_assertions) {
@@ -264,6 +650,8 @@ pub fn run() {
                         .build(),
                 )?;
             }
+
+            start_windows_meeting_detector(app.handle().clone());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -271,6 +659,9 @@ pub fn run() {
             stop_transcription,
             pause_transcription,
             resume_transcription,
+            trigger_meeting_detected_notification,
+            open_meeting_capture,
+            dismiss_meeting_alert,
             get_mic_level,
         ])
         .run(tauri::generate_context!())

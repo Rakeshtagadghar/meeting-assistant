@@ -100,7 +100,9 @@ describe("SummaryPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Transcript" }));
 
     expect(
-      screen.getByPlaceholderText("Start typing or dictate..."),
+      screen.getByPlaceholderText(
+        "Start typing or dictate to generate a transcript...",
+      ),
     ).toBeInTheDocument();
   });
 
@@ -175,6 +177,9 @@ describe("SummaryPanel", () => {
         dictation={dictation}
       />,
     );
+
+    // Switch to transcript tab first
+    fireEvent.click(screen.getByRole("button", { name: "Transcript" }));
 
     fireEvent.click(screen.getByRole("button", { name: "Dictate" }));
 
