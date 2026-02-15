@@ -5,38 +5,34 @@ import { motion } from "framer-motion";
 export function MockPreview() {
   return (
     <div className="relative">
-      {/* Main preview card */}
-      <div className="glass-card rounded-3xl p-6 max-w-md mx-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-4">
+      <div className="landing-glass-card mx-auto max-w-md rounded-3xl p-6">
+        <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-red-400" />
-            <div className="w-3 h-3 rounded-full bg-yellow-400" />
-            <div className="w-3 h-3 rounded-full bg-green-400" />
+            <div className="h-3 w-3 rounded-full bg-red-400" />
+            <div className="h-3 w-3 rounded-full bg-yellow-400" />
+            <div className="h-3 w-3 rounded-full bg-green-400" />
           </div>
           <span className="text-xs text-text-muted">Quick Note</span>
         </div>
 
-        {/* Recording indicator */}
-        <div className="flex items-center gap-2 mb-4 px-3 py-2 rounded-xl bg-red-50 border border-red-100">
+        <div className="mb-4 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2">
           <motion.div
             animate={{ opacity: [1, 0.3, 1] }}
             transition={{ duration: 1.5, repeat: Infinity }}
-            className="w-2 h-2 rounded-full bg-red-500"
+            className="h-2 w-2 rounded-full bg-red-500"
           />
-          <span className="text-sm text-red-600 font-medium">Recording...</span>
-          <span className="text-xs text-red-400 ml-auto">02:34</span>
+          <span className="text-sm font-medium text-red-600">Recording...</span>
+          <span className="ml-auto text-xs text-red-400">02:34</span>
         </div>
 
-        {/* Transcript lines */}
-        <div className="space-y-3 mb-4">
+        <div className="mb-4 space-y-3">
           <motion.div
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.5 }}
             className="flex gap-3"
           >
-            <div className="w-6 h-6 rounded-full gradient-primary flex-shrink-0" />
+            <div className="gradient-primary h-6 w-6 flex-shrink-0 rounded-full" />
             <div>
               <p className="text-xs text-text-muted">Sarah</p>
               <p className="text-sm text-text-heading">
@@ -51,7 +47,7 @@ export function MockPreview() {
             transition={{ delay: 0.8 }}
             className="flex gap-3"
           >
-            <div className="w-6 h-6 rounded-full gradient-accent flex-shrink-0" />
+            <div className="gradient-accent h-6 w-6 flex-shrink-0 rounded-full" />
             <div>
               <p className="text-xs text-text-muted">Mike</p>
               <p className="text-sm text-text-heading">
@@ -66,7 +62,7 @@ export function MockPreview() {
             transition={{ delay: 1.1 }}
             className="flex gap-3"
           >
-            <div className="w-6 h-6 rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400 flex-shrink-0" />
+            <div className="h-6 w-6 flex-shrink-0 rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400" />
             <div>
               <p className="text-xs text-text-muted">You</p>
               <p className="text-sm text-text-heading">
@@ -82,14 +78,13 @@ export function MockPreview() {
           </motion.div>
         </div>
 
-        {/* Generate button */}
         <motion.button
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
-          className="w-full py-3 rounded-xl btn-gradient-primary text-white font-medium text-sm flex items-center justify-center gap-2"
+          className="btn-gradient-landing flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-medium text-white"
         >
           <svg
-            className="w-4 h-4"
+            className="h-4 w-4"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -105,16 +100,15 @@ export function MockPreview() {
         </motion.button>
       </div>
 
-      {/* Floating decoration cards */}
       <motion.div
         animate={{ y: [0, -8, 0] }}
         transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-        className="absolute -top-4 -right-4 glass-card rounded-xl p-3 shadow-lg"
+        className="landing-glass-card absolute -right-4 -top-4 rounded-xl p-3 shadow-lg"
       >
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg gradient-badge flex items-center justify-center">
+          <div className="landing-pill flex h-8 w-8 items-center justify-center rounded-lg">
             <svg
-              className="w-4 h-4 text-text-heading"
+              className="h-4 w-4 text-text-heading"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -139,12 +133,12 @@ export function MockPreview() {
       <motion.div
         animate={{ y: [0, 8, 0] }}
         transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-        className="absolute -bottom-4 -left-4 glass-card rounded-xl p-3 shadow-lg"
+        className="landing-glass-card absolute -bottom-4 -left-4 rounded-xl p-3 shadow-lg"
       >
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg icon-gradient flex items-center justify-center">
+          <div className="landing-icon-chip flex h-8 w-8 items-center justify-center rounded-lg">
             <svg
-              className="w-4 h-4 text-white"
+              className="h-4 w-4 text-white"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"

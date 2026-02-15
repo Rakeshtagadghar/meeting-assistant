@@ -19,7 +19,7 @@ const faqItems = [
   },
   {
     q: "How do cookies work?",
-    a: "We use a CMP (Google CMP v2 compliant). Analytics only run after opt-in consent in EEA/UK.",
+    a: "We use a CMP (Google CMP v2 compliant). Analytics run only after opt-in consent in EEA and UK.",
   },
 ];
 
@@ -30,7 +30,6 @@ export function FAQ() {
     setOpenIndex(openIndex === index ? null : index);
   };
 
-  // Generate JSON-LD structured data
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "FAQPage",
@@ -45,39 +44,37 @@ export function FAQ() {
   };
 
   return (
-    <section className="py-24 sm:py-32 bg-white">
-      {/* JSON-LD Structured Data */}
+    <section className="relative py-24 sm:py-28">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
-      <div className="mx-auto max-w-3xl px-6 lg:px-8">
-        {/* Section header */}
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold tracking-tight text-text-heading sm:text-4xl">
-            Frequently asked questions
+      <div className="mx-auto max-w-3xl px-6 lg:px-8" data-stagger-group>
+        <div data-stagger-item className="mb-12 text-center">
+          <h2 className="landing-section-title text-4xl font-extrabold tracking-tight sm:text-5xl">
+            <span className="landing-gradient-title">
+              Frequently asked questions.
+            </span>
           </h2>
         </div>
 
-        {/* FAQ items */}
         <div className="space-y-4">
           {faqItems.map((item, index) => (
-            <motion.div
-              key={index}
-              initial={{ opacity: 0, y: 10 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: index * 0.1, duration: 0.3 }}
-              className="glass-card rounded-2xl overflow-hidden"
+            <div
+              key={item.q}
+              data-stagger-item
+              className="landing-glass-card overflow-hidden rounded-2xl"
             >
               <button
                 onClick={() => toggleItem(index)}
-                className="w-full px-6 py-5 flex items-center justify-between text-left"
+                className="flex w-full items-center justify-between px-6 py-5 text-left"
               >
-                <span className="font-medium text-text-heading">{item.q}</span>
+                <span className="font-semibold text-text-heading">
+                  {item.q}
+                </span>
                 <ChevronDownIcon
-                  className={`w-5 h-5 text-text-muted transition-transform duration-200 ${
+                  className={`h-5 w-5 text-text-muted transition-transform duration-200 ${
                     openIndex === index ? "rotate-180" : ""
                   }`}
                 />
@@ -88,14 +85,14 @@ export function FAQ() {
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: "auto", opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.2 }}
+                    transition={{ duration: 0.24 }}
                     className="overflow-hidden"
                   >
                     <div className="px-6 pb-5 text-text-body">{item.a}</div>
                   </motion.div>
                 )}
               </AnimatePresence>
-            </motion.div>
+            </div>
           ))}
         </div>
       </div>

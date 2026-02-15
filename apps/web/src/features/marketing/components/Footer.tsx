@@ -9,11 +9,17 @@ const footerLinks = [
 
 export function Footer() {
   return (
-    <footer className="bg-white border-t border-gray-100">
-      <div className="mx-auto max-w-7xl overflow-hidden px-6 py-12 lg:px-8">
-        {/* Logo and nav */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
-          <Link href="/" className="text-xl font-bold gradient-text">
+    <footer className="relative pb-10 pt-6">
+      <div
+        className="mx-auto max-w-7xl overflow-hidden px-6 lg:px-8"
+        data-stagger-group
+      >
+        <div className="landing-glass-card flex flex-col items-center justify-between gap-6 rounded-3xl px-6 py-8 sm:flex-row">
+          <Link
+            href="/"
+            data-stagger-item
+            className="landing-section-title text-xl font-bold landing-gradient-title"
+          >
             AINotes
           </Link>
 
@@ -25,7 +31,8 @@ export function Footer() {
               <Link
                 key={link.label}
                 href={link.href}
-                className="text-sm text-text-muted hover:text-text-heading transition-colors"
+                data-stagger-item
+                className="text-sm font-medium text-text-muted transition-colors hover:text-text-heading"
               >
                 {link.label}
               </Link>
@@ -33,9 +40,8 @@ export function Footer() {
           </nav>
         </div>
 
-        {/* Copyright */}
         <p className="mt-8 text-center text-xs text-text-muted">
-          © {new Date().getFullYear()} AINotes. All rights reserved.
+          Copyright {new Date().getFullYear()} AINotes. All rights reserved.
         </p>
       </div>
     </footer>

@@ -1,53 +1,48 @@
 "use client";
 
 import Link from "next/link";
-import { motion } from "framer-motion";
 import { ShieldCheckIcon } from "@heroicons/react/24/outline";
 
 const privacyFeatures = [
   "No audio stored by default (transcript + summaries only)",
-  "Share is explicit and restricted by default",
+  "Sharing is explicit and restricted by default",
   "Delete notes and transcripts anytime",
-  "GDPR-ready controls and clear retention",
+  "GDPR-ready controls and clear retention policy",
 ];
 
 export function PrivacySection() {
   return (
-    <section id="privacy" className="py-24 sm:py-32 gradient-hero-bg">
-      <div className="mx-auto max-w-7xl px-6 lg:px-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-          {/* Left - Icon */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5 }}
-            className="flex justify-center"
-          >
+    <section id="privacy" className="relative py-24 sm:py-28">
+      <div className="mx-auto max-w-7xl px-6 lg:px-8" data-stagger-group>
+        <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-2">
+          <div data-stagger-item className="flex justify-center">
             <div className="relative">
-              <div className="w-48 h-48 rounded-full gradient-primary opacity-20 absolute -inset-4 blur-2xl" />
-              <div className="relative w-40 h-40 rounded-3xl glass-card flex items-center justify-center">
-                <ShieldCheckIcon className="w-20 h-20 text-primary" />
+              <div className="landing-preview-glow absolute -inset-6" />
+              <div className="landing-glass-card relative flex h-44 w-44 items-center justify-center rounded-[2rem]">
+                <ShieldCheckIcon className="h-20 w-20 text-primary" />
               </div>
             </div>
-          </motion.div>
+          </div>
 
-          {/* Right - Content */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5 }}
-          >
-            <h2 className="text-3xl font-bold tracking-tight text-text-heading sm:text-4xl mb-6">
-              Privacy-first by default
+          <div>
+            <h2
+              data-stagger-item
+              className="landing-section-title text-4xl font-extrabold tracking-tight sm:text-5xl"
+            >
+              <span className="landing-gradient-title">
+                Privacy-first by default.
+              </span>
             </h2>
 
-            <ul className="space-y-4 mb-8">
-              {privacyFeatures.map((feature, index) => (
-                <li key={index} className="flex items-start gap-3">
+            <ul className="mt-8 space-y-4">
+              {privacyFeatures.map((feature) => (
+                <li
+                  key={feature}
+                  data-stagger-item
+                  className="landing-pill flex items-start gap-3 px-4 py-3"
+                >
                   <svg
-                    className="w-5 h-5 text-primary mt-0.5 flex-shrink-0"
+                    className="mt-0.5 h-5 w-5 flex-shrink-0 text-primary"
                     fill="currentColor"
                     viewBox="0 0 20 20"
                   >
@@ -63,13 +58,13 @@ export function PrivacySection() {
             </ul>
 
             <Link
+              data-stagger-item
               href="/privacy"
-              className="inline-flex items-center gap-2 text-primary font-medium hover:underline"
+              className="mt-8 inline-flex items-center gap-2 text-sm font-semibold text-primary transition-colors hover:text-primary-hover"
             >
-              Read privacy policy
-              <span aria-hidden="true">→</span>
+              Read privacy policy -&gt;
             </Link>
-          </motion.div>
+          </div>
         </div>
       </div>
     </section>

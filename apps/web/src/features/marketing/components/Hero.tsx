@@ -2,29 +2,8 @@
 
 import Link from "next/link";
 import { useSession, signIn } from "next-auth/react";
-import { motion } from "framer-motion";
 import { useFeatureFlagVariantKey } from "posthog-js/react";
 import { MockPreview } from "./MockPreview";
-
-const heroFade = {
-  hidden: { opacity: 0, y: 10 },
-  show: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.55 },
-  },
-};
-
-const staggerContainer = {
-  hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.1,
-      delayChildren: 0.1,
-    },
-  },
-};
 
 const trustItems = [
   "No audio stored by default",
@@ -43,20 +22,20 @@ function getCtaProps(variant: string | boolean | undefined) {
     case "cta_primary_copy_v2":
       return {
         className:
-          "btn-gradient-primary px-8 py-3 rounded-2xl text-white font-semibold text-lg flex items-center gap-2",
+          "btn-gradient-landing px-8 py-3 rounded-2xl text-white font-semibold text-lg flex items-center gap-2",
         text: "Start taking notes free",
       };
     default:
       return {
         className:
-          "btn-gradient-primary px-8 py-3 rounded-2xl text-white font-semibold text-lg flex items-center gap-2",
+          "btn-gradient-landing px-8 py-3 rounded-2xl text-white font-semibold text-lg flex items-center gap-2",
         text: "Sign in with Google",
       };
   }
 }
 
 const GoogleIcon = () => (
-  <svg className="w-5 h-5" viewBox="0 0 24 24">
+  <svg className="h-5 w-5" viewBox="0 0 24 24">
     <path
       fill="currentColor"
       d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -82,48 +61,39 @@ export function Hero() {
   const cta = getCtaProps(ctaVariant);
 
   return (
-    <section className="relative overflow-hidden gradient-hero-bg px-6 py-24 sm:py-32 lg:px-8">
-      {/* Background decoration */}
-      <div className="absolute inset-0 -z-10 overflow-hidden">
-        <div className="absolute -top-40 -right-40 h-80 w-80 rounded-full bg-gradient-to-br from-primary/20 to-accent-pink/20 blur-3xl" />
-        <div className="absolute -bottom-40 -left-40 h-80 w-80 rounded-full bg-gradient-to-tr from-accent-pink/20 to-primary/20 blur-3xl" />
-      </div>
-
+    <section className="relative overflow-hidden px-6 pb-24 pt-28 sm:pb-28 sm:pt-36 lg:px-8">
       <div className="mx-auto max-w-7xl">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-          {/* Left column - Text content */}
-          <motion.div
-            variants={staggerContainer}
-            initial="hidden"
-            animate="show"
-            className="text-center lg:text-left"
-          >
-            <motion.h1
-              variants={heroFade}
-              className="text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl"
+        <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-2">
+          <div className="text-center lg:text-left">
+            <p data-hero-stagger className="landing-kicker mx-auto lg:mx-0">
+              PRIVATE AI MEETING NOTES
+            </p>
+
+            <h1
+              data-hero-stagger
+              className="landing-section-title mt-5 text-5xl font-extrabold leading-tight tracking-tight sm:text-6xl lg:text-7xl"
             >
-              <span className="gradient-text">Write notes like normal.</span>
+              <span className="landing-gradient-title">Write less.</span>
               <br />
-              <span className="text-text-heading">
-                Get a clean summary after.
-              </span>
-            </motion.h1>
+              <span className="landing-gradient-title">Decide faster.</span>
+            </h1>
 
-            <motion.p
-              variants={heroFade}
-              className="mt-6 text-lg leading-8 text-text-body max-w-xl mx-auto lg:mx-0"
+            <p
+              data-hero-stagger
+              className="mx-auto mt-7 max-w-xl text-lg leading-8 text-text-body lg:mx-0"
             >
-              Live transcript during meetings, then one-click AI summaries,
-              action items, and exports. Private by default and consent-first.
-            </motion.p>
+              Capture live transcript while the conversation happens, then turn
+              it into polished summaries, action items, and exports after the
+              meeting.
+            </p>
 
-            <motion.div
-              variants={heroFade}
-              className="mt-10 flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4"
+            <div
+              data-hero-stagger
+              className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row lg:justify-start"
             >
               {session ? (
                 <Link href="/notes">
-                  <button className="btn-gradient-primary px-8 py-3 rounded-2xl text-white font-semibold text-lg">
+                  <button className="btn-gradient-landing rounded-2xl px-8 py-3 text-lg font-semibold text-white">
                     Go to Notes
                   </button>
                 </Link>
@@ -138,26 +108,25 @@ export function Hero() {
                   </button>
                   <Link
                     href="#how-it-works"
-                    className="text-sm font-semibold leading-6 text-text-heading hover:text-primary transition-colors"
+                    className="text-sm font-semibold leading-6 text-text-heading transition-colors hover:text-primary"
                   >
-                    See how it works <span aria-hidden="true">→</span>
+                    See how it works -&gt;
                   </Link>
                 </>
               )}
-            </motion.div>
+            </div>
 
-            {/* Trust row */}
-            <motion.div
-              variants={heroFade}
-              className="mt-10 flex flex-wrap items-center justify-center lg:justify-start gap-x-6 gap-y-2"
+            <div
+              data-hero-stagger
+              className="mt-10 grid max-w-2xl grid-cols-1 gap-3 sm:grid-cols-3"
             >
-              {trustItems.map((item, index) => (
+              {trustItems.map((item) => (
                 <div
-                  key={index}
-                  className="flex items-center gap-2 text-sm text-text-muted"
+                  key={item}
+                  className="landing-pill flex items-center justify-center gap-2 px-4 py-2 text-sm text-text-body lg:justify-start"
                 >
                   <svg
-                    className="w-4 h-4 text-primary"
+                    className="h-4 w-4 text-primary"
                     fill="currentColor"
                     viewBox="0 0 20 20"
                   >
@@ -170,18 +139,19 @@ export function Hero() {
                   {item}
                 </div>
               ))}
-            </motion.div>
-          </motion.div>
+            </div>
+          </div>
 
-          {/* Right column - Mock preview */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6, delay: 0.3 }}
-            className="hidden lg:block"
-          >
-            <MockPreview />
-          </motion.div>
+          <div className="hidden lg:block">
+            <div
+              data-hero-stagger
+              data-float
+              className="relative mx-auto max-w-lg"
+            >
+              <div className="landing-preview-glow absolute -inset-10 -z-10" />
+              <MockPreview />
+            </div>
+          </div>
         </div>
       </div>
     </section>

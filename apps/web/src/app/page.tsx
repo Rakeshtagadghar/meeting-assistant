@@ -9,6 +9,7 @@ import { FAQ } from "@/features/marketing/components/FAQ";
 import { FinalCTA } from "@/features/marketing/components/FinalCTA";
 import { Footer } from "@/features/marketing/components/Footer";
 import { CookieBanner } from "@/features/marketing/components/CookieBanner";
+import { LandingShell } from "@/features/marketing/components/LandingShell";
 
 export const metadata: Metadata = {
   title: "AINotes - Private AI Meeting Notes & Transcription",
@@ -32,7 +33,7 @@ export const metadata: Metadata = {
 
 export default function HomePage() {
   return (
-    <main className="flex min-h-screen flex-col bg-white">
+    <LandingShell>
       <Navbar />
       <Hero />
       <SocialProof />
@@ -43,6 +44,6 @@ export default function HomePage() {
       <FinalCTA />
       <Footer />
       <CookieBanner />
-    </main>
+    </LandingShell>
   );
 }

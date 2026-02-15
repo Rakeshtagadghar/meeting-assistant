@@ -413,7 +413,6 @@ export class WhisperWASMProvider implements ASRProvider {
         video: {
           // Helps users pick the exact browser tab where YouTube/meeting audio is playing.
           // TypeScript DOM lib may not include newer fields in every TS version.
-          // @ts-expect-error
           displaySurface: "browser",
           // @ts-expect-error
           preferCurrentTab: true,

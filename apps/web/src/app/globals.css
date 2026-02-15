@@ -45,7 +45,7 @@ body {
   background-color: var(--color-warm-50);
 }
 
-/* ─── Landing page gradient utilities ─── */
+/* Landing page gradient utilities */
 
 .gradient-primary {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -108,18 +108,223 @@ body {
   background: linear-gradient(135deg, #667eea 0%, #f093fb 100%);
 }
 
+/* Landing page 2026 refresh */
+.landing-main {
+  position: relative;
+  isolation: isolate;
+  background: #f7fbff;
+}
+
+.landing-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.landing-mesh {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(
+      circle at 15% 12%,
+      rgba(32, 121, 255, 0.3),
+      transparent 45%
+    ),
+    radial-gradient(
+      circle at 82% 18%,
+      rgba(20, 184, 166, 0.22),
+      transparent 40%
+    ),
+    radial-gradient(
+      circle at 72% 82%,
+      rgba(251, 146, 60, 0.22),
+      transparent 42%
+    ),
+    radial-gradient(
+      circle at 20% 78%,
+      rgba(14, 165, 233, 0.18),
+      transparent 38%
+    );
+}
+
+.landing-grid {
+  position: absolute;
+  inset: 0;
+  opacity: 0.34;
+  background-image:
+    linear-gradient(rgba(100, 116, 139, 0.15) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(100, 116, 139, 0.15) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(circle at center, black 35%, transparent 100%);
+}
+
+.landing-noise {
+  position: absolute;
+  inset: 0;
+  opacity: 0.1;
+  background-image: radial-gradient(
+    rgba(15, 23, 42, 0.18) 0.6px,
+    transparent 0.6px
+  );
+  background-size: 3px 3px;
+}
+
+.landing-orb {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(70px);
+  opacity: 0.65;
+}
+
+.landing-orb-one {
+  top: -120px;
+  left: -140px;
+  width: 360px;
+  height: 360px;
+  background: linear-gradient(
+    135deg,
+    rgba(56, 189, 248, 0.58),
+    rgba(59, 130, 246, 0.45)
+  );
+}
+
+.landing-orb-two {
+  top: 22%;
+  right: -130px;
+  width: 310px;
+  height: 310px;
+  background: linear-gradient(
+    135deg,
+    rgba(34, 197, 94, 0.44),
+    rgba(14, 165, 233, 0.4)
+  );
+}
+
+.landing-orb-three {
+  bottom: -150px;
+  left: 42%;
+  width: 320px;
+  height: 320px;
+  background: linear-gradient(
+    135deg,
+    rgba(251, 146, 60, 0.48),
+    rgba(250, 204, 21, 0.42)
+  );
+}
+
+.landing-section-title {
+  font-family:
+    var(--font-display), "Sora", "Manrope", "Avenir Next", sans-serif;
+  letter-spacing: -0.02em;
+}
+
+.landing-gradient-title {
+  background: linear-gradient(
+    120deg,
+    #0b5cff 0%,
+    #0ea5e9 35%,
+    #14b8a6 68%,
+    #f97316 100%
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.landing-kicker {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  border: 1px solid rgba(14, 165, 233, 0.25);
+  background: rgba(255, 255, 255, 0.75);
+  padding: 0.4rem 0.85rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: #0369a1;
+  backdrop-filter: blur(10px);
+}
+
+.landing-glass-card {
+  background: linear-gradient(
+    160deg,
+    rgba(255, 255, 255, 0.82),
+    rgba(255, 255, 255, 0.68)
+  );
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  box-shadow:
+    0 10px 45px rgba(14, 23, 38, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  transition:
+    transform 240ms ease,
+    box-shadow 240ms ease,
+    border-color 240ms ease;
+}
+
+.landing-glass-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(14, 165, 233, 0.28);
+  box-shadow:
+    0 20px 55px rgba(14, 23, 38, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.landing-pill {
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(10px);
+}
+
+.landing-icon-chip {
+  background: linear-gradient(140deg, #0b5cff 0%, #0ea5e9 45%, #14b8a6 100%);
+}
+
+.landing-dot {
+  background: linear-gradient(130deg, #0284c7, #14b8a6);
+}
+
+.landing-preview-glow {
+  border-radius: 9999px;
+  background: radial-gradient(
+    circle,
+    rgba(14, 165, 233, 0.25),
+    transparent 70%
+  );
+}
+
+.btn-gradient-landing {
+  background: linear-gradient(120deg, #0b5cff 0%, #0ea5e9 45%, #14b8a6 100%);
+  box-shadow: 0 10px 30px rgba(14, 116, 255, 0.34);
+  transition:
+    transform 220ms ease,
+    box-shadow 220ms ease,
+    filter 220ms ease;
+}
+
+.btn-gradient-landing:hover {
+  transform: translateY(-2px);
+  filter: saturate(1.08);
+  box-shadow: 0 16px 34px rgba(14, 116, 255, 0.4);
+}
+
 /* Reduced motion support */
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
   }
   .btn-gradient-primary:hover,
-  .glass-card:hover {
+  .glass-card:hover,
+  .btn-gradient-landing:hover,
+  .landing-glass-card:hover {
     transform: none;
   }
 }
 
-/* ─── Streaming summary markdown styles ─── */
+/* Streaming summary markdown styles */
 
 .streaming-prose h1 {
   font-size: 1.25rem;

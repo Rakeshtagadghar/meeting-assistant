@@ -18,8 +18,9 @@ export function Navbar() {
 
   useEffect(() => {
     const handleScroll = () => {
-      setScrolled(window.scrollY > 10);
+      setScrolled(window.scrollY > 12);
     };
+
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
@@ -27,24 +28,24 @@ export function Navbar() {
   return (
     <header
       className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${
-        scrolled ? "bg-white/80 backdrop-blur-lg shadow-sm" : "bg-transparent"
+        scrolled
+          ? "border-b border-white/30 bg-white/70 shadow-[0_8px_30px_rgba(15,23,42,0.08)] backdrop-blur-xl"
+          : "bg-transparent"
       }`}
     >
       <nav
-        className="flex items-center justify-between p-4 lg:px-8 max-w-7xl mx-auto"
+        className="mx-auto flex max-w-7xl items-center justify-between p-4 lg:px-8"
         aria-label="Global"
       >
-        {/* Logo */}
-        <div className="flex lg:flex-1">
+        <div className="flex lg:flex-1" data-hero-stagger>
           <Link
             href="/"
-            className="-m-1.5 p-1.5 text-xl font-bold gradient-text"
+            className="landing-section-title -m-1.5 p-1.5 text-xl font-bold landing-gradient-title"
           >
             AINotes
           </Link>
         </div>
 
-        {/* Mobile menu button */}
         <div className="flex lg:hidden">
           <button
             type="button"
@@ -69,32 +70,31 @@ export function Navbar() {
           </button>
         </div>
 
-        {/* Desktop nav links */}
         <div className="hidden lg:flex lg:gap-x-8">
           {navLinks.map((link) => (
             <Link
               key={link.label}
               href={link.href}
-              className="text-sm font-medium text-text-body hover:text-primary transition-colors"
+              className="text-sm font-semibold text-text-body transition-colors hover:text-primary"
+              data-hero-stagger
             >
               {link.label}
             </Link>
           ))}
         </div>
 
-        {/* Desktop auth buttons */}
-        <div className="hidden lg:flex lg:flex-1 lg:justify-end lg:gap-4 lg:items-center">
+        <div className="hidden lg:flex lg:flex-1 lg:items-center lg:justify-end lg:gap-4">
           {session ? (
             <>
               <Link
                 href="/notes"
-                className="text-sm font-medium text-text-body hover:text-primary transition-colors"
+                className="text-sm font-semibold text-text-body transition-colors hover:text-primary"
               >
                 Dashboard
               </Link>
               <button
                 onClick={() => signOut()}
-                className="text-sm font-medium text-text-muted hover:text-text-heading transition-colors"
+                className="text-sm font-semibold text-text-muted transition-colors hover:text-text-heading"
               >
                 Sign out
               </button>
@@ -103,13 +103,15 @@ export function Navbar() {
             <>
               <button
                 onClick={() => signIn()}
-                className="text-sm font-medium text-text-body hover:text-primary transition-colors"
+                className="text-sm font-semibold text-text-body transition-colors hover:text-primary"
+                data-hero-stagger
               >
                 Sign in
               </button>
               <button
                 onClick={() => signIn(undefined, { callbackUrl: "/notes" })}
-                className="btn-gradient-primary px-4 py-2 rounded-xl text-white text-sm font-medium"
+                className="btn-gradient-landing rounded-xl px-4 py-2 text-sm font-medium text-white"
+                data-hero-stagger
               >
                 Get started
               </button>
@@ -118,18 +120,17 @@ export function Navbar() {
         </div>
       </nav>
 
-      {/* Mobile menu */}
       {mobileMenuOpen && (
         <div className="lg:hidden" role="dialog" aria-modal="true">
           <div
-            className="fixed inset-0 z-50 bg-black/20 backdrop-blur-sm"
+            className="fixed inset-0 z-50 bg-slate-900/20 backdrop-blur-sm"
             onClick={() => setMobileMenuOpen(false)}
           />
-          <div className="fixed inset-y-0 right-0 z-50 w-full overflow-y-auto bg-white px-6 py-6 sm:max-w-sm sm:ring-1 sm:ring-gray-900/10">
+          <div className="fixed inset-y-0 right-0 z-50 w-full overflow-y-auto bg-white px-6 py-6 sm:max-w-sm">
             <div className="flex items-center justify-between">
               <Link
                 href="/"
-                className="-m-1.5 p-1.5 text-xl font-bold gradient-text"
+                className="landing-section-title -m-1.5 p-1.5 text-xl font-bold landing-gradient-title"
               >
                 AINotes
               </Link>
@@ -169,7 +170,7 @@ export function Navbar() {
                     </Link>
                   ))}
                 </div>
-                <div className="py-6 space-y-3">
+                <div className="space-y-3 py-6">
                   {session ? (
                     <>
                       <Link
@@ -180,7 +181,7 @@ export function Navbar() {
                       </Link>
                       <button
                         onClick={() => signOut()}
-                        className="-mx-3 block w-full text-left rounded-lg px-3 py-2.5 text-base font-semibold text-text-heading hover:bg-gray-50"
+                        className="-mx-3 block w-full rounded-lg px-3 py-2.5 text-left text-base font-semibold text-text-heading hover:bg-gray-50"
                       >
                         Sign out
                       </button>
@@ -189,7 +190,7 @@ export function Navbar() {
                     <>
                       <button
                         onClick={() => signIn()}
-                        className="-mx-3 block w-full text-left rounded-lg px-3 py-2.5 text-base font-medium text-text-heading hover:bg-gray-50"
+                        className="-mx-3 block w-full rounded-lg px-3 py-2.5 text-left text-base font-medium text-text-heading hover:bg-gray-50"
                       >
                         Sign in
                       </button>
@@ -197,7 +198,7 @@ export function Navbar() {
                         onClick={() =>
                           signIn(undefined, { callbackUrl: "/notes" })
                         }
-                        className="w-full btn-gradient-primary px-4 py-3 rounded-xl text-white text-base font-medium"
+                        className="btn-gradient-landing w-full rounded-xl px-4 py-3 text-base font-medium text-white"
                       >
                         Get started
                       </button>

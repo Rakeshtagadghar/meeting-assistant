@@ -7,6 +7,7 @@ import { useSession, signOut } from "next-auth/react";
 
 const NAV_ITEMS = [
   { href: "/notes", label: "My notes", icon: NotesIcon },
+  { href: "/chat", label: "Chat", icon: ChatIcon },
   { href: "/quick-note", label: "Start Meeting", icon: MicIcon },
   { href: "/templates", label: "Templates", icon: TemplateIcon },
   { href: "/settings", label: "Settings", icon: SettingsIcon },
@@ -44,6 +45,7 @@ export function Sidebar() {
       {/* Mobile overlay */}
       {mobileOpen && (
         <div
+          role="presentation"
           data-testid="sidebar-overlay"
           className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm md:hidden"
           onClick={closeMobile}
@@ -190,6 +192,25 @@ function TemplateIcon({ active }: { active?: boolean }) {
         strokeLinecap="round"
         strokeLinejoin="round"
         d="M13.5 16.875h3.375m0 0h3.375m-3.375 0V13.5m0 3.375v3.375M6 10.5h2.25a2.25 2.25 0 0 0 2.25-2.25V6a2.25 2.25 0 0 0-2.25-2.25H6A2.25 2.25 0 0 0 3.75 6v2.25A2.25 2.25 0 0 0 6 10.5Zm0 9.75h2.25A2.25 2.25 0 0 0 10.5 18v-2.25a2.25 2.25 0 0 0-2.25-2.25H6a2.25 2.25 0 0 0-2.25 2.25V18A2.25 2.25 0 0 0 6 20.25Zm9.75-9.75H18a2.25 2.25 0 0 0 2.25-2.25V6A2.25 2.25 0 0 0 18 3.75h-2.25A2.25 2.25 0 0 0 13.5 6v2.25a2.25 2.25 0 0 0 2.25 2.25Z"
+      />
+    </svg>
+  );
+}
+
+function ChatIcon({ active }: { active?: boolean }) {
+  return (
+    <svg
+      className={`h-5 w-5 ${active ? "text-white" : "text-text-muted"}`}
+      fill="none"
+      viewBox="0 0 24 24"
+      strokeWidth={1.5}
+      stroke="currentColor"
+      aria-hidden="true"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M2.25 12c0-4.28 3.47-7.75 7.75-7.75h4c4.28 0 7.75 3.47 7.75 7.75S18.28 19.75 14 19.75h-3.21a3 3 0 0 0-1.73.55l-2.74 1.9a.75.75 0 0 1-1.17-.62v-2.03c0-.4-.16-.78-.44-1.06A7.72 7.72 0 0 1 2.25 12Z"
       />
     </svg>
   );

@@ -1,7 +1,5 @@
 "use client";
 
-import { motion } from "framer-motion";
-
 const steps = [
   {
     number: "01",
@@ -11,89 +9,54 @@ const steps = [
   {
     number: "02",
     title: "Capture the conversation",
-    text: "Live transcript appears as people speak. You can pause/resume any time.",
+    text: "Live transcript appears as people speak. Pause or resume whenever needed.",
   },
   {
     number: "03",
     title: "Click Generate",
-    text: "AI processes transcript after you're done and produces structured summaries.",
+    text: "AI processes your transcript after the meeting and creates structured outputs.",
   },
   {
     number: "04",
     title: "Export or share",
-    text: "Download PDF/DOCX or share a restricted link with specific emails.",
+    text: "Download PDF or DOCX, or share a restricted link with specific emails.",
   },
 ];
 
-const containerVariants = {
-  hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.08,
-      delayChildren: 0.05,
-    },
-  },
-};
-
-const stepVariants = {
-  hidden: { opacity: 0, y: 18, scale: 0.98 },
-  show: {
-    opacity: 1,
-    y: 0,
-    scale: 1,
-    transition: { duration: 0.45 },
-  },
-};
-
 export function HowItWorks() {
   return (
-    <section id="how-it-works" className="py-24 sm:py-32 bg-white">
-      <div className="mx-auto max-w-7xl px-6 lg:px-8">
-        {/* Section header */}
-        <div className="mx-auto max-w-2xl text-center mb-16">
-          <h2 className="text-base font-semibold leading-7 gradient-text">
-            Simple workflow
-          </h2>
-          <p className="mt-2 text-3xl font-bold tracking-tight text-text-heading sm:text-4xl">
-            How it works
+    <section id="how-it-works" className="relative py-24 sm:py-28">
+      <div className="mx-auto max-w-7xl px-6 lg:px-8" data-stagger-group>
+        <div data-stagger-item className="mx-auto mb-16 max-w-3xl text-center">
+          <h2 className="landing-kicker">Simple workflow</h2>
+          <p className="landing-section-title mt-4 text-4xl font-extrabold tracking-tight sm:text-5xl">
+            <span className="landing-gradient-title">
+              From conversation to clarity in four steps.
+            </span>
           </p>
         </div>
 
-        {/* Steps */}
-        <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true, amount: 0.25 }}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8"
-        >
+        <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4">
           {steps.map((step, index) => (
-            <motion.div
-              key={step.number}
-              variants={stepVariants}
-              className="relative"
-            >
-              {/* Connector line (not on last item) */}
+            <article key={step.number} data-stagger-item className="relative">
               {index < steps.length - 1 && (
-                <div className="hidden lg:block absolute top-8 left-[calc(50%+2rem)] w-[calc(100%-4rem)] h-0.5 bg-gradient-to-r from-primary/30 to-accent-pink/30" />
+                <div className="absolute left-[calc(50%+2rem)] top-8 hidden h-0.5 w-[calc(100%-4rem)] bg-gradient-to-r from-primary/50 via-cyan-400/50 to-orange-400/50 lg:block" />
               )}
 
-              {/* Step content */}
-              <div className="text-center">
-                <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl gradient-primary text-white text-xl font-bold mb-4 shadow-lg">
+              <div className="landing-glass-card rounded-3xl p-6 text-center">
+                <div className="landing-icon-chip mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl text-xl font-bold text-white shadow-lg">
                   {step.number}
                 </div>
-                <h3 className="text-lg font-semibold text-text-heading mb-2">
+                <h3 className="landing-section-title mb-2 text-lg font-bold text-text-heading">
                   {step.title}
                 </h3>
-                <p className="text-sm text-text-body leading-relaxed">
+                <p className="text-sm leading-relaxed text-text-body">
                   {step.text}
                 </p>
               </div>
-            </motion.div>
+            </article>
           ))}
-        </motion.div>
+        </div>
       </div>
     </section>
   );

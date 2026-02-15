@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "framer-motion";
 import { signIn } from "next-auth/react";
 import { useFeatureFlagVariantKey } from "posthog-js/react";
 
@@ -15,13 +14,13 @@ function getCtaProps(variant: string | boolean | undefined) {
     case "cta_primary_copy_v2":
       return {
         className:
-          "btn-gradient-primary px-8 py-4 rounded-2xl text-white font-semibold text-lg inline-flex items-center gap-3",
+          "btn-gradient-landing px-8 py-4 rounded-2xl text-white font-semibold text-lg inline-flex items-center gap-3",
         text: "Start taking notes free",
       };
     default:
       return {
         className:
-          "btn-gradient-primary px-8 py-4 rounded-2xl text-white font-semibold text-lg inline-flex items-center gap-3",
+          "btn-gradient-landing px-8 py-4 rounded-2xl text-white font-semibold text-lg inline-flex items-center gap-3",
         text: "Get started with Google",
       };
   }
@@ -32,25 +31,32 @@ export function FinalCTA() {
   const cta = getCtaProps(ctaVariant);
 
   return (
-    <section className="py-24 sm:py-32 gradient-hero-bg">
-      <div className="mx-auto max-w-4xl px-6 lg:px-8 text-center">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.5 }}
-        >
-          <h2 className="text-3xl font-bold tracking-tight text-text-heading sm:text-4xl mb-4">
-            Start capturing better notes today
+    <section className="relative py-24 sm:py-28">
+      <div
+        className="mx-auto max-w-4xl px-6 text-center lg:px-8"
+        data-stagger-group
+      >
+        <div className="landing-glass-card rounded-[2rem] px-8 py-14 sm:px-12">
+          <h2
+            data-stagger-item
+            className="landing-section-title text-4xl font-extrabold tracking-tight sm:text-5xl"
+          >
+            <span className="landing-gradient-title">
+              Start capturing better notes today.
+            </span>
           </h2>
-          <p className="text-lg text-text-body mb-8 max-w-2xl mx-auto">
+          <p
+            data-stagger-item
+            className="mx-auto mt-5 max-w-2xl text-lg text-text-body"
+          >
             Sign in and create your first note in under a minute.
           </p>
           <button
+            data-stagger-item
             onClick={() => signIn("google", { callbackUrl: "/notes" })}
-            className={cta.className}
+            className={`${cta.className} mt-9`}
           >
-            <svg className="w-5 h-5" viewBox="0 0 24 24">
+            <svg className="h-5 w-5" viewBox="0 0 24 24">
               <path
                 fill="currentColor"
                 d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -70,7 +76,7 @@ export function FinalCTA() {
             </svg>
             {cta.text}
           </button>
-        </motion.div>
+        </div>
       </div>
     </section>
   );
