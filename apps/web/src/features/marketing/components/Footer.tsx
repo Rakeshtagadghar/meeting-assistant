@@ -20,7 +20,7 @@ export function Footer() {
             data-stagger-item
             className="landing-section-title text-xl font-bold landing-gradient-title"
           >
-            AINotes
+            Golden Minutes
           </Link>
 
           <nav
@@ -41,7 +41,8 @@ export function Footer() {
         </div>
 
         <p className="mt-8 text-center text-xs text-text-muted">
-          Copyright {new Date().getFullYear()} AINotes. All rights reserved.
+          Copyright {new Date().getFullYear()} Golden Minutes. All rights
+          reserved.
         </p>
       </div>
     </footer>

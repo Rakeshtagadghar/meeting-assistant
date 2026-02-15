@@ -7,6 +7,6 @@ export default function robots(): MetadataRoute.Robots {
       allow: "/",
       disallow: ["/app/", "/api/"],
     },
-    sitemap: "https://meeting-assistant-web.vercel.app/sitemap.xml",
+    sitemap: "https://www.goldenminutes.co.uk/sitemap.xml",
   };
 }

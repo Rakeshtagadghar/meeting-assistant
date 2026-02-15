@@ -39,7 +39,7 @@ vi.mock("next-auth/react", () => ({
 describe("Sidebar", () => {
   it("renders the logo", () => {
     render(<Sidebar />);
-    const logos = screen.getAllByText("AINotes");
+    const logos = screen.getAllByText("Golden Minutes");
     expect(logos.length).toBeGreaterThan(0);
   });
 

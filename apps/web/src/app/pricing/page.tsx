@@ -5,7 +5,7 @@ import { CheckIcon } from "@heroicons/react/24/outline";
 
 export const metadata: Metadata = {
   title: "Pricing",
-  description: "AINotes pricing - free to get started with local AI.",
+  description: "Golden Minutes pricing - free to get started with local AI.",
 };
 
 const features = [

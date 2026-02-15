@@ -31,7 +31,7 @@ export function Sidebar() {
       {/* Mobile header */}
       <div className="flex items-center justify-between border-b border-gray-200/50 bg-white/80 backdrop-blur-lg px-4 py-3 md:hidden">
         <Link href="/notes" className="text-lg font-semibold gradient-text">
-          AINotes
+          Golden Minutes
         </Link>
         <button
           onClick={toggleMobile}
@@ -70,7 +70,7 @@ export function Sidebar() {
                 A
               </div>
               <span className="text-lg font-semibold gradient-text">
-                AINotes
+                Golden Minutes
               </span>
             </Link>
           </div>

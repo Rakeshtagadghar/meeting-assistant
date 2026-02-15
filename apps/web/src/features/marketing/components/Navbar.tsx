@@ -42,7 +42,7 @@ export function Navbar() {
             href="/"
             className="landing-section-title -m-1.5 p-1.5 text-xl font-bold landing-gradient-title"
           >
-            AINotes
+            Golden Minutes
           </Link>
         </div>
 
@@ -132,7 +132,7 @@ export function Navbar() {
                 href="/"
                 className="landing-section-title -m-1.5 p-1.5 text-xl font-bold landing-gradient-title"
               >
-                AINotes
+                Golden Minutes
               </Link>
               <button
                 type="button"

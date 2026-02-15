@@ -30,9 +30,9 @@ export default function PrivacyPage() {
             <div className="glass-card rounded-3xl p-8 sm:p-12">
               <div className="prose prose-gray max-w-none">
                 <p className="text-lg text-text-body leading-relaxed">
-                  At AINotes, we take your privacy seriously. This application
-                  is designed to process your data locally on your device
-                  whenever possible.
+                  At Golden Minutes, we take your privacy seriously. This
+                  application is designed to process your data locally on your
+                  device whenever possible.
                 </p>
 
                 <h2 className="mt-8 text-xl font-semibold text-text-heading border-b border-gray-200 pb-2">
@@ -79,7 +79,7 @@ export default function PrivacyPage() {
                 </h2>
                 <p className="text-text-body mt-4">
                   If you have questions about this privacy policy, please
-                  contact us at privacy@ainotes.app.
+                  contact us at privacy@Golden Minutes.app.
                 </p>
               </div>
             </div>

@@ -1,10 +1,10 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "AI Notes",
+  "productName": "Golden Minutes",
   "version": "0.3.0",
   "identifier": "com.ainotes.desktop",
   "build": {
-    "frontendDist": "https://meeting-assistant-web.vercel.app",
+    "frontendDist": "https://www.goldenminutes.co.uk/",
     "devUrl": "http://localhost:3000",
     "beforeDevCommand": "echo 'Run web dev manually'",
     "beforeBuildCommand": "echo 'Run web build manually'"
@@ -18,7 +18,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "AINotes",
+        "title": "Golden Minutes",
         "width": 1280,
         "height": 800,
         "minWidth": 900,
@@ -30,7 +30,7 @@
       },
       {
         "label": "quick-note",
-        "title": "AINotes - Quick Note",
+        "title": "Golden Minutes - Quick Note",
         "width": 400,
         "height": 600,
         "resizable": true,
@@ -41,7 +41,7 @@
       },
       {
         "label": "meeting-alert",
-        "title": "AINotes - Meeting Alert",
+        "title": "Golden Minutes - Meeting Alert",
         "width": 460,
         "height": 92,
         "resizable": false,

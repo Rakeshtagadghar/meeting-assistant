@@ -27,7 +27,7 @@ describe("HomePage", () => {
   it("renders the brand link", () => {
     render(<HomePage />);
     const links = screen.queryAllByRole("link");
-    const brandLink = links.find((l) => l.textContent === "AINotes");
+    const brandLink = links.find((l) => l.textContent === "Golden Minutes");
     expect(brandLink).toBeInTheDocument();
   });
 

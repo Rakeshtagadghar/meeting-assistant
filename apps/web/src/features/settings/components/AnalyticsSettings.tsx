@@ -3,8 +3,8 @@
 import { useState, useEffect } from "react";
 import { usePostHog } from "posthog-js/react";
 
-const CONSENT_KEY = "ainotes-consent";
-const CONSENT_EVENT = "ainotes-consent-update";
+const CONSENT_KEY = "Golden Minutes-consent";
+const CONSENT_EVENT = "Golden Minutes-consent-update";
 
 export function AnalyticsSettings() {
   const posthog = usePostHog();
@@ -42,8 +42,8 @@ export function AnalyticsSettings() {
           <div>
             <p className="font-medium text-text-heading">Usage analytics</p>
             <p className="text-sm text-text-muted">
-              Help us improve AINotes by sharing anonymous usage data. We never
-              track your meeting content.
+              Help us improve Golden Minutes by sharing anonymous usage data. We
+              never track your meeting content.
             </p>
           </div>
           <label className="relative inline-flex items-center cursor-pointer">

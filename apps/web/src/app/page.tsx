@@ -12,7 +12,7 @@ import { CookieBanner } from "@/features/marketing/components/CookieBanner";
 import { LandingShell } from "@/features/marketing/components/LandingShell";
 
 export const metadata: Metadata = {
-  title: "AINotes - Private AI Meeting Notes & Transcription",
+  title: "Golden Minutes - Private AI Meeting Notes & Transcription",
   description:
     "Capture, transcribe, and summarize your meetings with AI. Live transcript during meetings, one-click summaries, action items, and exports. Private by default and consent-first.",
   keywords: [
@@ -24,7 +24,7 @@ export const metadata: Metadata = {
     "action items",
   ],
   openGraph: {
-    title: "AINotes - Private AI Meeting Notes",
+    title: "Golden Minutes - Private AI Meeting Notes",
     description:
       "Live transcript during meetings, then one-click AI summaries, action items, and exports. Private by default.",
     type: "website",
