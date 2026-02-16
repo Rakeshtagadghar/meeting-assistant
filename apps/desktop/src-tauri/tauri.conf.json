@@ -2,7 +2,7 @@
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Golden Minutes",
   "mainBinaryName": "GoldenMinutes",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "identifier": "com.ainotes.desktop",
   "build": {
     "frontendDist": "https://www.goldenminutes.co.uk/",
