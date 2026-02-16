@@ -109,12 +109,9 @@ export function Hero({ appVersion }: HeroProps) {
               {appVersion ? (
                 <span className="landing-version-chip">App v{appVersion}</span>
               ) : null}
-              <Link
-                href="/api/download/windows"
-                className="landing-download-chip"
-              >
+              <a href="/api/download/windows" className="landing-download-chip">
                 Download for Windows
-              </Link>
+              </a>
               <a
                 href={GITHUB_REPO_URL}
                 target="_blank"
