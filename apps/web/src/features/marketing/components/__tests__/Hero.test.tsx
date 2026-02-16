@@ -63,26 +63,41 @@ vi.mock("posthog-js/react", () => ({
 describe("Hero CTA variants", () => {
   it("renders default CTA for control variant", () => {
     mockVariant = "control";
-    render(<Hero />);
+    render(<Hero appVersion="0.3.0" />);
     expect(screen.getByText("Sign in with Google")).toBeInTheDocument();
   });
 
   it("renders alternative copy for cta_primary_copy_v2", () => {
     mockVariant = "cta_primary_copy_v2";
-    render(<Hero />);
+    render(<Hero appVersion="0.3.0" />);
     expect(screen.getByText("Start taking notes free")).toBeInTheDocument();
   });
 
   it("renders default CTA when flag is undefined (loading)", () => {
     mockVariant = undefined;
-    render(<Hero />);
+    render(<Hero appVersion="0.3.0" />);
     expect(screen.getByText("Sign in with Google")).toBeInTheDocument();
   });
 
   it("renders blue button variant for cta_primary_blue", () => {
     mockVariant = "cta_primary_blue";
-    render(<Hero />);
+    render(<Hero appVersion="0.3.0" />);
     const btn = screen.getByText("Sign in with Google").closest("button");
     expect(btn?.className).toContain("bg-blue-600");
+  });
+
+  it("renders app version, windows download link, and github link", () => {
+    mockVariant = "control";
+    render(<Hero appVersion="0.3.0" />);
+    expect(screen.getByText("App v0.3.0")).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Download for Windows" }),
+    ).toHaveAttribute("href", "/api/download/windows");
+    expect(
+      screen.getByRole("link", { name: "GitHub Repository" }),
+    ).toHaveAttribute(
+      "href",
+      "https://github.com/Rakeshtagadghar/meeting-assistant",
+    );
   });
 });

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import webPackageJson from "../../package.json";
 import { Navbar } from "@/features/marketing/components/Navbar";
 import { Hero } from "@/features/marketing/components/Hero";
 import { SocialProof } from "@/features/marketing/components/SocialProof";
@@ -35,7 +36,7 @@ export default function HomePage() {
   return (
     <LandingShell>
       <Navbar />
-      <Hero />
+      <Hero appVersion={webPackageJson.version} />
       <SocialProof />
       <FeatureGrid />
       <HowItWorks />

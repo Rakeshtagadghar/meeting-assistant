@@ -10,6 +10,11 @@ const trustItems = [
   "Consent-first meeting mode",
   "Works on desktop + web",
 ];
+const GITHUB_REPO_URL = "https://github.com/Rakeshtagadghar/meeting-assistant";
+
+type HeroProps = {
+  appVersion?: string;
+};
 
 function getCtaProps(variant: string | boolean | undefined) {
   switch (variant) {
@@ -55,7 +60,18 @@ const GoogleIcon = () => (
   </svg>
 );
 
-export function Hero() {
+const GitHubIcon = () => (
+  <svg
+    className="h-4 w-4"
+    viewBox="0 0 24 24"
+    fill="currentColor"
+    aria-hidden="true"
+  >
+    <path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56 0-.28-.01-1.02-.02-2-3.2.69-3.88-1.54-3.88-1.54-.52-1.33-1.28-1.68-1.28-1.68-1.05-.72.08-.71.08-.71 1.16.08 1.77 1.19 1.77 1.19 1.03 1.76 2.71 1.25 3.37.95.1-.74.4-1.25.73-1.54-2.55-.29-5.24-1.27-5.24-5.66 0-1.25.45-2.27 1.18-3.07-.12-.29-.51-1.47.11-3.05 0 0 .96-.31 3.14 1.17a10.9 10.9 0 015.72 0c2.18-1.48 3.13-1.17 3.13-1.17.62 1.58.23 2.76.12 3.05.73.8 1.17 1.82 1.17 3.07 0 4.4-2.69 5.36-5.25 5.65.41.36.77 1.08.77 2.18 0 1.58-.01 2.85-.01 3.24 0 .31.21.68.8.56A11.5 11.5 0 0023.5 12C23.5 5.65 18.35.5 12 .5z" />
+  </svg>
+);
+
+export function Hero({ appVersion }: HeroProps) {
   const { data: session } = useSession();
   const ctaVariant = useFeatureFlagVariantKey("exp_landing_cta");
   const cta = getCtaProps(ctaVariant);
@@ -86,6 +102,29 @@ export function Hero() {
               it into polished summaries, action items, and exports after the
               meeting.
             </p>
+            <div
+              data-hero-stagger
+              className="mt-6 flex flex-wrap items-center justify-center gap-3 lg:justify-start"
+            >
+              {appVersion ? (
+                <span className="landing-version-chip">App v{appVersion}</span>
+              ) : null}
+              <Link
+                href="/api/download/windows"
+                className="landing-download-chip"
+              >
+                Download for Windows
+              </Link>
+              <a
+                href={GITHUB_REPO_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="landing-github-chip"
+              >
+                <GitHubIcon />
+                GitHub Repository
+              </a>
+            </div>
 
             <div
               data-hero-stagger
