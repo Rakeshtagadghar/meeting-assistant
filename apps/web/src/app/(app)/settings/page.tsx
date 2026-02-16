@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { AnalyticsSettings } from "@/features/settings/components/AnalyticsSettings";
 import { IntegrationsSettings } from "@/features/settings/components/IntegrationsSettings";
 
@@ -86,7 +87,18 @@ export default function SettingsPage() {
         <AnalyticsSettings />
 
         {/* Integrations section */}
-        <IntegrationsSettings />
+        <Suspense
+          fallback={
+            <div className="glass-card rounded-2xl p-6 mb-6">
+              <h2 className="text-lg font-semibold text-text-heading mb-2">
+                Integrations
+              </h2>
+              <p className="text-sm text-text-muted">Loading integrations...</p>
+            </div>
+          }
+        >
+          <IntegrationsSettings />
+        </Suspense>
 
         {/* Danger zone */}
         <div className="glass-card rounded-2xl p-6 border border-red-100">
