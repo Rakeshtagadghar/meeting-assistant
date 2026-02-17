@@ -23,6 +23,7 @@ export function CookieBanner() {
     localStorage.setItem(CONSENT_KEY, "true");
     setIsVisible(false);
 
+    posthog?.set_config({ persistence: "localStorage+cookie" });
     posthog?.opt_in_capturing();
 
     globalThis.dispatchEvent(new CustomEvent(CONSENT_EVENT));
@@ -32,7 +33,8 @@ export function CookieBanner() {
     localStorage.setItem(CONSENT_KEY, "false");
     setIsVisible(false);
 
-    posthog?.opt_out_capturing();
+    posthog?.set_config({ persistence: "memory" });
+    posthog?.opt_in_capturing();
 
     globalThis.dispatchEvent(new CustomEvent(CONSENT_EVENT));
   };

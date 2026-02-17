@@ -2,15 +2,17 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, act } from "@testing-library/react";
 
 // vi.hoisted runs before vi.mock hoisting, making variables available
-const { mockOptIn, mockOptOut, mockPosthog } = vi.hoisted(() => {
+const { mockOptIn, mockOptOut, mockSetConfig, mockPosthog } = vi.hoisted(() => {
   const mockOptIn = vi.fn();
   const mockOptOut = vi.fn();
+  const mockSetConfig = vi.fn();
   const mockPosthog = {
     opt_in_capturing: mockOptIn,
     opt_out_capturing: mockOptOut,
+    set_config: mockSetConfig,
     __loaded: true,
   };
-  return { mockOptIn, mockOptOut, mockPosthog };
+  return { mockOptIn, mockOptOut, mockSetConfig, mockPosthog };
 });
 
 vi.mock("../client", () => ({
@@ -56,9 +58,12 @@ describe("PostHogProvider", () => {
     );
 
     expect(mockOptIn).toHaveBeenCalled();
+    expect(mockSetConfig).toHaveBeenCalledWith({
+      persistence: "localStorage+cookie",
+    });
   });
 
-  it("opts out when consent was explicitly declined", () => {
+  it("uses memory persistence and keeps capture enabled when consent was declined", () => {
     localStorage.setItem("ainotes-consent", "false");
 
     render(
@@ -67,7 +72,9 @@ describe("PostHogProvider", () => {
       </PostHogProvider>,
     );
 
-    expect(mockOptOut).toHaveBeenCalled();
+    expect(mockSetConfig).toHaveBeenCalledWith({ persistence: "memory" });
+    expect(mockOptIn).toHaveBeenCalled();
+    expect(mockOptOut).not.toHaveBeenCalled();
   });
 
   it("reacts to consent update events", () => {

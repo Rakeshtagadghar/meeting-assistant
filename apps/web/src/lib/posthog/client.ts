@@ -17,13 +17,19 @@ export function initPostHog(): typeof posthog | null {
 
   if (posthog.__loaded) return posthog;
 
+  const consent = localStorage.getItem("ainotes-consent");
+  const hasConsentDecision = consent === "true" || consent === "false";
+  const persistence =
+    consent === "true" ? "localStorage+cookie" : ("memory" as const);
+
   posthog.init(POSTHOG_KEY, {
     api_host: POSTHOG_HOST,
 
-    // GDPR: opt out by default; call opt_in_capturing() after consent
-    opt_out_capturing_by_default: true,
+    // Only stay opt-out before a user decision exists.
+    opt_out_capturing_by_default: !hasConsentDecision,
 
-    persistence: "localStorage+cookie",
+    // Use persistent storage only when cookies are accepted.
+    persistence,
 
     // We track pageviews manually via PostHogPageview component
     capture_pageview: true,

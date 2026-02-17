@@ -21,11 +21,13 @@ vi.mock("next/link", () => ({
 
 const mockOptIn = vi.fn();
 const mockOptOut = vi.fn();
+const mockSetConfig = vi.fn();
 
 vi.mock("posthog-js/react", () => ({
   usePostHog: () => ({
     opt_in_capturing: mockOptIn,
     opt_out_capturing: mockOptOut,
+    set_config: mockSetConfig,
   }),
 }));
 
@@ -63,17 +65,22 @@ describe("CookieBanner", () => {
     await user.click(screen.getByText("Accept All"));
 
     expect(localStorage.getItem("ainotes-consent")).toBe("true");
+    expect(mockSetConfig).toHaveBeenCalledWith({
+      persistence: "localStorage+cookie",
+    });
     expect(mockOptIn).toHaveBeenCalled();
   });
 
-  it("persists consent=false and opts out on decline", async () => {
+  it("persists consent=false and keeps capture with memory persistence on decline", async () => {
     const user = userEvent.setup();
     render(<CookieBanner />);
 
     await user.click(screen.getByText("Decline"));
 
     expect(localStorage.getItem("ainotes-consent")).toBe("false");
-    expect(mockOptOut).toHaveBeenCalled();
+    expect(mockSetConfig).toHaveBeenCalledWith({ persistence: "memory" });
+    expect(mockOptIn).toHaveBeenCalled();
+    expect(mockOptOut).not.toHaveBeenCalled();
   });
 
   it("hides banner after accepting", async () => {
