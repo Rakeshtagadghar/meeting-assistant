@@ -156,7 +156,7 @@ export function buildNotionExportPage(
 
   children.push(
     paragraph(
-      `Exported from AINotes on ${new Date().toISOString().slice(0, 10)} for note "${note.title}".`,
+      `Exported from Golden Minutes on ${new Date().toISOString().slice(0, 10)} for note "${note.title}".`,
     ),
   );
 

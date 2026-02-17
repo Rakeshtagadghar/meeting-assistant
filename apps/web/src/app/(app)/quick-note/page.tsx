@@ -5,11 +5,13 @@ import { useRouter, useSearchParams } from "next/navigation";
 import type { ASRProvider } from "@ainotes/core";
 import { Button, ConsentModal } from "@ainotes/ui";
 import { useTranscriptSession } from "@/features/capture/hooks/use-transcript-session";
+import { useLiveAnalysis } from "@/features/capture/hooks/use-live-analysis";
 import { createASRProvider } from "@/features/capture/lib/asr-provider-factory";
 import { TranscriptBubble } from "@/features/capture/components/TranscriptBubble";
 import { TranscriptHeader } from "@/features/capture/components/TranscriptHeader";
 import { TranscriptFooter } from "@/features/capture/components/TranscriptFooter";
 import { EchoCancellationBanner } from "@/features/capture/components/EchoCancellationBanner";
+import { LiveAnalysisPanel } from "@/features/capture/components/LiveAnalysisPanel";
 
 function QuickNotePageContent() {
   const router = useRouter();
@@ -53,8 +55,16 @@ function QuickNotePageContent() {
     copyTranscript,
     providerName,
     modelLoadProgress,
+    sessionId,
     noteId,
   } = useTranscriptSession(asrProvider);
+
+  const liveAnalysis = useLiveAnalysis({
+    sessionId,
+    windowState,
+    finalChunks,
+    partialText,
+  });
 
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -141,6 +151,8 @@ function QuickNotePageContent() {
     setCopyFeedback(false);
   };
 
+  const showLiveAnalysisPanel = windowState !== "idle" || liveAnalysis.enabled;
+
   return (
     <div className="flex h-screen flex-col bg-bg-secondary">
       {/* Header */}
@@ -177,100 +189,75 @@ function QuickNotePageContent() {
       )}
       <EchoCancellationBanner show={isDesktop && isWindows} />
 
-      {/* Main: transcript feed */}
-      <div className="flex-1 overflow-y-auto px-3 py-3">
-        {windowState === "idle" && (
-          <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
-            <div className="rounded-full bg-warm-100 p-4">
-              <svg
-                className="h-8 w-8 text-warm-400"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={1.5}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
-                />
-              </svg>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-700">
-                Ready to transcribe
-              </p>
-              <p className="mt-1 text-xs text-warm-400">
-                Click below to start a meeting transcription
-              </p>
-            </div>
-            <div className="flex gap-4">
-              <Button variant="outline" onClick={handleClose}>
-                Back
-              </Button>
-
-              <Button variant="outline" onClick={requestStart}>
-                Start Meeting
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Active/paused/processing transcript feed */}
-        {windowState !== "idle" && windowState !== "completed" && (
-          <div className="flex flex-col gap-2.5">
-            {filteredChunks.length === 0 && !partialText && (
-              <div className="flex h-full flex-col items-center justify-center gap-3 py-24 text-center">
-                <div className="relative">
-                  <div className="h-12 w-12 rounded-full bg-red-100 p-3">
-                    <div className="h-full w-full rounded-full bg-red-400 animate-pulse" />
-                  </div>
+      <div className="min-h-0 flex-1 overflow-hidden">
+        <div
+          className={`grid h-full min-h-0 ${
+            showLiveAnalysisPanel
+              ? "grid-cols-1 grid-rows-[minmax(0,1fr)_minmax(0,1fr)] md:grid-cols-2 md:grid-rows-1"
+              : "grid-cols-1"
+          }`}
+        >
+          {/* Main: transcript feed */}
+          <div className="min-h-0 overflow-y-auto px-3 py-3">
+            {windowState === "idle" && (
+              <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
+                <div className="rounded-full bg-warm-100 p-4">
+                  <svg
+                    className="h-8 w-8 text-warm-400"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={1.5}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
+                    />
+                  </svg>
                 </div>
-                <p className="text-sm font-medium text-gray-700">
-                  {windowState === "paused"
-                    ? "Transcription paused"
-                    : "Listening..."}
-                </p>
-                <p className="text-xs text-warm-400">
-                  {windowState === "paused"
-                    ? "Resume to continue capturing audio"
-                    : "Start speaking and your words will appear here"}
-                </p>
+                <div>
+                  <p className="text-sm font-medium text-gray-700">
+                    Ready to transcribe
+                  </p>
+                  <p className="mt-1 text-xs text-warm-400">
+                    Click below to start a meeting transcription
+                  </p>
+                </div>
+                <div className="flex gap-4">
+                  <Button variant="outline" onClick={handleClose}>
+                    Back
+                  </Button>
+
+                  <Button variant="outline" onClick={requestStart}>
+                    Start Meeting
+                  </Button>
+                </div>
               </div>
             )}
-            {filteredChunks.map((chunk) => {
-              const colors = getSpeakerColor(chunk.speaker);
-              return (
-                <TranscriptBubble
-                  key={chunk.id}
-                  speaker={chunk.speaker}
-                  text={chunk.text}
-                  alignment={chunk.speaker === "Speaker 1" ? "right" : "left"}
-                  speakerClassName={colors?.label}
-                  bubbleClassName={colors?.bg}
-                />
-              );
-            })}
 
-            {/* Partial text (in-progress transcription) */}
-            {partialText && !searchQuery && (
-              <TranscriptBubble
-                speaker={null}
-                text={partialText}
-                isPartial
-                alignment="left"
-              />
-            )}
-
-            <div ref={bottomRef} />
-          </div>
-        )}
-
-        {/* Completed state */}
-        {windowState === "completed" && (
-          <>
-            {finalChunks.length > 0 ? (
+            {/* Active/paused/processing transcript feed */}
+            {windowState !== "idle" && windowState !== "completed" && (
               <div className="flex flex-col gap-2.5">
+                {filteredChunks.length === 0 && !partialText && (
+                  <div className="flex h-full flex-col items-center justify-center gap-3 py-24 text-center">
+                    <div className="relative">
+                      <div className="h-12 w-12 rounded-full bg-red-100 p-3">
+                        <div className="h-full w-full animate-pulse rounded-full bg-red-400" />
+                      </div>
+                    </div>
+                    <p className="text-sm font-medium text-gray-700">
+                      {windowState === "paused"
+                        ? "Transcription paused"
+                        : "Listening..."}
+                    </p>
+                    <p className="text-xs text-warm-400">
+                      {windowState === "paused"
+                        ? "Resume to continue capturing audio"
+                        : "Start speaking and your words will appear here"}
+                    </p>
+                  </div>
+                )}
                 {filteredChunks.map((chunk) => {
                   const colors = getSpeakerColor(chunk.speaker);
                   return (
@@ -286,48 +273,120 @@ function QuickNotePageContent() {
                     />
                   );
                 })}
-                {searchQuery && filteredChunks.length === 0 && (
-                  <p className="py-4 text-center text-sm text-warm-400">
-                    No matches found.
-                  </p>
+
+                {/* Partial text (in-progress transcription) */}
+                {partialText && !searchQuery && (
+                  <TranscriptBubble
+                    speaker={null}
+                    text={partialText}
+                    isPartial
+                    alignment="left"
+                  />
                 )}
-              </div>
-            ) : (
-              <div className="flex h-full items-center justify-center">
-                <p className="text-sm text-warm-400">No transcript recorded.</p>
+
+                <div ref={bottomRef} />
               </div>
             )}
 
-            {/* Post-transcript actions */}
-            <div className="mt-6 flex flex-col items-center gap-3 border-t border-warm-200/60 pt-4">
-              <p className="text-xs font-medium text-green-600">
-                Transcript saved
-              </p>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleCopy}
-                  disabled={finalChunks.length === 0}
-                >
-                  {copyFeedback ? "Copied!" : "Copy Transcript"}
-                </Button>
-                <Button variant="outline" size="sm" onClick={handleNewMeeting}>
-                  New Meeting
-                </Button>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={() =>
-                    router.push(noteId ? `/note/${noteId}` : "/notes")
-                  }
-                >
-                  {noteId ? "View Note" : "Go to Notes"}
-                </Button>
-              </div>
+            {/* Completed state */}
+            {windowState === "completed" && (
+              <>
+                {finalChunks.length > 0 ? (
+                  <div className="flex flex-col gap-2.5">
+                    {filteredChunks.map((chunk) => {
+                      const colors = getSpeakerColor(chunk.speaker);
+                      return (
+                        <TranscriptBubble
+                          key={chunk.id}
+                          speaker={chunk.speaker}
+                          text={chunk.text}
+                          alignment={
+                            chunk.speaker === "Speaker 1" ? "right" : "left"
+                          }
+                          speakerClassName={colors?.label}
+                          bubbleClassName={colors?.bg}
+                        />
+                      );
+                    })}
+                    {searchQuery && filteredChunks.length === 0 && (
+                      <p className="py-4 text-center text-sm text-warm-400">
+                        No matches found.
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex h-full items-center justify-center">
+                    <p className="text-sm text-warm-400">
+                      No transcript recorded.
+                    </p>
+                  </div>
+                )}
+
+                {/* Post-transcript actions */}
+                <div className="mt-6 flex flex-col items-center gap-3 border-t border-warm-200/60 pt-4">
+                  <p className="text-xs font-medium text-green-600">
+                    Transcript saved
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleCopy}
+                      disabled={finalChunks.length === 0}
+                    >
+                      {copyFeedback ? "Copied!" : "Copy Transcript"}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleNewMeeting}
+                    >
+                      New Meeting
+                    </Button>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={() =>
+                        router.push(noteId ? `/note/${noteId}` : "/notes")
+                      }
+                    >
+                      {noteId ? "View Note" : "Go to Notes"}
+                    </Button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          {showLiveAnalysisPanel && (
+            <div className="min-h-0 border-t border-warm-200/70 md:border-l md:border-t-0">
+              <LiveAnalysisPanel
+                isSessionCompleted={windowState === "completed"}
+                enabled={liveAnalysis.enabled}
+                setEnabled={liveAnalysis.setEnabled}
+                privacyMode={liveAnalysis.privacyMode}
+                setPrivacyMode={liveAnalysis.setPrivacyMode}
+                sensitivity={liveAnalysis.sensitivity}
+                setSensitivity={liveAnalysis.setSensitivity}
+                coachingAggressiveness={liveAnalysis.coachingAggressiveness}
+                setCoachingAggressiveness={
+                  liveAnalysis.setCoachingAggressiveness
+                }
+                streamStatus={liveAnalysis.streamStatus}
+                latencyMs={liveAnalysis.latencyMs}
+                metrics={liveAnalysis.metrics}
+                summary={liveAnalysis.summary}
+                coach={liveAnalysis.coach}
+                insights={liveAnalysis.insights}
+                usedSuggestionIds={liveAnalysis.usedSuggestionIds}
+                suggestionRatings={liveAnalysis.suggestionRatings}
+                onCopySuggestion={liveAnalysis.copySuggestion}
+                onMarkSuggestionUsed={liveAnalysis.markSuggestionUsed}
+                onRateSuggestion={liveAnalysis.rateSuggestion}
+              />
             </div>
-          </>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Footer: controls (active states only) */}
