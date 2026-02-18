@@ -1,4 +1,6 @@
-const DEFAULT_MODEL = "models/gemini-embedding-001";
+import { AI_MODELS } from "@ainotes/config/ai-models";
+
+const DEFAULT_MODEL = AI_MODELS.google.embeddings;
 const DEFAULT_DIMENSIONS = 768;
 
 export type EmbeddingTaskType = "RETRIEVAL_QUERY" | "RETRIEVAL_DOCUMENT";

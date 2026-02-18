@@ -241,6 +241,7 @@ export function LiveAnalysisPanel({
   onMarkSuggestionUsed,
   onRateSuggestion,
 }: LiveAnalysisPanelProps) {
+  const liveAnalysisToggleDisabled = true;
   const [copyToast, setCopyToast] = useState(false);
   const visibleInsights = isSessionCompleted ? insights : insights.slice(0, 8);
   const topRisk = metrics?.riskFlags[0];
@@ -280,15 +281,25 @@ export function LiveAnalysisPanel({
                 laws.
               </p>
             </div>
-            <label className="inline-flex cursor-pointer items-center gap-2 text-xs text-gray-700">
+            <label
+              className={`inline-flex items-center gap-2 text-xs ${
+                liveAnalysisToggleDisabled
+                  ? "cursor-not-allowed text-gray-400"
+                  : "cursor-pointer text-gray-700"
+              }`}
+            >
               <input
                 type="checkbox"
                 checked={enabled}
                 onChange={(event) => setEnabled(event.target.checked)}
+                disabled={liveAnalysisToggleDisabled}
                 className="h-4 w-4 rounded border-warm-300 text-indigo-600 focus:ring-indigo-500"
               />
               Enabled
             </label>
+            {liveAnalysisToggleDisabled && (
+              <p className="text-[10px] text-amber-600">Temporarily disabled</p>
+            )}
           </div>
 
           <div className="mt-3 space-y-2">
@@ -724,6 +735,7 @@ export function LiveAnalysisPanel({
               size="sm"
               variant="outline"
               className="mt-2"
+              disabled={liveAnalysisToggleDisabled}
               onClick={() => setEnabled(true)}
             >
               Enable

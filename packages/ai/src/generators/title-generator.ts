@@ -1,3 +1,4 @@
+import { AI_MODELS } from "@ainotes/config/ai-models";
 import { getGroqClient } from "../providers/groq";
 
 export interface GenerateTitleOptions {
@@ -28,7 +29,7 @@ export async function generateTitle(
     : `Notes:\n${noteContent}`;
 
   const response = await client.chat.completions.create({
-    model: "llama-3.3-70b-versatile",
+    model: AI_MODELS.groq.chatCompletion,
     messages: [
       { role: "system", content: TITLE_SYSTEM_PROMPT },
       { role: "user", content: userContent },

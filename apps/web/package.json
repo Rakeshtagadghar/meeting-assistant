@@ -18,6 +18,7 @@
   "dependencies": {
     "@ainotes/ai": "workspace:^",
     "@ainotes/api": "workspace:*",
+    "@ainotes/config": "workspace:*",
     "@ainotes/core": "workspace:*",
     "@ainotes/db": "workspace:*",
     "@ainotes/ui": "workspace:*",
@@ -58,7 +59,6 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@ainotes/config": "workspace:*",
     "@playwright/test": "^1.58.2",
     "@tailwindcss/postcss": "^4.0.0",
     "@testing-library/jest-dom": "^6.6.3",

@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { getGroqClient } from "@ainotes/ai";
+import { AI_MODELS } from "@ainotes/config/ai-models";
 import { getAuthUserId } from "@/lib/auth";
 import { apiError, ApiErrorCode } from "@/lib/api";
 import { prisma } from "@/lib/db";
@@ -463,7 +464,7 @@ export async function POST(request: NextRequest): Promise<Response> {
         if (process.env.GROQ_API_KEY) {
           const client = getGroqClient();
           const completion = await client.chat.completions.create({
-            model: "llama-3.3-70b-versatile",
+            model: AI_MODELS.groq.chatCompletion,
             temperature: 0.2,
             stream: true,
             max_completion_tokens: 1400,

@@ -14,10 +14,10 @@
     "clean": "rm -rf dist coverage .turbo"
   },
   "dependencies": {
+    "@ainotes/config": "workspace:*",
     "groq-sdk": "^0.25.0"
   },
   "devDependencies": {
-    "@ainotes/config": "workspace:*",
     "@types/node": "^22.0.0",
     "eslint": "^9.18.0",
     "typescript": "^5.7.3",

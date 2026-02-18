@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import type { UUID } from "@ainotes/core";
+import { AI_MODELS, AI_PROVIDER } from "@ainotes/config/ai-models";
 import { AISummaryKind } from "@prisma/client";
 import {
   ProcessingJobKind,
@@ -216,7 +217,10 @@ export async function POST(request: NextRequest): Promise<Response> {
           meetingSessionId: null,
           kind: AISummaryKind.SUMMARY,
           payload: summaryPayload,
-          modelInfo: { provider: "groq", model: "llama-3.3-70b-versatile" },
+          modelInfo: {
+            provider: AI_PROVIDER.GROQ,
+            model: AI_MODELS.groq.chatCompletion,
+          },
         });
 
         // Create ACTION_ITEMS if next steps were found
@@ -227,7 +231,10 @@ export async function POST(request: NextRequest): Promise<Response> {
             meetingSessionId: null,
             kind: AISummaryKind.ACTION_ITEMS,
             payload: { items: actionItems },
-            modelInfo: { provider: "groq", model: "llama-3.3-70b-versatile" },
+            modelInfo: {
+              provider: AI_PROVIDER.GROQ,
+              model: AI_MODELS.groq.chatCompletion,
+            },
           });
         }
 

@@ -1,3 +1,4 @@
+import { AI_MODELS } from "@ainotes/config/ai-models";
 import { getGroqClient } from "../providers/groq";
 
 export interface TemplateSectionInput {
@@ -102,7 +103,7 @@ export async function* streamSummarize(
 
   const stream = await client.chat.completions.create(
     {
-      model: "llama-3.3-70b-versatile",
+      model: AI_MODELS.groq.chatCompletion,
       messages: [
         { role: "system", content: buildSystemPrompt(options) },
         {

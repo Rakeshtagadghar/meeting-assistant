@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getGroqClient } from "@ainotes/ai";
+import { AI_MODELS } from "@ainotes/config/ai-models";
 import type { UUID } from "@ainotes/core";
 import {
   type LiveAnalysisCallSummary,
@@ -252,7 +253,7 @@ async function refineCoachWithGroq(args: {
   try {
     const client = getGroqClient();
     const completion = await client.chat.completions.create({
-      model: "llama-3.3-70b-versatile",
+      model: AI_MODELS.groq.chatCompletion,
       temperature: 0.2,
       max_completion_tokens: 900,
       messages: [
