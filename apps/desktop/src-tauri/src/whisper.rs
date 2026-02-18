@@ -124,7 +124,6 @@ impl WhisperManager {
             })
             .collect())
     }
-
 }
 
 #[derive(Debug, Deserialize)]
@@ -191,11 +190,7 @@ fn strip_timestamps(text: &str) -> String {
 }
 
 /// Write PCM samples to a WAV file.
-fn write_wav(
-    path: &std::path::Path,
-    samples: &[i16],
-    sample_rate: u32,
-) -> std::io::Result<()> {
+fn write_wav(path: &std::path::Path, samples: &[i16], sample_rate: u32) -> std::io::Result<()> {
     use std::io::Write;
 
     let data_size = (samples.len() * 2) as u32;

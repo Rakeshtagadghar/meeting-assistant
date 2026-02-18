@@ -12,6 +12,8 @@ import {
   type LiveAnalysisEvidenceSnippet,
   type LiveAnalysisInsight,
   type LiveAnalysisMetrics,
+  type LiveAnalysisPainPoint,
+  type LiveAnalysisPainPointCategory,
   type LiveAnalysisRiskFlag,
   type LiveAnalysisSpeakerRole,
   type LiveAnalysisTopic,
@@ -20,6 +22,7 @@ import {
 interface BuildAnalysisOptions {
   meetingId: string;
   chunks: LiveAnalysisChunkInput[];
+  useHeuristics?: boolean;
   sensitivity: number;
   coachingAggressiveness: number;
   nowMs?: number;
@@ -31,6 +34,11 @@ interface NormalizedUtterance {
   tEndMs: number;
   speaker: string | null;
   speakerRole: LiveAnalysisSpeakerRole;
+  audioSource?: LiveAnalysisAudioSource;
+  prosodyEnergy?: number | null;
+  prosodyPauseRatio?: number | null;
+  prosodyVoicedMs?: number | null;
+  prosodySnrDb?: number | null;
   text: string;
   confidence: number;
   words: number;
@@ -403,35 +411,40 @@ function dedupeAndNormalize(
   const salesSpeaker = inferSalesSpeaker(chunks);
   const seen = new Set<string>();
 
-  const normalized = chunks
-    .map((chunk, index) => {
-      const text = normalizeText(chunk.text);
-      if (!text) return null;
+  const normalized: NormalizedUtterance[] = [];
+  chunks.forEach((chunk, index) => {
+    const text = normalizeText(chunk.text);
+    if (!text) return;
 
-      const key =
-        chunk.id ??
-        `${String(chunk.sequence ?? -1)}:${String(chunk.tStartMs)}:${String(chunk.tEndMs)}:${text}`;
-      if (seen.has(key)) return null;
-      seen.add(key);
+    const key =
+      chunk.id ??
+      `${String(chunk.sequence ?? -1)}:${String(chunk.tStartMs)}:${String(chunk.tEndMs)}:${text}`;
+    if (seen.has(key)) return;
+    seen.add(key);
 
-      const confidence = clamp(chunk.confidence ?? 0.7, 0, 1);
-      const words = toWords(text).length;
-      return {
-        id: chunk.id ?? `utt-${String(index)}`,
-        tStartMs: Math.max(0, chunk.tStartMs),
-        tEndMs: Math.max(chunk.tStartMs + 1, chunk.tEndMs),
-        speaker: chunk.speaker,
-        speakerRole: assignRole(chunk, salesSpeaker),
-        text,
-        confidence,
-        words,
-      } satisfies NormalizedUtterance;
-    })
-    .filter((item): item is NormalizedUtterance => item !== null)
-    .sort((a, b) => {
-      if (a.tStartMs !== b.tStartMs) return a.tStartMs - b.tStartMs;
-      return a.tEndMs - b.tEndMs;
+    const confidence = clamp(chunk.confidence ?? 0.7, 0, 1);
+    const words = toWords(text).length;
+    normalized.push({
+      id: chunk.id ?? `utt-${String(index)}`,
+      tStartMs: Math.max(0, chunk.tStartMs),
+      tEndMs: Math.max(chunk.tStartMs + 1, chunk.tEndMs),
+      speaker: chunk.speaker,
+      speakerRole: assignRole(chunk, salesSpeaker),
+      audioSource: chunk.audioSource,
+      prosodyEnergy: chunk.prosodyEnergy ?? null,
+      prosodyPauseRatio: chunk.prosodyPauseRatio ?? null,
+      prosodyVoicedMs: chunk.prosodyVoicedMs ?? null,
+      prosodySnrDb: chunk.prosodySnrDb ?? null,
+      text,
+      confidence,
+      words,
     });
+  });
+
+  normalized.sort((a, b) => {
+    if (a.tStartMs !== b.tStartMs) return a.tStartMs - b.tStartMs;
+    return a.tEndMs - b.tEndMs;
+  });
 
   return normalized.map((utterance, index) => {
     if (utterance.speakerRole !== "UNKNOWN") return utterance;
@@ -631,6 +644,21 @@ function severityForRisk(
   return "low";
 }
 
+function insightTypeForRisk(flag: LiveAnalysisRiskFlag): "objection" | "risk" {
+  switch (flag) {
+    case "priceObjection":
+    case "timingObjection":
+    case "trustConcern":
+    case "featureGap":
+    case "securityConcern":
+    case "integrationConcern":
+    case "competitorMention":
+      return "objection";
+    default:
+      return "risk";
+  }
+}
+
 function labelForRisk(flag: LiveAnalysisRiskFlag): string {
   switch (flag) {
     case "priceObjection":
@@ -702,6 +730,70 @@ function topicForRisk(risk: LiveAnalysisRiskFlag): LiveAnalysisTopic | null {
   }
 }
 
+function painPointCategoryForRisk(
+  risk: LiveAnalysisRiskFlag,
+): LiveAnalysisPainPointCategory {
+  switch (risk) {
+    case "priceObjection":
+      return "cost";
+    case "timingObjection":
+      return "time";
+    case "integrationConcern":
+      return "integration";
+    case "securityConcern":
+      return "compliance";
+    case "trustConcern":
+      return "trust";
+    case "featureGap":
+      return "usability";
+    case "lowEngagement":
+      return "other";
+    case "scopeMismatch":
+      return "risk";
+    case "competitorMention":
+      return "support";
+    case "confusion":
+      return "usability";
+    case "frustration":
+      return "risk";
+  }
+}
+
+const PAIN_POINT_DETAIL_BY_RISK: Partial<Record<LiveAnalysisRiskFlag, string>> =
+  {
+    priceObjection: "Client is signaling pricing pressure and budget concern.",
+    timingObjection: "Client is delaying urgency or timeline commitment.",
+    integrationConcern: "Integration complexity is blocking confidence.",
+    securityConcern: "Security/compliance concerns need concrete proof.",
+    trustConcern: "Trust signals are weak and require validation.",
+    featureGap: "Perceived product capability gap is reducing fit confidence.",
+    scopeMismatch: "Use case appears misaligned with current value framing.",
+    lowEngagement: "Client participation dropped and buying intent is unclear.",
+  };
+
+function buildPainPoints(
+  riskFlags: LiveAnalysisRiskFlag[],
+  evidence: LiveAnalysisEvidenceSnippet[],
+): LiveAnalysisPainPoint[] {
+  const evidenceUtteranceIds = evidence
+    .map((item) => item.utteranceId)
+    .slice(0, 4);
+
+  return riskFlags.slice(0, 5).map((flag, index) => {
+    const detail =
+      PAIN_POINT_DETAIL_BY_RISK[flag] ??
+      `${labelForRisk(flag)} in current conversation window.`;
+
+    return {
+      title: labelForRisk(flag),
+      detail,
+      category: painPointCategoryForRisk(flag),
+      confidence: Number(clamp(0.62 - index * 0.03, 0.45, 0.8).toFixed(2)),
+      evidenceUtteranceIds,
+    };
+  });
+}
+
 function computeCoach(
   meetingId: string,
   nowMs: number,
@@ -717,6 +809,7 @@ function computeCoach(
   const nextBestSay: LiveAnalysisCoachSuggestion[] = [];
   const nextQuestions: LiveAnalysisCoachQuestion[] = [];
   const doDont: LiveAnalysisCoachDoDont[] = [];
+  const painPoints = buildPainPoints(riskFlags, evidence);
 
   if (riskFlags.includes("priceObjection")) {
     nextBestSay.push({
@@ -867,6 +960,7 @@ function computeCoach(
       ...item,
       confidence: Number(clamp(item.confidence, 0, 1).toFixed(2)),
     })),
+    painPoints,
   };
 }
 
@@ -887,7 +981,7 @@ function computeInsights(
       meetingId,
       insightId: makeId("risk", flag, index + 1),
       timestampMs: nowMs,
-      type: "risk",
+      type: insightTypeForRisk(flag),
       severity: severityForRisk(flag),
       title: labelForRisk(flag),
       detail: `Signal from recent client language indicates ${flag}.`,
@@ -1146,6 +1240,7 @@ function computeCallSummary(args: {
 export function buildHeuristicLiveAnalysis({
   meetingId,
   chunks,
+  useHeuristics = true,
   sensitivity,
   coachingAggressiveness,
   nowMs,
@@ -1194,20 +1289,20 @@ export function buildHeuristicLiveAnalysis({
   const baseValence =
     (positiveHits - negativeHits) / Math.max(3, positiveHits + negativeHits);
   const sensitivityAdjustment = (sensitivity - 50) / 300;
-  const clientValence = clamp(baseValence - sensitivityAdjustment, -1, 1);
+  const textValence = clamp(baseValence - sensitivityAdjustment, -1, 1);
 
   const clientTalkRatio = clientWords / totalWords;
   const turnScore = clamp(clientUtterances.length / 10, 0, 1);
   const questionScore = clamp(questionCount / 4, 0, 1);
   const balanceScore = 1 - Math.abs(0.5 - clientTalkRatio) * 1.5;
-  const clientEngagement = clamp(
+  const dynamicsEngagement = clamp(
     0.45 * turnScore + 0.3 * questionScore + 0.25 * balanceScore,
     0,
     1,
   );
 
   const topicCoverage = computeTopicCoverage(inWindow);
-  const riskFlags = computeRiskFlags(clientText, clientEngagement);
+  const riskFlags = computeRiskFlags(clientText, dynamicsEngagement);
   const missingTopics = LIVE_ANALYSIS_TOPICS.filter(
     (topic) => !topicCoverage.checkedTopics.includes(topic),
   );
@@ -1255,18 +1350,96 @@ export function buildHeuristicLiveAnalysis({
     ),
   };
 
-  const clientEnergy = clamp(
+  const lexicalClientEnergy = clamp(
     0.2 + questionCount * 0.08 + exclamationCount * 0.1 + clientWords / 260,
     0,
     1,
   );
-  const clientStress = clamp(
+  const lexicalClientStress = clamp(
     negativeHits * 0.1 + riskFlags.length * 0.08,
     0,
     1,
   );
-  const clientCertainty = clamp(
+  const lexicalClientCertainty = clamp(
     (certaintyHits + 1) / Math.max(2, certaintyHits + hedgeHits + 2),
+    0,
+    1,
+  );
+  const averageAsrConfidence =
+    inWindow.reduce((sum, chunk) => sum + chunk.confidence, 0) /
+    Math.max(1, inWindow.length);
+
+  const clientProsodyFrames = clientUtterances.filter(
+    (chunk) =>
+      chunk.prosodyEnergy !== null &&
+      chunk.prosodyEnergy !== undefined &&
+      chunk.prosodyPauseRatio !== null &&
+      chunk.prosodyPauseRatio !== undefined,
+  );
+  const avgProsodyEnergy =
+    clientProsodyFrames.reduce(
+      (sum, chunk) => sum + (chunk.prosodyEnergy ?? 0),
+      0,
+    ) / Math.max(1, clientProsodyFrames.length);
+  const avgProsodyPauseRatio =
+    clientProsodyFrames.reduce(
+      (sum, chunk) => sum + (chunk.prosodyPauseRatio ?? 0.5),
+      0,
+    ) / Math.max(1, clientProsodyFrames.length);
+  const avgProsodyVoicedMs =
+    clientProsodyFrames.reduce(
+      (sum, chunk) => sum + (chunk.prosodyVoicedMs ?? 0),
+      0,
+    ) / Math.max(1, clientProsodyFrames.length);
+  const avgProsodySnrDb =
+    clientProsodyFrames.reduce(
+      (sum, chunk) => sum + (chunk.prosodySnrDb ?? 0),
+      0,
+    ) / Math.max(1, clientProsodyFrames.length);
+
+  const hasProsodyFrames = clientProsodyFrames.length >= 2;
+  const prosodyQualityPass =
+    useHeuristics &&
+    hasProsodyFrames &&
+    avgProsodyVoicedMs >= 800 &&
+    avgProsodySnrDb >= 10 &&
+    averageAsrConfidence >= 0.55;
+  const toneConfidence = prosodyQualityPass
+    ? clamp(0.62 + Math.min(0.3, clientProsodyFrames.length * 0.05), 0, 1)
+    : clamp(0.2 + Math.min(0.18, clientUtterances.length * 0.02), 0, 0.5);
+
+  const clientEnergy = prosodyQualityPass
+    ? clamp(avgProsodyEnergy, 0, 1)
+    : Number((lexicalClientEnergy * 0.75).toFixed(2));
+  const clientStress = prosodyQualityPass
+    ? clamp(
+        avgProsodyPauseRatio * 0.45 +
+          avgProsodyEnergy * 0.35 +
+          clamp((20 - avgProsodySnrDb) / 20, 0, 1) * 0.2,
+        0,
+        1,
+      )
+    : Number((lexicalClientStress * 0.85).toFixed(2));
+  const clientCertainty = prosodyQualityPass
+    ? clamp(
+        (1 - avgProsodyPauseRatio) * 0.55 +
+          avgProsodyEnergy * 0.25 +
+          lexicalClientCertainty * 0.2,
+        0,
+        1,
+      )
+    : Number((lexicalClientCertainty * 0.9).toFixed(2));
+
+  const toneValence = clamp(clientCertainty - clientStress - 0.1, -1, 1);
+  const clientValence = clamp(
+    prosodyQualityPass ? textValence * 0.75 + toneValence * 0.25 : textValence,
+    -1,
+    1,
+  );
+  const clientEngagement = clamp(
+    prosodyQualityPass
+      ? dynamicsEngagement * 0.6 + clientEnergy * 0.4
+      : dynamicsEngagement,
     0,
     1,
   );
@@ -1283,9 +1456,6 @@ export function buildHeuristicLiveAnalysis({
     1,
   );
 
-  const averageAsrConfidence =
-    inWindow.reduce((sum, chunk) => sum + chunk.confidence, 0) /
-    Math.max(1, inWindow.length);
   const completeness = clamp(inWindow.length / 8, 0, 1);
   const overallConfidence = Number(
     clamp((averageAsrConfidence + completeness) / 2, 0, 1).toFixed(2),
@@ -1327,6 +1497,7 @@ export function buildHeuristicLiveAnalysis({
     clientEnergy: Number(clientEnergy.toFixed(2)),
     clientStress: Number(clientStress.toFixed(2)),
     clientCertainty: Number(clientCertainty.toFixed(2)),
+    toneConfidence: Number(toneConfidence.toFixed(2)),
     callHealth: Number((callHealth * 100).toFixed(1)),
     callHealthConfidence: overallConfidence,
     riskFlags,

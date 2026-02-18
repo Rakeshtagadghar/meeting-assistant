@@ -6,6 +6,8 @@ interface TranscriptBubbleProps {
   timestamp?: string;
   isPartial?: boolean;
   showTimestamp?: boolean;
+  showSpeaker?: boolean;
+  confidence?: number | null;
   alignment?: "left" | "right";
   /** Override speaker label color class */
   speakerClassName?: string;
@@ -19,13 +21,17 @@ export function TranscriptBubble({
   timestamp,
   isPartial = false,
   showTimestamp = false,
+  showSpeaker = true,
+  confidence = null,
   alignment = "left",
   speakerClassName,
   bubbleClassName,
 }: TranscriptBubbleProps) {
   const isRight = alignment === "right";
 
-  const defaultBubbleBg = isRight ? "bg-[#d4e4bc]" : "bg-warm-200";
+  const defaultBubbleBg = isRight
+    ? "border border-emerald-200 bg-emerald-50"
+    : "border border-warm-200 bg-warm-100";
   const bubbleBg = bubbleClassName ?? defaultBubbleBg;
 
   return (
@@ -33,7 +39,7 @@ export function TranscriptBubble({
       className={`flex flex-col gap-0.5 ${isRight ? "items-end" : "items-start"}`}
     >
       {/* Speaker label */}
-      {speaker && (
+      {speaker && showSpeaker && (
         <span
           className={`px-1 text-xs font-semibold ${speakerClassName ?? "text-warm-500"}`}
         >
@@ -43,7 +49,7 @@ export function TranscriptBubble({
 
       {/* Bubble */}
       <div
-        className={`max-w-[85%] px-3 py-2 text-sm text-gray-800 ${
+        className={`max-w-[88%] px-3 py-2 text-sm text-gray-800 shadow-sm ${
           isRight
             ? `rounded-lg rounded-br-sm ${bubbleBg}`
             : `rounded-lg rounded-bl-sm ${bubbleBg}`
@@ -56,9 +62,14 @@ export function TranscriptBubble({
       </div>
 
       {/* Timestamp */}
-      {showTimestamp && timestamp && (
-        <span className="px-1 text-[10px] text-warm-400">{timestamp}</span>
-      )}
+      {(showTimestamp && timestamp) || confidence !== null ? (
+        <div className="flex items-center gap-2 px-1 text-[10px] text-warm-400">
+          {showTimestamp && timestamp && <span>{timestamp}</span>}
+          {confidence !== null && (
+            <span>Conf {Math.round(confidence * 100)}%</span>
+          )}
+        </div>
+      ) : null}
     </div>
   );
 }

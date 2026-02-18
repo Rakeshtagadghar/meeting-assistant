@@ -3,6 +3,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { TranscriptWindowState } from "../components/TranscriptFooter";
 import type { TranscriptSessionChunk } from "./use-transcript-session";
+import {
+  LIVE_ANALYSIS_HEURISTICS_KEY,
+  LIVE_ANALYSIS_SETTINGS_EVENT,
+} from "@/features/settings/live-analysis-settings";
 import type {
   LiveAnalysisCallSummary,
   LiveAnalysisCoachPayload,
@@ -13,8 +17,12 @@ import type {
   LiveAnalysisStreamStatus,
 } from "../live-analysis/types";
 
-const LIGHT_METRICS_INTERVAL_MS = 2_000;
-const DEEP_INSIGHTS_INTERVAL_MS = 5_000;
+const ANALYSIS_INTERVAL_MS = 15_000;
+const LOW_SPEECH_INTERVAL_MS = 30_000;
+const DEFAULT_MAX_DELTA_UTTERANCES = 12;
+const HIGH_SPEECH_MAX_DELTA_UTTERANCES = 8;
+const HIGH_SPEECH_WORDS_THRESHOLD = 120;
+const RATE_LIMIT_DEGRADE_MS = 120_000;
 const MAX_FAILURES_BEFORE_ERROR = 4;
 
 interface UseLiveAnalysisOptions {
@@ -70,6 +78,7 @@ export function useLiveAnalysis({
   const [privacyMode, setPrivacyMode] = useState(false);
   const [sensitivity, setSensitivity] = useState(50);
   const [coachingAggressiveness, setCoachingAggressiveness] = useState(40);
+  const [useHeuristics, setUseHeuristics] = useState(true);
   const [streamStatus, setStreamStatus] =
     useState<LiveAnalysisStreamStatus>("idle");
   const [latencyMs, setLatencyMs] = useState<number | null>(null);
@@ -85,6 +94,7 @@ export function useLiveAnalysis({
   >({});
 
   const failureCountRef = useRef(0);
+  const degradeToLightUntilRef = useRef(0);
   const inFlightRef = useRef<{ light: boolean; deep: boolean }>({
     light: false,
     deep: false,
@@ -93,6 +103,26 @@ export function useLiveAnalysis({
   const sessionActive = useMemo(() => {
     return windowState === "listening" || windowState === "paused";
   }, [windowState]);
+
+  useEffect(() => {
+    const syncFromStorage = () => {
+      const stored = globalThis.localStorage.getItem(
+        LIVE_ANALYSIS_HEURISTICS_KEY,
+      );
+      setUseHeuristics(stored !== "false");
+    };
+
+    syncFromStorage();
+    globalThis.addEventListener("storage", syncFromStorage);
+    globalThis.addEventListener(LIVE_ANALYSIS_SETTINGS_EVENT, syncFromStorage);
+    return () => {
+      globalThis.removeEventListener("storage", syncFromStorage);
+      globalThis.removeEventListener(
+        LIVE_ANALYSIS_SETTINGS_EVENT,
+        syncFromStorage,
+      );
+    };
+  }, []);
 
   const sendRequest = useCallback(
     async (mode: LiveAnalysisMode) => {
@@ -107,6 +137,26 @@ export function useLiveAnalysis({
 
       const startedAt = performance.now();
       try {
+        const now = Date.now();
+        const effectiveMode: LiveAnalysisMode =
+          now < degradeToLightUntilRef.current ? "light" : mode;
+        const latestChunkTs = finalChunks[finalChunks.length - 1]?.tEndMs ?? 0;
+        const windowStartTs = latestChunkTs - 30_000;
+        const recentChunks = finalChunks.filter(
+          (chunk) => chunk.tEndMs >= windowStartTs,
+        );
+        const recentWords = recentChunks.reduce(
+          (sum, chunk) => sum + chunk.text.trim().split(/\s+/).length,
+          0,
+        );
+        const maxDeltaUtterances =
+          recentWords > HIGH_SPEECH_WORDS_THRESHOLD
+            ? HIGH_SPEECH_MAX_DELTA_UTTERANCES
+            : DEFAULT_MAX_DELTA_UTTERANCES;
+        const chunksForRequest = (
+          recentChunks.length > 0 ? recentChunks : finalChunks
+        ).slice(-maxDeltaUtterances);
+
         const response = await fetch(
           `/api/meetings/${sessionId}/live-analysis`,
           {
@@ -114,16 +164,23 @@ export function useLiveAnalysis({
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               enabled: true,
-              mode,
+              mode: effectiveMode,
               privacyMode,
+              useHeuristics,
               sensitivity,
               coachingAggressiveness,
-              chunks: finalChunks.slice(-120).map((chunk) => ({
+              chunks: chunksForRequest.map((chunk) => ({
                 id: chunk.id,
                 sequence: chunk.sequence,
                 tStartMs: chunk.tStartMs,
                 tEndMs: chunk.tEndMs,
                 speaker: chunk.speaker,
+                speakerRole: chunk.speakerRole,
+                audioSource: chunk.audioSource,
+                prosodyEnergy: chunk.prosodyEnergy,
+                prosodyPauseRatio: chunk.prosodyPauseRatio,
+                prosodyVoicedMs: chunk.prosodyVoicedMs,
+                prosodySnrDb: chunk.prosodySnrDb,
                 text: chunk.text,
                 confidence: chunk.confidence,
               })),
@@ -133,6 +190,9 @@ export function useLiveAnalysis({
         );
 
         if (!response.ok) {
+          if (response.status === 429) {
+            degradeToLightUntilRef.current = Date.now() + RATE_LIMIT_DEGRADE_MS;
+          }
           throw new Error(`Live analysis request failed (${response.status})`);
         }
 
@@ -164,6 +224,7 @@ export function useLiveAnalysis({
       windowState,
       streamStatus,
       privacyMode,
+      useHeuristics,
       sensitivity,
       coachingAggressiveness,
       finalChunks,
@@ -185,27 +246,39 @@ export function useLiveAnalysis({
       return;
     }
 
+    const latestChunkTs = finalChunks[finalChunks.length - 1]?.tEndMs ?? 0;
+    const recentSpeechChunks = finalChunks.filter(
+      (chunk) => chunk.tEndMs >= latestChunkTs - 30_000,
+    );
+    const recentWords = recentSpeechChunks.reduce(
+      (sum, chunk) => sum + chunk.text.trim().split(/\s+/).length,
+      0,
+    );
+    const cadenceMs =
+      recentWords < 40 ? LOW_SPEECH_INTERVAL_MS : ANALYSIS_INTERVAL_MS;
+
     void sendRequest("deep");
-    void sendRequest("light");
-
-    const lightTimer = setInterval(() => {
-      void sendRequest("light");
-    }, LIGHT_METRICS_INTERVAL_MS);
-
     const deepTimer = setInterval(() => {
       void sendRequest("deep");
-    }, DEEP_INSIGHTS_INTERVAL_MS);
+    }, cadenceMs);
 
     return () => {
-      clearInterval(lightTimer);
       clearInterval(deepTimer);
     };
-  }, [enabled, sessionId, sessionActive, sendRequest, windowState]);
+  }, [
+    enabled,
+    sessionId,
+    sessionActive,
+    sendRequest,
+    windowState,
+    finalChunks,
+  ]);
 
   useEffect(() => {
     if (windowState === "idle") {
       setStreamStatus("idle");
       failureCountRef.current = 0;
+      degradeToLightUntilRef.current = 0;
       inFlightRef.current.light = false;
       inFlightRef.current.deep = false;
     }
@@ -220,6 +293,7 @@ export function useLiveAnalysis({
     setSuggestionRatings({});
     setLatencyMs(null);
     failureCountRef.current = 0;
+    degradeToLightUntilRef.current = 0;
     inFlightRef.current.light = false;
     inFlightRef.current.deep = false;
   }, [sessionId]);

@@ -2,16 +2,77 @@
  * Platform-aware ASR Provider factory.
  *
  * Detects the runtime environment and returns the appropriate ASR provider:
- * - Desktop (Tauri): DesktopASRProvider (whisper.cpp via sidecar)
- * - Web + WASM + @huggingface/transformers: WhisperWASMProvider (local Whisper in browser)
+ * - Primary: ElevenLabsRealtimeProvider (server proxy)
+ * - Fallback: GroqRealtimeFallbackProvider (whisper-large-v3-turbo)
+ * - Desktop fallback (Tauri): DesktopASRProvider (whisper.cpp via sidecar)
+ * - Web local fallback: WhisperWASMProvider (local Whisper in browser)
  * - Web fallback: WebSpeechProvider (browser Speech API)
  */
 
 import type { ASRProvider } from "@ainotes/core";
+import { ElevenLabsRealtimeProvider } from "./elevenlabs-realtime-provider";
+import { GroqRealtimeFallbackProvider } from "./groq-realtime-fallback-provider";
 import { WhisperWASMProvider } from "./whisper-wasm-provider";
 import { WebSpeechProvider } from "./web-speech-provider";
 
-export type ASRProviderType = "whisper-wasm" | "web-speech" | "desktop";
+export type ASRProviderType =
+  | "elevenlabs-realtime"
+  | "groq-whisper-realtime-fallback"
+  | "whisper-cpp"
+  | "whisper-wasm"
+  | "web-speech";
+
+function elevenLabsDisabledByEnv(): boolean {
+  return process.env.NEXT_PUBLIC_DISABLE_ELEVENLABS_STT === "1";
+}
+
+function groqSttDisabledByEnv(): boolean {
+  return process.env.NEXT_PUBLIC_DISABLE_GROQ_STT === "1";
+}
+
+async function isElevenLabsRealtimeAvailable(): Promise<boolean> {
+  if (elevenLabsDisabledByEnv()) return false;
+  try {
+    const response = await fetch("/api/asr/elevenlabs/available", {
+      method: "GET",
+      cache: "no-store",
+    });
+    if (!response.ok) return false;
+    const data = (await response.json()) as {
+      available?: boolean;
+      reason?: string;
+    };
+    if (!data.available && data.reason) {
+      // eslint-disable-next-line no-console
+      console.warn(`ElevenLabs unavailable: ${data.reason}`);
+    }
+    return data.available === true;
+  } catch {
+    return false;
+  }
+}
+
+async function isGroqRealtimeFallbackAvailable(): Promise<boolean> {
+  if (groqSttDisabledByEnv()) return false;
+  try {
+    const response = await fetch("/api/asr/groq/available", {
+      method: "GET",
+      cache: "no-store",
+    });
+    if (!response.ok) return false;
+    const data = (await response.json()) as {
+      available?: boolean;
+      reason?: string;
+    };
+    if (!data.available && data.reason) {
+      // eslint-disable-next-line no-console
+      console.warn(`Groq unavailable: ${data.reason}`);
+    }
+    return data.available === true;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Detect if we're running inside Tauri desktop app.
@@ -54,11 +115,21 @@ async function isWhisperWasmAvailable(): Promise<boolean> {
  * Create the most appropriate ASR provider for the current platform.
  *
  * Priority:
- * 1. Desktop (Tauri) → DesktopASRProvider (whisper.cpp sidecar)
- * 2. Web + WASM + @huggingface/transformers → WhisperWASMProvider (local Whisper in browser)
- * 3. Web fallback → WebSpeechProvider (browser Speech API)
+ * 1. ElevenLabsRealtimeProvider
+ * 2. GroqRealtimeFallbackProvider (whisper-large-v3-turbo)
+ * 3. Desktop (Tauri) -> DesktopASRProvider (whisper.cpp sidecar)
+ * 4. Web local fallback -> WhisperWASMProvider
+ * 5. Web fallback -> WebSpeechProvider
  */
 export async function createASRProvider(): Promise<ASRProvider> {
+  if (await isElevenLabsRealtimeAvailable()) {
+    return new ElevenLabsRealtimeProvider();
+  }
+
+  if (await isGroqRealtimeFallbackAvailable()) {
+    return new GroqRealtimeFallbackProvider();
+  }
+
   if (isTauriDesktop()) {
     const { DesktopASRProvider } = await import("./desktop-asr-provider");
     return new DesktopASRProvider();
@@ -75,10 +146,13 @@ export async function createASRProvider(): Promise<ASRProvider> {
 /**
  * Get the detected provider type without instantiating.
  * Note: This is a sync heuristic. Use createASRProvider() for actual selection
- * which performs an async check for WASM package availability.
+ * which performs async checks for provider availability.
  */
 export async function detectASRProviderType(): Promise<ASRProviderType> {
-  if (isTauriDesktop()) return "desktop";
+  if (await isElevenLabsRealtimeAvailable()) return "elevenlabs-realtime";
+  if (await isGroqRealtimeFallbackAvailable())
+    return "groq-whisper-realtime-fallback";
+  if (isTauriDesktop()) return "whisper-cpp";
   if (isWasmSupported() && (await isWhisperWasmAvailable()))
     return "whisper-wasm";
   return "web-speech";

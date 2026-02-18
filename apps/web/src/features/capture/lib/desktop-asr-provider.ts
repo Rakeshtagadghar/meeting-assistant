@@ -82,7 +82,17 @@ export class DesktopASRProvider implements ASRProvider {
     await invoke("start_transcription", {
       modelPath: this.modelPath,
       language: options.language,
+      enableSystemAudio: options.enableSystemAudio ?? true,
     });
+
+    if (options.enableSystemAudio) {
+      this.emit({
+        type: "ASR_STATUS",
+        state: "listening",
+        message:
+          "Desktop capture started (mic + system loopback). Role separation by source is active.",
+      });
+    }
   }
 
   async stopListening(): Promise<void> {

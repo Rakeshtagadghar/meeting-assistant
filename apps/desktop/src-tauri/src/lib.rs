@@ -15,6 +15,7 @@ struct TranscriptionState {
     audio: Mutex<AudioCapture>,
     whisper: Mutex<Option<WhisperManager>>,
     is_recording: Mutex<bool>,
+    is_paused: Mutex<bool>,
 }
 
 /// Tracks meeting providers currently detected so we do not spam notifications.
@@ -40,6 +41,12 @@ enum ASREvent {
         tStartMs: i64,
         tEndMs: i64,
         speaker: Option<String>,
+        speakerRole: Option<String>,
+        audioSource: Option<String>,
+        prosodyEnergy: Option<f64>,
+        prosodyPauseRatio: Option<f64>,
+        prosodyVoicedMs: Option<f64>,
+        prosodySnrDb: Option<f64>,
         confidence: Option<f64>,
         sequence: u32,
     },
@@ -76,7 +83,8 @@ fn show_meeting_alert_window(app: &tauri::AppHandle) -> Result<(), String> {
                 .unwrap_or(tauri::PhysicalSize::new(460_u32, 92_u32));
 
             let margin_px: i32 = 16;
-            let x = monitor_pos.x + monitor_size.width as i32 - window_size.width as i32 - margin_px;
+            let x =
+                monitor_pos.x + monitor_size.width as i32 - window_size.width as i32 - margin_px;
             let y = monitor_pos.y + margin_px;
 
             let _ = window.set_position(PhysicalPosition::new(x, y));
@@ -361,17 +369,137 @@ fn chrono_like_timestamp() -> i64 {
     now.as_millis() as i64
 }
 
+#[derive(Clone, Copy)]
+struct ProsodySnapshot {
+    energy: f64,
+    pause_ratio: f64,
+    voiced_ms: f64,
+    snr_db: f64,
+}
+
+fn clamp_f64(value: f64, min: f64, max: f64) -> f64 {
+    value.min(max).max(min)
+}
+
+fn compute_prosody(samples: &[i16]) -> ProsodySnapshot {
+    if samples.is_empty() {
+        return ProsodySnapshot {
+            energy: 0.0,
+            pause_ratio: 1.0,
+            voiced_ms: 0.0,
+            snr_db: 0.0,
+        };
+    }
+
+    let mut sum_sq = 0.0_f64;
+    let mut voiced_count: usize = 0;
+    let mut noise_sum_sq = 0.0_f64;
+    let mut noise_count: usize = 0;
+    let voiced_threshold = 0.02_f64;
+
+    for sample in samples {
+        let value = (*sample as f64) / 32768.0;
+        let abs = value.abs();
+        sum_sq += value * value;
+        if abs >= voiced_threshold {
+            voiced_count += 1;
+        } else {
+            noise_sum_sq += value * value;
+            noise_count += 1;
+        }
+    }
+
+    let total = samples.len() as f64;
+    let rms = (sum_sq / total).sqrt();
+    let voiced_ratio = (voiced_count as f64) / total;
+    let pause_ratio = clamp_f64(1.0 - voiced_ratio, 0.0, 1.0);
+    let duration_ms = (total * 1000.0) / 16000.0;
+    let voiced_ms = clamp_f64(duration_ms * voiced_ratio, 0.0, duration_ms);
+    let noise_rms = if noise_count > 0 {
+        (noise_sum_sq / (noise_count as f64)).sqrt()
+    } else {
+        1e-4
+    };
+    let snr_db = 20.0 * ((rms + 1e-6) / (noise_rms + 1e-6)).log10();
+    let energy = clamp_f64(rms * 4.0, 0.0, 1.0);
+
+    ProsodySnapshot {
+        energy,
+        pause_ratio,
+        voiced_ms,
+        snr_db: clamp_f64(snr_db, -5.0, 45.0),
+    }
+}
+
+async fn transcribe_source_chunk(
+    app: &tauri::AppHandle,
+    model_path: &str,
+    language: &str,
+    audio_source: &str,
+    speaker_role: &str,
+    samples: &[i16],
+    total_samples: &mut i64,
+    sequence: &mut u32,
+) {
+    if samples.is_empty() {
+        return;
+    }
+
+    let sample_count = samples.len() as i64;
+    let t_start_ms = (*total_samples * 1000) / 16000;
+    *total_samples += sample_count;
+    let t_end_ms = (*total_samples * 1000) / 16000;
+    let prosody = compute_prosody(samples);
+
+    let temp_wm = WhisperManager::new(model_path.to_string(), language.to_string());
+    match temp_wm.transcribe(app, samples).await {
+        Ok(results) => {
+            for result in results {
+                let _ = app.emit(
+                    "asr-event",
+                    ASREvent::Final {
+                        text: result.text,
+                        tStartMs: t_start_ms + result.t_start_ms,
+                        tEndMs: t_end_ms.min(t_start_ms + result.t_end_ms),
+                        speaker: None,
+                        speakerRole: Some(speaker_role.to_string()),
+                        audioSource: Some(audio_source.to_string()),
+                        prosodyEnergy: Some(prosody.energy),
+                        prosodyPauseRatio: Some(prosody.pause_ratio),
+                        prosodyVoicedMs: Some(prosody.voiced_ms),
+                        prosodySnrDb: Some(prosody.snr_db),
+                        confidence: None,
+                        sequence: *sequence,
+                    },
+                );
+                *sequence += 1;
+            }
+        }
+        Err(error) => {
+            log::error!(
+                "Transcription error on source {} (role {}): {}",
+                audio_source,
+                speaker_role,
+                error
+            );
+        }
+    }
+}
+
 #[tauri::command]
 async fn start_transcription(
     app: tauri::AppHandle,
     state: State<'_, TranscriptionState>,
     model_path: String,
     language: String,
+    enable_system_audio: Option<bool>,
 ) -> Result<(), String> {
+    let system_audio_enabled = enable_system_audio.unwrap_or(true);
+
     // Start audio capture
     {
         let mut audio = state.audio.lock().map_err(|e| e.to_string())?;
-        audio.start()?;
+        audio.start(system_audio_enabled)?;
     }
 
     // Initialize whisper manager
@@ -384,6 +512,10 @@ async fn start_transcription(
         let mut recording = state.is_recording.lock().map_err(|e| e.to_string())?;
         *recording = true;
     }
+    {
+        let mut paused = state.is_paused.lock().map_err(|e| e.to_string())?;
+        *paused = false;
+    }
 
     show_quick_note_window(&app)?;
 
@@ -391,46 +523,54 @@ async fn start_transcription(
         "asr-event",
         ASREvent::Status {
             state: "listening".to_string(),
-            message: "Listening...".to_string(),
+            message: if system_audio_enabled {
+                "Listening (desktop mic + system loopback)...".to_string()
+            } else {
+                "Listening (desktop mic only)...".to_string()
+            },
         },
     )
     .map_err(|e| e.to_string())?;
 
     // Start the transcription loop in a background task
     let app_handle = app.clone();
+    let system_audio_enabled_for_loop = system_audio_enabled;
 
     tauri::async_runtime::spawn(async move {
         let mut sequence: u32 = 0;
-        let mut total_samples: i64 = 0;
+        let mut mic_total_samples: i64 = 0;
+        let mut system_total_samples: i64 = 0;
 
         loop {
-            // Check if still recording
-            let is_recording = {
+            let (is_recording, is_paused) = {
                 let state_ref = app_handle.state::<TranscriptionState>();
-                state_ref.is_recording.lock().map(|r| *r).unwrap_or(false)
+                let recording = state_ref.is_recording.lock().map(|r| *r).unwrap_or(false);
+                let paused = state_ref.is_paused.lock().map(|p| *p).unwrap_or(false);
+                (recording, paused)
             };
             if !is_recording {
                 break;
             }
-
-            // Wait for audio to accumulate (5 second step per desktop.json)
-            tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
-
-            // Drain audio buffer
-            let samples = {
-                let state_ref = app_handle.state::<TranscriptionState>();
-                let audio = state_ref.audio.lock().unwrap();
-                audio.drain_buffer()
-            };
-
-            if samples.is_empty() {
+            if is_paused {
+                tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
                 continue;
             }
 
-            let sample_count = samples.len() as i64;
-            let t_start_ms = (total_samples * 1000) / 16000;
-            total_samples += sample_count;
-            let t_end_ms = (total_samples * 1000) / 16000;
+            // Wait for audio to accumulate.
+            tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+
+            // Drain audio buffers by source.
+            let drained = {
+                let state_ref = app_handle.state::<TranscriptionState>();
+                let audio = state_ref.audio.lock().unwrap();
+                audio.drain_buffers()
+            };
+
+            let has_mic_audio = !drained.microphone_samples.is_empty();
+            let has_system_audio = !drained.system_samples.is_empty();
+            if !has_mic_audio && !has_system_audio {
+                continue;
+            }
 
             // Extract whisper config without holding lock across await
             let wm_config = {
@@ -445,7 +585,6 @@ async fn start_transcription(
                 continue;
             };
 
-            // Notify frontend that we are processing
             let _ = app_handle.emit(
                 "asr-event",
                 ASREvent::Status {
@@ -454,37 +593,43 @@ async fn start_transcription(
                 },
             );
 
-            // Create a temporary manager for this transcription call
-            // to avoid holding the Mutex across the async boundary
-            let temp_wm = WhisperManager::new(mp, lang);
-            match temp_wm.transcribe(&app_handle, &samples).await {
-                Ok(results) => {
-                    for result in results {
-                        let _ = app_handle.emit(
-                            "asr-event",
-                            ASREvent::Final {
-                                text: result.text,
-                                tStartMs: t_start_ms + result.t_start_ms,
-                                tEndMs: t_end_ms.min(t_start_ms + result.t_end_ms),
-                                speaker: None,
-                                confidence: None,
-                                sequence,
-                            },
-                        );
-                        sequence += 1;
-                    }
-                }
-                Err(e) => {
-                    log::error!("Transcription error: {}", e);
-                }
+            if has_mic_audio {
+                transcribe_source_chunk(
+                    &app_handle,
+                    &mp,
+                    &lang,
+                    "microphone",
+                    "SALES",
+                    &drained.microphone_samples,
+                    &mut mic_total_samples,
+                    &mut sequence,
+                )
+                .await;
             }
 
-            // Notify frontend back to listening (idle)
+            if system_audio_enabled_for_loop && has_system_audio {
+                transcribe_source_chunk(
+                    &app_handle,
+                    &mp,
+                    &lang,
+                    "systemAudio",
+                    "CLIENT",
+                    &drained.system_samples,
+                    &mut system_total_samples,
+                    &mut sequence,
+                )
+                .await;
+            }
+
             let _ = app_handle.emit(
                 "asr-event",
                 ASREvent::Status {
                     state: "listening".to_string(),
-                    message: "Listening...".to_string(),
+                    message: if system_audio_enabled_for_loop {
+                        "Listening (desktop mic + system loopback)...".to_string()
+                    } else {
+                        "Listening (desktop mic only)...".to_string()
+                    },
                 },
             );
         }
@@ -501,6 +646,10 @@ async fn stop_transcription(
     {
         let mut recording = state.is_recording.lock().map_err(|e| e.to_string())?;
         *recording = false;
+    }
+    {
+        let mut paused = state.is_paused.lock().map_err(|e| e.to_string())?;
+        *paused = false;
     }
 
     {
@@ -526,8 +675,8 @@ async fn pause_transcription(
     state: State<'_, TranscriptionState>,
 ) -> Result<(), String> {
     {
-        let mut recording = state.is_recording.lock().map_err(|e| e.to_string())?;
-        *recording = false;
+        let mut paused = state.is_paused.lock().map_err(|e| e.to_string())?;
+        *paused = true;
     }
 
     app.emit(
@@ -548,8 +697,8 @@ async fn resume_transcription(
     state: State<'_, TranscriptionState>,
 ) -> Result<(), String> {
     {
-        let mut recording = state.is_recording.lock().map_err(|e| e.to_string())?;
-        *recording = true;
+        let mut paused = state.is_paused.lock().map_err(|e| e.to_string())?;
+        *paused = false;
     }
 
     show_quick_note_window(&app)?;
@@ -635,6 +784,7 @@ pub fn run() {
             audio: Mutex::new(AudioCapture::new()),
             whisper: Mutex::new(None),
             is_recording: Mutex::new(false),
+            is_paused: Mutex::new(false),
         })
         .manage(MeetingDetectorState {
             active_provider_pids: Mutex::new(HashMap::new()),

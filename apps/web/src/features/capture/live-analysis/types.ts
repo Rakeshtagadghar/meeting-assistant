@@ -50,6 +50,10 @@ export interface LiveAnalysisChunkInput {
   speaker: string | null;
   speakerRole?: LiveAnalysisSpeakerRole;
   audioSource?: LiveAnalysisAudioSource;
+  prosodyEnergy?: number | null;
+  prosodyPauseRatio?: number | null;
+  prosodyVoicedMs?: number | null;
+  prosodySnrDb?: number | null;
   text: string;
   confidence: number | null;
 }
@@ -86,6 +90,7 @@ export interface LiveAnalysisMetrics {
   clientEnergy: number;
   clientStress: number;
   clientCertainty: number;
+  toneConfidence?: number;
   callHealth: number;
   callHealthConfidence: number;
   riskFlags: LiveAnalysisRiskFlag[];
@@ -154,12 +159,33 @@ export interface LiveAnalysisCoachDoDont {
   evidenceSnippets: string[];
 }
 
+export type LiveAnalysisPainPointCategory =
+  | "cost"
+  | "time"
+  | "risk"
+  | "integration"
+  | "compliance"
+  | "usability"
+  | "performance"
+  | "trust"
+  | "support"
+  | "other";
+
+export interface LiveAnalysisPainPoint {
+  title: string;
+  detail: string;
+  category: LiveAnalysisPainPointCategory;
+  confidence: number;
+  evidenceUtteranceIds: string[];
+}
+
 export interface LiveAnalysisCoachPayload {
   meetingId: string;
   generatedAtMs: number;
   nextBestSay: LiveAnalysisCoachSuggestion[];
   nextQuestions: LiveAnalysisCoachQuestion[];
   doDont: LiveAnalysisCoachDoDont[];
+  painPoints: LiveAnalysisPainPoint[];
 }
 
 export type LiveAnalysisFollowUpStatus = "answered" | "weak" | "missed";
@@ -189,6 +215,7 @@ export interface LiveAnalysisRequestBody {
   enabled: boolean;
   mode?: LiveAnalysisMode;
   privacyMode?: boolean;
+  useHeuristics?: boolean;
   sensitivity?: number;
   coachingAggressiveness?: number;
   chunks?: LiveAnalysisChunkInput[];

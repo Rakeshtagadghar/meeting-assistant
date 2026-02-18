@@ -27,6 +27,12 @@ export interface ASRFinalEvent {
   readonly tStartMs: number;
   readonly tEndMs: number;
   readonly speaker: string | null;
+  readonly speakerRole?: "SALES" | "CLIENT" | "UNKNOWN";
+  readonly audioSource?: "microphone" | "systemAudio" | "tabAudio";
+  readonly prosodyEnergy?: number;
+  readonly prosodyPauseRatio?: number;
+  readonly prosodyVoicedMs?: number;
+  readonly prosodySnrDb?: number;
   readonly confidence: number | null;
   readonly sequence: number;
 }
@@ -52,6 +58,7 @@ export function isASRFinalEvent(event: ASREvent): event is ASRFinalEvent {
 export interface ASROptions {
   readonly language: string; // "auto" | "en" | "es" | etc.
   readonly sampleRate: number;
+  readonly enableSystemAudio?: boolean;
 }
 
 export interface ASRProvider {

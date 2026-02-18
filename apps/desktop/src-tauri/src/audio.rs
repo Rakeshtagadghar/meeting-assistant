@@ -1,4 +1,5 @@
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+use cpal::{FromSample, Sample, SampleFormat, StreamConfig, SupportedStreamConfig};
 use std::sync::{Arc, Mutex};
 
 /// Wrapper to make cpal::Stream Send-safe.
@@ -13,139 +14,274 @@ struct SendStream(Option<cpal::Stream>);
 // shared data, so this is safe in practice.
 unsafe impl Send for SendStream {}
 
+pub struct AudioDrain {
+    pub microphone_samples: Vec<i16>,
+    pub system_samples: Vec<i16>,
+}
+
 /// Cross-platform audio capture using cpal.
-/// Captures 16kHz mono s16le PCM from the default microphone.
+/// Captures 16kHz mono s16le PCM from the default microphone,
+/// and best-effort system loopback on Windows via default output device.
 pub struct AudioCapture {
-    stream: SendStream,
-    buffer: Arc<Mutex<Vec<i16>>>,
-    level: Arc<Mutex<f32>>,
+    mic_stream: SendStream,
+    system_stream: SendStream,
+    mic_buffer: Arc<Mutex<Vec<i16>>>,
+    system_buffer: Arc<Mutex<Vec<i16>>>,
+    mic_level: Arc<Mutex<f32>>,
+    system_level: Arc<Mutex<f32>>,
+    system_capture_enabled: bool,
 }
 
 impl AudioCapture {
     pub fn new() -> Self {
         Self {
-            stream: SendStream(None),
-            buffer: Arc::new(Mutex::new(Vec::new())),
-            level: Arc::new(Mutex::new(0.0)),
+            mic_stream: SendStream(None),
+            system_stream: SendStream(None),
+            mic_buffer: Arc::new(Mutex::new(Vec::new())),
+            system_buffer: Arc::new(Mutex::new(Vec::new())),
+            mic_level: Arc::new(Mutex::new(0.0)),
+            system_level: Arc::new(Mutex::new(0.0)),
+            system_capture_enabled: false,
         }
     }
 
-    pub fn start(&mut self) -> Result<(), String> {
+    pub fn start(&mut self, enable_system_audio: bool) -> Result<(), String> {
+        self.stop();
+        self.system_capture_enabled = enable_system_audio;
+
         let host = cpal::default_host();
-        let device = host
+        let mic_device = host
             .default_input_device()
             .ok_or("No input device available")?;
+        self.mic_stream = SendStream(Some(start_device_capture(
+            mic_device,
+            self.mic_buffer.clone(),
+            self.mic_level.clone(),
+            false,
+        )?));
 
-        // Try 16kHz mono first; fall back to device default config
-        let desired_config = cpal::StreamConfig {
-            channels: 1,
-            sample_rate: cpal::SampleRate(16000),
-            buffer_size: cpal::BufferSize::Default,
-        };
-
-        let (config, needs_resample) =
-            match device.build_input_stream(
-                &desired_config,
-                |_data: &[f32], _: &cpal::InputCallbackInfo| {},
-                |_| {},
-                None,
-            ) {
-                Ok(_test_stream) => {
-                    // 16kHz is supported; drop the test stream and use it
-                    drop(_test_stream);
-                    (desired_config, false)
-                }
-                Err(_) => {
-                    // Fall back to device's default config (keep native channels)
-                    let default_cfg = device
-                        .default_input_config()
-                        .map_err(|e| format!("No default input config: {}", e))?;
-                    let cfg: cpal::StreamConfig = default_cfg.into();
-                    (cfg, true)
-                }
-            };
-
-        let device_sample_rate = config.sample_rate.0;
-        let device_channels = config.channels as usize;
-        let buffer = self.buffer.clone();
-        let level = self.level.clone();
-
-        let stream = device
-            .build_input_stream(
-                &config,
-                move |data: &[f32], _: &cpal::InputCallbackInfo| {
-                    // Mix down to mono if multi-channel
-                    let mono: Vec<f32> = if device_channels > 1 {
-                        data.chunks(device_channels)
-                            .map(|frame| frame.iter().sum::<f32>() / device_channels as f32)
-                            .collect()
-                    } else {
-                        data.to_vec()
-                    };
-
-                    // Calculate RMS level
-                    let sum_sq: f32 = mono.iter().map(|s| s * s).sum();
-                    let rms = (sum_sq / mono.len() as f32).sqrt();
-
-                    // Downsample to 16kHz if needed (simple decimation)
-                    let resampled: Vec<f32> = if needs_resample && device_sample_rate != 16000 {
-                        let ratio = device_sample_rate as f64 / 16000.0;
-                        let out_len = (mono.len() as f64 / ratio).ceil() as usize;
-                        (0..out_len)
-                            .map(|i| {
-                                let src_idx = ((i as f64) * ratio) as usize;
-                                mono[src_idx.min(mono.len() - 1)]
-                            })
-                            .collect()
-                    } else {
-                        mono
-                    };
-
-                    // Convert f32 samples to i16
-                    let samples: Vec<i16> = resampled
-                        .iter()
-                        .map(|&s| (s * 32767.0).clamp(-32768.0, 32767.0) as i16)
-                        .collect();
-
-                    if let Ok(mut buf) = buffer.lock() {
-                        buf.extend_from_slice(&samples);
+        if enable_system_audio {
+            if let Some(output_device) = host.default_output_device() {
+                match start_device_capture(
+                    output_device,
+                    self.system_buffer.clone(),
+                    self.system_level.clone(),
+                    true,
+                ) {
+                    Ok(stream) => {
+                        self.system_stream = SendStream(Some(stream));
                     }
-                    if let Ok(mut lvl) = level.lock() {
-                        *lvl = rms.min(1.0) * 3.0; // Amplify for visual range
+                    Err(error) => {
+                        // Keep mic capture running even if loopback is unavailable.
+                        log::warn!(
+                            "System loopback unavailable; continuing mic-only: {}",
+                            error
+                        );
                     }
-                },
-                |err| {
-                    log::error!("Audio capture error: {}", err);
-                },
-                None,
-            )
-            .map_err(|e| format!("Failed to build input stream: {}", e))?;
+                }
+            } else {
+                log::warn!("No default output device found for loopback capture");
+            }
+        }
 
-        stream
-            .play()
-            .map_err(|e| format!("Failed to start stream: {}", e))?;
-
-        self.stream = SendStream(Some(stream));
         Ok(())
     }
 
     pub fn stop(&mut self) {
-        self.stream = SendStream(None);
-        if let Ok(mut buf) = self.buffer.lock() {
-            buf.clear();
+        self.mic_stream = SendStream(None);
+        self.system_stream = SendStream(None);
+        self.system_capture_enabled = false;
+        if let Ok(mut mic) = self.mic_buffer.lock() {
+            mic.clear();
+        }
+        if let Ok(mut system) = self.system_buffer.lock() {
+            system.clear();
         }
     }
 
-    /// Drain the audio buffer and return all accumulated samples.
-    pub fn drain_buffer(&self) -> Vec<i16> {
-        let mut buf = self.buffer.lock().unwrap_or_else(|e| e.into_inner());
-        let samples = buf.clone();
-        buf.clear();
-        samples
+    /// Drain both buffers and return accumulated samples by source.
+    pub fn drain_buffers(&self) -> AudioDrain {
+        let mut mic = self.mic_buffer.lock().unwrap_or_else(|e| e.into_inner());
+        let mut system = self.system_buffer.lock().unwrap_or_else(|e| e.into_inner());
+
+        let microphone_samples = mic.clone();
+        let system_samples = system.clone();
+        mic.clear();
+        system.clear();
+
+        AudioDrain {
+            microphone_samples,
+            system_samples,
+        }
     }
 
-    /// Get the current microphone level (0-1).
+    /// Get the current active level (0-1), max of mic/system.
     pub fn get_level(&self) -> f32 {
-        *self.level.lock().unwrap_or_else(|e| e.into_inner())
+        let mic = *self.mic_level.lock().unwrap_or_else(|e| e.into_inner());
+        let system = *self.system_level.lock().unwrap_or_else(|e| e.into_inner());
+        mic.max(system)
     }
+}
+
+fn start_device_capture(
+    device: cpal::Device,
+    target_buffer: Arc<Mutex<Vec<i16>>>,
+    target_level: Arc<Mutex<f32>>,
+    allow_output_fallback: bool,
+) -> Result<cpal::Stream, String> {
+    let (config, sample_format) = resolve_device_config(&device, allow_output_fallback)?;
+    let sample_rate_hz = config.sample_rate.0;
+    let channels = config.channels as usize;
+
+    let stream = match sample_format {
+        SampleFormat::F32 => build_input_stream::<f32>(
+            &device,
+            &config,
+            sample_rate_hz,
+            channels,
+            target_buffer,
+            target_level,
+        ),
+        SampleFormat::I16 => build_input_stream::<i16>(
+            &device,
+            &config,
+            sample_rate_hz,
+            channels,
+            target_buffer,
+            target_level,
+        ),
+        SampleFormat::U16 => build_input_stream::<u16>(
+            &device,
+            &config,
+            sample_rate_hz,
+            channels,
+            target_buffer,
+            target_level,
+        ),
+        SampleFormat::I32 => build_input_stream::<i32>(
+            &device,
+            &config,
+            sample_rate_hz,
+            channels,
+            target_buffer,
+            target_level,
+        ),
+        SampleFormat::U32 => build_input_stream::<u32>(
+            &device,
+            &config,
+            sample_rate_hz,
+            channels,
+            target_buffer,
+            target_level,
+        ),
+        SampleFormat::F64 => build_input_stream::<f64>(
+            &device,
+            &config,
+            sample_rate_hz,
+            channels,
+            target_buffer,
+            target_level,
+        ),
+        other => Err(format!("Unsupported input sample format: {:?}", other)),
+    }?;
+
+    stream
+        .play()
+        .map_err(|e| format!("Failed to start stream: {}", e))?;
+    Ok(stream)
+}
+
+fn resolve_device_config(
+    device: &cpal::Device,
+    allow_output_fallback: bool,
+) -> Result<(StreamConfig, SampleFormat), String> {
+    if let Ok(cfg) = device.default_input_config() {
+        return Ok((cfg.clone().into(), cfg.sample_format()));
+    }
+
+    if allow_output_fallback {
+        let output_cfg: SupportedStreamConfig = device
+            .default_output_config()
+            .map_err(|e| format!("No usable capture config: {}", e))?;
+        return Ok((output_cfg.clone().into(), output_cfg.sample_format()));
+    }
+
+    Err("No input configuration available".to_string())
+}
+
+fn build_input_stream<T>(
+    device: &cpal::Device,
+    config: &StreamConfig,
+    source_sample_rate: u32,
+    source_channels: usize,
+    target_buffer: Arc<Mutex<Vec<i16>>>,
+    target_level: Arc<Mutex<f32>>,
+) -> Result<cpal::Stream, String>
+where
+    T: Sample + cpal::SizedSample,
+    f32: FromSample<T>,
+{
+    device
+        .build_input_stream(
+            config,
+            move |data: &[T], _: &cpal::InputCallbackInfo| {
+                if data.is_empty() {
+                    return;
+                }
+
+                // Mix down to mono first.
+                let mono: Vec<f32> = if source_channels > 1 {
+                    data.chunks(source_channels)
+                        .map(|frame| {
+                            let sum: f32 =
+                                frame.iter().map(|sample| f32::from_sample(*sample)).sum();
+                            sum / source_channels as f32
+                        })
+                        .collect()
+                } else {
+                    data.iter()
+                        .map(|sample| f32::from_sample(*sample))
+                        .collect()
+                };
+
+                if mono.is_empty() {
+                    return;
+                }
+
+                // RMS for live meter.
+                let sum_sq: f32 = mono.iter().map(|sample| sample * sample).sum();
+                let rms = (sum_sq / mono.len() as f32).sqrt();
+
+                // Resample to 16kHz via simple decimation/interleaved pick.
+                let resampled: Vec<f32> = if source_sample_rate != 16_000 {
+                    let ratio = source_sample_rate as f64 / 16_000.0;
+                    let out_len = (mono.len() as f64 / ratio).ceil().max(1.0) as usize;
+                    (0..out_len)
+                        .map(|index| {
+                            let source_index = ((index as f64) * ratio) as usize;
+                            mono[source_index.min(mono.len() - 1)]
+                        })
+                        .collect()
+                } else {
+                    mono
+                };
+
+                let samples_i16: Vec<i16> = resampled
+                    .iter()
+                    .map(|sample| (sample * 32767.0).clamp(-32768.0, 32767.0) as i16)
+                    .collect();
+
+                if let Ok(mut buffer) = target_buffer.lock() {
+                    buffer.extend_from_slice(&samples_i16);
+                }
+                if let Ok(mut level) = target_level.lock() {
+                    *level = (rms.min(1.0) * 3.0).min(1.0);
+                }
+            },
+            |err| {
+                log::error!("Audio capture stream error: {}", err);
+            },
+            None,
+        )
+        .map_err(|e| format!("Failed to build input stream: {}", e))
 }

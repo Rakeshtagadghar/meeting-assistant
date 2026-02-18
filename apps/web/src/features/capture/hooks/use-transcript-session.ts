@@ -13,6 +13,12 @@ export interface TranscriptSessionChunk {
   tStartMs: number;
   tEndMs: number;
   speaker: string | null;
+  speakerRole: "SALES" | "CLIENT" | "UNKNOWN";
+  audioSource: "microphone" | "systemAudio" | "tabAudio";
+  prosodyEnergy: number | null;
+  prosodyPauseRatio: number | null;
+  prosodyVoicedMs: number | null;
+  prosodySnrDb: number | null;
   text: string;
   confidence: number | null;
   isFinal: boolean;
@@ -33,6 +39,13 @@ interface UseTranscriptSessionReturn {
   // Settings
   language: string;
   setLanguage: (lang: string) => void;
+  captureSystemAudio: boolean;
+  setCaptureSystemAudio: (value: boolean) => void;
+  speakerRoleOverrides: Record<string, "SALES" | "CLIENT">;
+  setSpeakerRoleOverride: (
+    speakerId: string,
+    role: "SALES" | "CLIENT" | "AUTO",
+  ) => void;
 
   // Actions
   requestStart: () => void;
@@ -59,6 +72,136 @@ interface UseTranscriptSessionReturn {
 
 interface UseTranscriptSessionOptions {
   noteId?: UUID;
+}
+
+interface DiarizationState {
+  knownSpeakers: string[];
+  lastSpeaker: string | null;
+  primarySpeaker: string | null;
+  lastText: string;
+  lastEndMs: number;
+}
+
+const FINAL_DEDUPE_MAX_KEYS = 500;
+
+function normalizeTranscriptText(text: string): string {
+  return text.replace(/\s+/g, " ").trim();
+}
+
+function finalChunkDedupeKey(
+  text: string,
+  tStartMs: number,
+  tEndMs: number,
+): string {
+  const normalized = normalizeTranscriptText(text).toLowerCase();
+  return `${String(Math.round(tStartMs / 500))}:${String(Math.round(tEndMs / 500))}:${normalized}`;
+}
+
+function applyHeuristicDiarization(
+  state: DiarizationState,
+  args: {
+    suggestedSpeaker: string | null;
+    text: string;
+    tStartMs: number;
+    tEndMs: number;
+  },
+): string {
+  const suggested = args.suggestedSpeaker?.trim() ?? "";
+  if (suggested) {
+    if (!state.knownSpeakers.includes(suggested)) {
+      state.knownSpeakers.push(suggested);
+    }
+    state.lastSpeaker = suggested;
+    state.lastText = args.text;
+    state.lastEndMs = args.tEndMs;
+    return suggested;
+  }
+
+  const hasQuestionBefore = state.lastText.includes("?");
+  const gapMs = Math.max(0, args.tStartMs - state.lastEndMs);
+  const looksLikeResponse =
+    /^(yes|no|yeah|nope|sure|right|i think|we|our)\b/i.test(args.text);
+
+  let resolved: string;
+  if (state.knownSpeakers.length === 0) {
+    resolved = "Speaker 1";
+  } else if (state.knownSpeakers.length === 1) {
+    resolved =
+      hasQuestionBefore || looksLikeResponse || gapMs >= 1800
+        ? "Speaker 2"
+        : state.knownSpeakers[0]!;
+  } else {
+    const current = state.lastSpeaker ?? state.knownSpeakers[0]!;
+    const alternate = state.knownSpeakers.find((item) => item !== current);
+    const shouldSwitch =
+      hasQuestionBefore || looksLikeResponse || gapMs >= 2200;
+    resolved = shouldSwitch && alternate ? alternate : current;
+  }
+
+  if (!state.knownSpeakers.includes(resolved)) {
+    state.knownSpeakers.push(resolved);
+  }
+  state.lastSpeaker = resolved;
+  state.lastText = args.text;
+  state.lastEndMs = args.tEndMs;
+  return resolved;
+}
+
+function resolveRoleAndSource(
+  state: DiarizationState,
+  speaker: string,
+  captureSystemAudio: boolean,
+  hintedRole?: "SALES" | "CLIENT" | "UNKNOWN",
+  hintedSource?: "microphone" | "systemAudio" | "tabAudio",
+  speakerRoleOverride?: "SALES" | "CLIENT",
+): {
+  speakerRole: "SALES" | "CLIENT";
+  audioSource: "microphone" | "systemAudio";
+} {
+  if (speakerRoleOverride === "SALES") {
+    return { speakerRole: "SALES", audioSource: "microphone" };
+  }
+  if (speakerRoleOverride === "CLIENT") {
+    return {
+      speakerRole: "CLIENT",
+      audioSource: captureSystemAudio ? "systemAudio" : "microphone",
+    };
+  }
+
+  if (hintedSource === "microphone") {
+    return { speakerRole: "SALES", audioSource: "microphone" };
+  }
+  if (hintedSource === "systemAudio" || hintedSource === "tabAudio") {
+    return {
+      speakerRole: "CLIENT",
+      audioSource: captureSystemAudio ? "systemAudio" : "microphone",
+    };
+  }
+  if (hintedRole === "SALES") {
+    return { speakerRole: "SALES", audioSource: "microphone" };
+  }
+  if (hintedRole === "CLIENT") {
+    return {
+      speakerRole: "CLIENT",
+      audioSource: captureSystemAudio ? "systemAudio" : "microphone",
+    };
+  }
+
+  if (!state.primarySpeaker) {
+    state.primarySpeaker = speaker;
+  }
+
+  if (speaker === state.primarySpeaker) {
+    return {
+      speakerRole: "SALES",
+      audioSource: "microphone",
+    };
+  }
+
+  return {
+    speakerRole: "CLIENT",
+    audioSource: captureSystemAudio ? "systemAudio" : "microphone",
+  };
 }
 
 async function apiCreateNote(title: string): Promise<string> {
@@ -152,6 +295,10 @@ export function useTranscriptSession(
   const [showConsentModal, setShowConsentModal] = useState(false);
   const [micLevel, setMicLevel] = useState(0);
   const [language, setLanguage] = useState("auto");
+  const [captureSystemAudio, setCaptureSystemAudio] = useState(true);
+  const [speakerRoleOverrides, setSpeakerRoleOverrides] = useState<
+    Record<string, "SALES" | "CLIENT">
+  >({});
   const [meetingTitle, setMeetingTitle] = useState("");
   const [participants, setParticipants] = useState<string[]>([]);
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -166,6 +313,14 @@ export function useTranscriptSession(
   const sessionIdRef = useRef<string | null>(null);
   const noteIdRef = useRef<string | null>(options?.noteId ?? null);
   const pendingChunksRef = useRef<TranscriptSessionChunk[]>([]);
+  const finalDedupeKeysRef = useRef<Set<string>>(new Set());
+  const diarizationStateRef = useRef<DiarizationState>({
+    knownSpeakers: [],
+    lastSpeaker: null,
+    primarySpeaker: null,
+    lastText: "",
+    lastEndMs: 0,
+  });
   const micLevelIntervalRef = useRef<ReturnType<typeof setInterval> | null>(
     null,
   );
@@ -219,17 +374,61 @@ export function useTranscriptSession(
           break;
 
         case "ASR_FINAL": {
+          const normalizedText = normalizeTranscriptText(event.text);
+          if (!normalizedText) break;
+
+          const dedupeKey = finalChunkDedupeKey(
+            normalizedText,
+            event.tStartMs,
+            event.tEndMs,
+          );
+          if (finalDedupeKeysRef.current.has(dedupeKey)) break;
+          finalDedupeKeysRef.current.add(dedupeKey);
+          if (finalDedupeKeysRef.current.size > FINAL_DEDUPE_MAX_KEYS) {
+            const oldest = finalDedupeKeysRef.current.values().next().value;
+            if (typeof oldest === "string") {
+              finalDedupeKeysRef.current.delete(oldest);
+            }
+          }
+
           setPartialText(null);
+          const speaker = applyHeuristicDiarization(
+            diarizationStateRef.current,
+            {
+              suggestedSpeaker: event.speaker,
+              text: normalizedText,
+              tStartMs: event.tStartMs,
+              tEndMs: event.tEndMs,
+            },
+          );
+          const { speakerRole, audioSource } = resolveRoleAndSource(
+            diarizationStateRef.current,
+            speaker,
+            captureSystemAudio,
+            event.speakerRole,
+            event.audioSource,
+            speakerRoleOverrides[speaker],
+          );
           const chunk: TranscriptSessionChunk = {
             id: crypto.randomUUID(),
             sequence: event.sequence,
             tStartMs: event.tStartMs,
             tEndMs: event.tEndMs,
-            speaker: event.speaker,
-            text: event.text,
+            speaker,
+            speakerRole,
+            audioSource,
+            prosodyEnergy: event.prosodyEnergy ?? null,
+            prosodyPauseRatio: event.prosodyPauseRatio ?? null,
+            prosodyVoicedMs: event.prosodyVoicedMs ?? null,
+            prosodySnrDb: event.prosodySnrDb ?? null,
+            text: normalizedText,
             confidence: event.confidence,
             isFinal: true,
           };
+          sequenceRef.current = Math.max(
+            sequenceRef.current,
+            event.sequence + 1,
+          );
           setFinalChunks((prev) => [...prev, chunk]);
 
           // Add to pending batch
@@ -241,7 +440,7 @@ export function useTranscriptSession(
         }
       }
     },
-    [flushChunks],
+    [captureSystemAudio, flushChunks, speakerRoleOverrides],
   );
 
   const requestStart = useCallback(() => {
@@ -257,6 +456,15 @@ export function useTranscriptSession(
       setPartialText(null);
       sequenceRef.current = 0;
       pendingChunksRef.current = [];
+      finalDedupeKeysRef.current = new Set();
+      setSpeakerRoleOverrides({});
+      diarizationStateRef.current = {
+        knownSpeakers: [],
+        lastSpeaker: null,
+        primarySpeaker: null,
+        lastText: "",
+        lastEndMs: 0,
+      };
 
       const provider = providerRef.current;
       if (!provider) {
@@ -312,6 +520,7 @@ export function useTranscriptSession(
         provider.startListening({
           language,
           sampleRate: 16000,
+          enableSystemAudio: captureSystemAudio,
         });
 
         setWindowState("listening");
@@ -319,7 +528,7 @@ export function useTranscriptSession(
         setWindowState("idle");
       }
     },
-    [language, handleASREvent],
+    [captureSystemAudio, language, handleASREvent],
   );
 
   const cancelConsent = useCallback(() => {
@@ -349,6 +558,15 @@ export function useTranscriptSession(
     sessionIdRef.current = null;
     noteIdRef.current = null;
     pendingChunksRef.current = [];
+    finalDedupeKeysRef.current = new Set();
+    setSpeakerRoleOverrides({});
+    diarizationStateRef.current = {
+      knownSpeakers: [],
+      lastSpeaker: null,
+      primarySpeaker: null,
+      lastText: "",
+      lastEndMs: 0,
+    };
   }, []);
 
   const copyTranscript = useCallback(async (): Promise<boolean> => {
@@ -381,22 +599,53 @@ export function useTranscriptSession(
     void (async () => {
       // If we have partial text, treat it as a final chunk
       if (finalPartialText?.trim()) {
-        const chunk: TranscriptSessionChunk = {
-          id: crypto.randomUUID(),
-          sequence: sequenceRef.current++,
-          tStartMs: Date.now(), // Approximate
-          tEndMs: Date.now(),
-          speaker: null, // Unknown speaker for partial
-          text: finalPartialText.trim(),
-          confidence: 1, // Assume high confidence since user accepted it by stopping
-          isFinal: true,
-        };
+        const normalizedPartial = normalizeTranscriptText(finalPartialText);
+        if (normalizedPartial) {
+          const now = Date.now();
+          const dedupeKey = finalChunkDedupeKey(normalizedPartial, now, now);
+          if (!finalDedupeKeysRef.current.has(dedupeKey)) {
+            finalDedupeKeysRef.current.add(dedupeKey);
+            const speaker = applyHeuristicDiarization(
+              diarizationStateRef.current,
+              {
+                suggestedSpeaker: null,
+                text: normalizedPartial,
+                tStartMs: now,
+                tEndMs: now,
+              },
+            );
+            const { speakerRole, audioSource } = resolveRoleAndSource(
+              diarizationStateRef.current,
+              speaker,
+              captureSystemAudio,
+              undefined,
+              undefined,
+              speakerRoleOverrides[speaker],
+            );
+            const chunk: TranscriptSessionChunk = {
+              id: crypto.randomUUID(),
+              sequence: sequenceRef.current++,
+              tStartMs: now, // Approximate
+              tEndMs: now,
+              speaker,
+              speakerRole,
+              audioSource,
+              prosodyEnergy: null,
+              prosodyPauseRatio: null,
+              prosodyVoicedMs: null,
+              prosodySnrDb: null,
+              text: normalizedPartial,
+              confidence: 1, // Assume high confidence since user accepted it by stopping
+              isFinal: true,
+            };
 
-        // Add to pending chunks for API flush
-        pendingChunksRef.current.push(chunk);
+            // Add to pending chunks for API flush
+            pendingChunksRef.current.push(chunk);
 
-        // Update local state so it appears in UI immediately
-        setFinalChunks((prev) => [...prev, chunk]);
+            // Update local state so it appears in UI immediately
+            setFinalChunks((prev) => [...prev, chunk]);
+          }
+        }
       }
 
       await flushChunks();
@@ -437,7 +686,23 @@ export function useTranscriptSession(
 
       setWindowState("completed");
     })();
-  }, [flushChunks, partialText]);
+  }, [captureSystemAudio, flushChunks, partialText, speakerRoleOverrides]);
+
+  const setSpeakerRoleOverride = useCallback(
+    (speakerId: string, role: "SALES" | "CLIENT" | "AUTO") => {
+      setSpeakerRoleOverrides((current) => {
+        if (role === "AUTO") {
+          if (!(speakerId in current)) return current;
+          const next = { ...current };
+          delete next[speakerId];
+          return next;
+        }
+        if (current[speakerId] === role) return current;
+        return { ...current, [speakerId]: role };
+      });
+    },
+    [],
+  );
 
   // Cleanup on unmount
   useEffect(() => {
@@ -458,6 +723,10 @@ export function useTranscriptSession(
     micLevel,
     language,
     setLanguage,
+    captureSystemAudio,
+    setCaptureSystemAudio,
+    speakerRoleOverrides,
+    setSpeakerRoleOverride,
     requestStart,
     confirmConsent,
     cancelConsent,

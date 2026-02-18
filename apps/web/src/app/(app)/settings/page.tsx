@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { AnalyticsSettings } from "@/features/settings/components/AnalyticsSettings";
 import { IntegrationsSettings } from "@/features/settings/components/IntegrationsSettings";
+import { LiveAnalysisSettings } from "@/features/settings/components/LiveAnalysisSettings";
 
 export const metadata: Metadata = {
   title: "Settings",
@@ -82,6 +83,9 @@ export default function SettingsPage() {
             </div>
           </div>
         </div>
+
+        {/* Live analysis section */}
+        <LiveAnalysisSettings />
 
         {/* Analytics section */}
         <AnalyticsSettings />

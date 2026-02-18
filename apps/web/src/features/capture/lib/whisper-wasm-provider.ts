@@ -76,6 +76,7 @@ export class WhisperWASMProvider implements ASRProvider {
 
   // Language for transcription
   private currentLanguage = "auto";
+  private enableSystemAudio = true;
 
   // Speaker detection via voice fingerprinting
   private readonly speakerDetector = new SpeakerDetector();
@@ -180,6 +181,7 @@ export class WhisperWASMProvider implements ASRProvider {
 
     this.sampleRate = options.sampleRate || 16000;
     this.currentLanguage = options.language || "auto";
+    this.enableSystemAudio = options.enableSystemAudio !== false;
 
     // reset state
     this.sequenceCounter = 0;
@@ -342,7 +344,9 @@ export class WhisperWASMProvider implements ASRProvider {
       this.mediaStream,
     );
 
-    await this.tryAttachSystemAudio();
+    if (this.enableSystemAudio) {
+      await this.tryAttachSystemAudio();
+    }
 
     const inputSources: MediaStreamAudioSourceNode[] = [this.micSourceNode];
     if (this.systemSourceNode) {

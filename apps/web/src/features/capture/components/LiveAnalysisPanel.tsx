@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { Button } from "@ainotes/ui";
+import { useMemo, useState } from "react";
 import {
   LIVE_ANALYSIS_TOPICS,
   type LiveAnalysisCallSummary,
@@ -9,6 +8,7 @@ import {
   type LiveAnalysisCoachQuestion,
   type LiveAnalysisCoachSuggestion,
   type LiveAnalysisMetrics,
+  type LiveAnalysisPainPoint,
   type LiveAnalysisTopic,
 } from "../live-analysis/types";
 
@@ -30,6 +30,7 @@ interface LiveAnalysisPanelProps {
     nextBestSay: LiveAnalysisCoachSuggestion[];
     nextQuestions: LiveAnalysisCoachQuestion[];
     doDont: LiveAnalysisCoachDoDont[];
+    painPoints: LiveAnalysisPainPoint[];
   } | null;
   insights: Array<{
     insightId: string;
@@ -117,7 +118,7 @@ function riskLabel(risk?: string): string {
     case "scopeMismatch":
       return "Scope mismatch";
     default:
-      return "No active objection";
+      return "No active flag";
   }
 }
 
@@ -140,6 +141,38 @@ function topicToAddressRisk(risk?: string): LiveAnalysisTopic | null {
     default:
       return null;
   }
+}
+
+function insightLabel(type: string): string {
+  switch (type) {
+    case "objection":
+      return "Objection";
+    case "risk":
+      return "Risk";
+    case "positiveSignal":
+      return "Positive signal";
+    case "topic":
+      return "Key topic";
+    case "coach":
+      return "Coach";
+    default:
+      return "Insight";
+  }
+}
+
+function severityTone(severity: "low" | "medium" | "high"): string {
+  switch (severity) {
+    case "high":
+      return "bg-red-100 text-red-700";
+    case "medium":
+      return "bg-amber-100 text-amber-700";
+    default:
+      return "bg-blue-100 text-blue-700";
+  }
+}
+
+function formatConfidence(value: number): string {
+  return `${String(Math.round(value * 100))}%`;
 }
 
 function SuggestionItem({
@@ -166,7 +199,7 @@ function SuggestionItem({
       <p className="text-xs text-gray-700">{text}</p>
       <div className="mt-2 flex items-center justify-between">
         <span className="text-[10px] text-warm-500">
-          Confidence: {Math.round(confidence * 100)}%
+          Confidence: {formatConfidence(confidence)}
         </span>
         <div className="flex items-center gap-1">
           <button
@@ -241,24 +274,69 @@ export function LiveAnalysisPanel({
   onMarkSuggestionUsed,
   onRateSuggestion,
 }: LiveAnalysisPanelProps) {
-  const liveAnalysisToggleDisabled = true;
   const [copyToast, setCopyToast] = useState(false);
-  const visibleInsights = isSessionCompleted ? insights : insights.slice(0, 8);
-  const topRisk = metrics?.riskFlags[0];
-  const pivotTopic =
+  const [topicOverrides, setTopicOverrides] = useState<
+    Partial<Record<LiveAnalysisTopic, boolean>>
+  >({});
+
+  const visibleInsights = isSessionCompleted ? insights : insights.slice(0, 12);
+  const topRisk = metrics?.riskFlags[0] ?? undefined;
+  const unresolvedTopic =
     topicToAddressRisk(topRisk) ??
     LIVE_ANALYSIS_TOPICS.find(
       (topic) =>
         !(metrics?.topicCoverage.checkedTopics.includes(topic) ?? false),
     ) ??
     null;
-  const primaryWorkaround =
-    summary?.immediateActions[0] ?? coach?.nextBestSay[0]?.text ?? null;
-  const topFollowUp = summary?.questionFollowUps.find(
-    (item) => item.status === "missed" || item.status === "weak",
-  );
-  const primaryQuestion =
-    topFollowUp?.questionText ?? coach?.nextQuestions[0]?.text ?? null;
+
+  const timelineItems = useMemo(() => {
+    if (!metrics || metrics.clientValence > -0.3) {
+      return visibleInsights.slice(0, 12);
+    }
+
+    return [
+      {
+        insightId: "sentiment-drop-derived",
+        timestampMs: metrics.windowTsEndMs,
+        type: "risk",
+        severity: "high" as const,
+        title: "Sentiment drop",
+        detail:
+          "Client sentiment dropped in the latest analysis window. Address concerns directly.",
+        confidence: metrics.clientValenceConfidence,
+        evidenceSnippets: [] as Array<{ text: string }>,
+      },
+      ...visibleInsights,
+    ].slice(0, 12);
+  }, [metrics, visibleInsights]);
+
+  const painPoints = useMemo(() => {
+    if (coach?.painPoints?.length) {
+      return coach.painPoints.slice(0, 5).map((item, index) => ({
+        key: `coach-pain-${String(index)}`,
+        title: item.title,
+        detail: item.detail,
+        confidence: item.confidence,
+      }));
+    }
+
+    return [
+      ...visibleInsights
+        .filter((item) => item.type === "risk" || item.type === "objection")
+        .map((item) => ({
+          key: item.insightId,
+          title: item.title,
+          detail: item.detail,
+          confidence: item.confidence,
+        })),
+      ...(summary?.misses.map((miss, index) => ({
+        key: `summary-miss-${String(index)}`,
+        title: "Detected friction",
+        detail: miss,
+        confidence: 0.6,
+      })) ?? []),
+    ].slice(0, 5);
+  }, [coach?.painPoints, summary, visibleInsights]);
 
   const handleCopy = async (text: string) => {
     const success = await onCopySuggestion(text);
@@ -277,34 +355,24 @@ export function LiveAnalysisPanel({
                 Live Analysis
               </h3>
               <p className="mt-0.5 text-[11px] text-warm-500">
-                AI guidance may be inaccurate. Use judgment and follow consent
-                laws.
+                AI guidance may be inaccurate. Use your judgment and ensure
+                participant consent as required by law.
               </p>
             </div>
-            <label
-              className={`inline-flex items-center gap-2 text-xs ${
-                liveAnalysisToggleDisabled
-                  ? "cursor-not-allowed text-gray-400"
-                  : "cursor-pointer text-gray-700"
-              }`}
-            >
+            <label className="inline-flex cursor-pointer items-center gap-2 text-xs text-gray-700">
               <input
                 type="checkbox"
                 checked={enabled}
                 onChange={(event) => setEnabled(event.target.checked)}
-                disabled={liveAnalysisToggleDisabled}
                 className="h-4 w-4 rounded border-warm-300 text-indigo-600 focus:ring-indigo-500"
               />
               Enabled
             </label>
-            {liveAnalysisToggleDisabled && (
-              <p className="text-[10px] text-amber-600">Temporarily disabled</p>
-            )}
           </div>
 
-          <div className="mt-3 space-y-2">
+          <div className="mt-3 space-y-2 rounded-lg border border-warm-200/70 bg-warm-50 p-2">
             <label className="flex items-center justify-between text-xs text-gray-700">
-              <span>Private mode (local-first)</span>
+              <span>Privacy mode</span>
               <input
                 type="checkbox"
                 checked={privacyMode}
@@ -314,7 +382,7 @@ export function LiveAnalysisPanel({
             </label>
 
             <label className="block text-xs text-gray-700">
-              <span>Sensitivity: {sensitivity}</span>
+              <span>Sensitivity: {String(sensitivity)}</span>
               <input
                 type="range"
                 min={0}
@@ -326,7 +394,9 @@ export function LiveAnalysisPanel({
             </label>
 
             <label className="block text-xs text-gray-700">
-              <span>Coaching frequency: {coachingAggressiveness}</span>
+              <span>
+                Coaching aggressiveness: {String(coachingAggressiveness)}
+              </span>
               <input
                 type="range"
                 min={0}
@@ -354,130 +424,7 @@ export function LiveAnalysisPanel({
 
         <section className="rounded-xl border border-warm-200/70 bg-white p-3">
           <h4 className="text-xs font-semibold uppercase tracking-wide text-warm-500">
-            Overall Summary
-          </h4>
-          {summary ? (
-            <div className="mt-2 space-y-2">
-              <div className="flex items-center justify-between gap-2">
-                <span
-                  className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                    summary.overallAssessment === "strong"
-                      ? "bg-green-100 text-green-700"
-                      : summary.overallAssessment === "mixed"
-                        ? "bg-amber-100 text-amber-700"
-                        : "bg-red-100 text-red-700"
-                  }`}
-                >
-                  {summary.overallAssessment}
-                </span>
-                <span className="text-[10px] text-warm-500">
-                  Updated: {new Date(summary.updatedAtMs).toLocaleTimeString()}
-                </span>
-              </div>
-              <p className="text-xs text-gray-700">{summary.headline}</p>
-
-              {summary.misses.length > 0 && (
-                <div className="rounded-lg border border-red-100 bg-red-50 px-2 py-1.5">
-                  <p className="text-[10px] uppercase tracking-wide text-red-600">
-                    Risks To Fix
-                  </p>
-                  <div className="mt-1 space-y-1">
-                    {summary.misses.slice(0, 3).map((miss, index) => (
-                      <p
-                        key={`${miss}-${String(index)}`}
-                        className="text-[11px] text-red-700"
-                      >
-                        - {miss}
-                      </p>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {summary.questionFollowUps.length > 0 && (
-                <div className="rounded-lg border border-warm-200/70 bg-warm-50 px-2 py-1.5">
-                  <p className="text-[10px] uppercase tracking-wide text-warm-500">
-                    Client Questions Handling
-                  </p>
-                  <div className="mt-1 space-y-1">
-                    {(isSessionCompleted
-                      ? summary.questionFollowUps
-                      : summary.questionFollowUps.slice(0, 2)
-                    ).map((item) => (
-                      <div
-                        key={item.questionId}
-                        className="rounded bg-white px-2 py-1"
-                      >
-                        <p className="text-[11px] text-gray-700">
-                          {item.questionText}
-                        </p>
-                        <p
-                          className={`mt-0.5 text-[10px] font-medium ${
-                            item.status === "answered"
-                              ? "text-green-700"
-                              : item.status === "weak"
-                                ? "text-amber-700"
-                                : "text-red-700"
-                          }`}
-                        >
-                          Status: {item.status}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            <p className="mt-2 text-xs text-warm-500">
-              Summary appears after enough transcript context is available.
-            </p>
-          )}
-        </section>
-
-        <section className="rounded-xl border border-warm-200/70 bg-white p-3">
-          <h4 className="text-xs font-semibold uppercase tracking-wide text-warm-500">
-            Control Now
-          </h4>
-          <div className="mt-2 space-y-2">
-            <div className="rounded-lg border border-warm-200/70 bg-warm-50 px-2 py-1.5">
-              <p className="text-[10px] uppercase tracking-wide text-warm-500">
-                Objection
-              </p>
-              <p className="text-xs font-medium text-gray-800">
-                {riskLabel(topRisk)}
-              </p>
-            </div>
-            <div className="rounded-lg border border-warm-200/70 bg-warm-50 px-2 py-1.5">
-              <p className="text-[10px] uppercase tracking-wide text-warm-500">
-                Topic To Speak Now
-              </p>
-              <p className="text-xs font-medium text-gray-800">
-                {pivotTopic
-                  ? topicLabel(pivotTopic)
-                  : "Clarify client priority"}
-              </p>
-            </div>
-            <div className="rounded-lg border border-warm-200/70 bg-warm-50 px-2 py-1.5">
-              <p className="text-[10px] uppercase tracking-wide text-warm-500">
-                Workaround
-              </p>
-              <p className="text-xs text-gray-700">
-                {primaryWorkaround ??
-                  "Waiting for enough signal to suggest a workaround."}
-              </p>
-              {primaryQuestion && (
-                <p className="mt-1 text-[11px] text-indigo-700">
-                  Ask: {primaryQuestion}
-                </p>
-              )}
-            </div>
-          </div>
-        </section>
-
-        <section className="rounded-xl border border-warm-200/70 bg-white p-3">
-          <h4 className="text-xs font-semibold uppercase tracking-wide text-warm-500">
-            Live Meters
+            Meters
           </h4>
           {metrics ? (
             <>
@@ -489,6 +436,10 @@ export function LiveAnalysisPanel({
                   >
                     {metrics.clientValence.toFixed(2)}
                   </p>
+                  <p className="text-[10px] text-warm-500">
+                    Confidence{" "}
+                    {formatConfidence(metrics.clientValenceConfidence)}
+                  </p>
                 </div>
                 <div className="rounded-lg bg-warm-50 p-2">
                   <p className="text-[10px] text-warm-500">Engagement</p>
@@ -496,6 +447,10 @@ export function LiveAnalysisPanel({
                     className={`text-sm font-semibold ${metricColor(metrics.clientEngagement)}`}
                   >
                     {(metrics.clientEngagement * 100).toFixed(0)}%
+                  </p>
+                  <p className="text-[10px] text-warm-500">
+                    Confidence{" "}
+                    {formatConfidence(metrics.clientEngagementConfidence)}
                   </p>
                 </div>
                 <div className="rounded-lg bg-warm-50 p-2">
@@ -505,6 +460,10 @@ export function LiveAnalysisPanel({
                   >
                     {(metrics.clientEnergy * 100).toFixed(0)}%
                   </p>
+                  <p className="text-[10px] text-warm-500">
+                    Stress {(metrics.clientStress * 100).toFixed(0)}% |
+                    Certainty {(metrics.clientCertainty * 100).toFixed(0)}%
+                  </p>
                 </div>
                 <div className="rounded-lg bg-warm-50 p-2">
                   <p className="text-[10px] text-warm-500">Call Health</p>
@@ -513,10 +472,23 @@ export function LiveAnalysisPanel({
                   >
                     {metrics.callHealth.toFixed(0)}
                   </p>
+                  <p className="text-[10px] text-warm-500">
+                    Confidence {formatConfidence(metrics.callHealthConfidence)}
+                  </p>
                 </div>
               </div>
 
-              <div className="mt-2 flex flex-wrap gap-1">
+              <div className="mt-2 flex items-center justify-between gap-2">
+                <p className="text-[10px] text-warm-500">
+                  Primary flag: {riskLabel(topRisk)}
+                </p>
+                {unresolvedTopic && (
+                  <p className="text-[10px] text-indigo-700">
+                    Suggested topic: {topicLabel(unresolvedTopic)}
+                  </p>
+                )}
+              </div>
+              <div className="mt-1 flex flex-wrap gap-1">
                 {(metrics.riskFlags.length > 0
                   ? metrics.riskFlags
                   : ["none"]
@@ -619,11 +591,40 @@ export function LiveAnalysisPanel({
                   ))}
                 </div>
               </div>
+
+              <div>
+                <p className="mb-1 text-[11px] font-medium text-gray-700">
+                  Pain points detected
+                </p>
+                <div className="space-y-1.5">
+                  {painPoints.length > 0 ? (
+                    painPoints.map((item) => (
+                      <div
+                        key={item.key}
+                        className="rounded-lg border border-warm-200/70 bg-warm-50 p-2"
+                      >
+                        <p className="text-[11px] font-medium text-gray-700">
+                          {item.title}
+                        </p>
+                        <p className="mt-0.5 text-[11px] text-gray-600">
+                          {item.detail}
+                        </p>
+                        <p className="mt-1 text-[10px] text-warm-500">
+                          Confidence {formatConfidence(item.confidence)}
+                        </p>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-xs text-warm-500">
+                      No strong pain points detected yet.
+                    </p>
+                  )}
+                </div>
+              </div>
             </div>
           ) : (
             <p className="text-xs text-warm-500">
-              Deep coaching appears every few seconds when Live Analysis is
-              enabled.
+              Coaching appears as analysis confidence increases.
             </p>
           )}
         </section>
@@ -632,35 +633,35 @@ export function LiveAnalysisPanel({
           <h4 className="text-xs font-semibold uppercase tracking-wide text-warm-500">
             Insights Timeline
           </h4>
-          {insights.length > 0 ? (
+          {timelineItems.length > 0 ? (
             <div className="mt-2 space-y-2">
-              {visibleInsights.map((insight) => (
+              {timelineItems.map((insight) => (
                 <div
                   key={insight.insightId}
                   className="rounded-lg border border-warm-200/70 bg-warm-50 p-2"
                 >
                   <div className="flex items-center justify-between">
-                    <p className="text-xs font-medium text-gray-800">
-                      {insight.title}
-                    </p>
                     <span
-                      className={`rounded px-1.5 py-0.5 text-[10px] ${
-                        insight.severity === "high"
-                          ? "bg-red-100 text-red-700"
-                          : insight.severity === "medium"
-                            ? "bg-amber-100 text-amber-700"
-                            : "bg-blue-100 text-blue-700"
-                      }`}
+                      className={`rounded px-1.5 py-0.5 text-[10px] ${severityTone(insight.severity)}`}
                     >
                       {insight.severity}
                     </span>
+                    <span className="text-[10px] text-warm-500">
+                      {insightLabel(insight.type)}
+                    </span>
                   </div>
+                  <p className="mt-1 text-xs font-medium text-gray-800">
+                    {insight.title}
+                  </p>
                   <p className="mt-1 text-[11px] text-gray-600">
                     {insight.detail}
                   </p>
+                  <p className="mt-1 text-[10px] text-warm-500">
+                    Confidence {formatConfidence(insight.confidence)}
+                  </p>
                   {insight.evidenceSnippets.length > 0 && (
                     <p className="mt-1 text-[10px] text-warm-500">
-                      "{insight.evidenceSnippets[0]?.text}"
+                      Evidence: "{insight.evidenceSnippets[0]?.text}"
                     </p>
                   )}
                 </div>
@@ -695,53 +696,62 @@ export function LiveAnalysisPanel({
             Topic Coverage
           </h4>
           {metrics ? (
-            <div className="mt-2 grid grid-cols-1 gap-1">
-              {LIVE_ANALYSIS_TOPICS.map((topic) => {
-                const checked =
-                  metrics.topicCoverage.checkedTopics.includes(topic);
-                const confidence =
-                  metrics.topicCoverage.confidenceByTopic[topic] ?? 0;
-                return (
-                  <div
-                    key={topic}
-                    className="flex items-center justify-between rounded bg-warm-50 px-2 py-1 text-xs"
-                  >
-                    <span
-                      className={checked ? "text-green-700" : "text-gray-600"}
+            <>
+              <div className="mb-2 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setTopicOverrides({})}
+                  className="text-[10px] text-indigo-700 hover:underline"
+                >
+                  Reset manual overrides
+                </button>
+              </div>
+              <div className="grid grid-cols-1 gap-1">
+                {LIVE_ANALYSIS_TOPICS.map((topic) => {
+                  const autoChecked =
+                    metrics.topicCoverage.checkedTopics.includes(topic);
+                  const checked = topicOverrides[topic] ?? autoChecked;
+                  const confidence =
+                    metrics.topicCoverage.confidenceByTopic[topic] ?? 0;
+                  return (
+                    <div
+                      key={topic}
+                      className="flex items-center justify-between rounded bg-warm-50 px-2 py-1 text-xs"
                     >
-                      {checked ? "x " : "o "}
-                      {topicLabel(topic)}
-                    </span>
-                    <span className="text-[10px] text-warm-500">
-                      {Math.round(confidence * 100)}%
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
+                      <span
+                        className={checked ? "text-green-700" : "text-gray-600"}
+                      >
+                        {checked ? "x " : "o "}
+                        {topicLabel(topic)}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-warm-500">
+                          {Math.round(confidence * 100)}%
+                        </span>
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(event) =>
+                            setTopicOverrides((current) => ({
+                              ...current,
+                              [topic]: event.target.checked,
+                            }))
+                          }
+                          className="h-3.5 w-3.5 rounded border-warm-300 text-indigo-600"
+                          aria-label={`Toggle ${topicLabel(topic)} topic`}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
           ) : (
             <p className="mt-2 text-xs text-warm-500">
               Topic coverage appears once analysis starts.
             </p>
           )}
         </section>
-
-        {!enabled && (
-          <div className="rounded-lg border border-dashed border-warm-300 bg-warm-50 p-3 text-center">
-            <p className="text-xs text-warm-500">
-              Enable Live Analysis to start real-time coaching.
-            </p>
-            <Button
-              size="sm"
-              variant="outline"
-              className="mt-2"
-              disabled={liveAnalysisToggleDisabled}
-              onClick={() => setEnabled(true)}
-            >
-              Enable
-            </Button>
-          </div>
-        )}
       </div>
     </aside>
   );
