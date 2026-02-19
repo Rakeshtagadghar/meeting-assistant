@@ -223,6 +223,16 @@ model TranscriptChunk {
   tStartMs         Int      @map("t_start_ms")
   tEndMs           Int      @map("t_end_ms")
   speaker          String?
+  prosodyEnergy    Float?   @map("prosody_energy")
+  prosodyPauseRatio Float?  @map("prosody_pause_ratio")
+  prosodyVoicedMs  Float?   @map("prosody_voiced_ms")
+  prosodySnrDb     Float?   @map("prosody_snr_db")
+  prosodyQualityPass Boolean? @map("prosody_quality_pass")
+  prosodyToneWeightsEnabled Boolean? @map("prosody_tone_weights_enabled")
+  prosodyConfidencePenalty Float? @map("prosody_confidence_penalty")
+  prosodyClientEnergy Float? @map("prosody_client_energy")
+  prosodyClientStress Float? @map("prosody_client_stress")
+  prosodyClientCertainty Float? @map("prosody_client_certainty")
   text             String
   confidence       Float?
   createdAt        DateTime @default(now()) @map("created_at")

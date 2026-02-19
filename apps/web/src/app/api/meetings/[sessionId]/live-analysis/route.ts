@@ -44,7 +44,7 @@ const requestSchema = z.object({
         tStartMs: z.number().min(0),
         tEndMs: z.number().min(0),
         speaker: z.string().nullable(),
-        speakerRole: z.enum(["SALES", "CLIENT", "UNKNOWN"]).optional(),
+        speakerRole: z.enum(["SALES", "CLIENT", "UNKNOWN", "MIXED"]).optional(),
         audioSource: z
           .enum(["microphone", "systemAudio", "tabAudio"])
           .optional(),
@@ -52,6 +52,17 @@ const requestSchema = z.object({
         prosodyPauseRatio: z.number().min(0).max(1).nullable().optional(),
         prosodyVoicedMs: z.number().min(0).nullable().optional(),
         prosodySnrDb: z.number().nullable().optional(),
+        prosodyQualityPass: z.boolean().nullable().optional(),
+        prosodyToneWeightsEnabled: z.boolean().nullable().optional(),
+        prosodyConfidencePenalty: z
+          .number()
+          .min(0)
+          .max(1)
+          .nullable()
+          .optional(),
+        prosodyClientEnergy: z.number().min(0).max(1).nullable().optional(),
+        prosodyClientStress: z.number().min(0).max(1).nullable().optional(),
+        prosodyClientCertainty: z.number().min(0).max(1).nullable().optional(),
         text: z.string().min(1),
         confidence: z.number().min(0).max(1).nullable(),
       }),
@@ -626,6 +637,16 @@ export async function POST(
       tStartMs: chunk.tStartMs,
       tEndMs: chunk.tEndMs,
       speaker: chunk.speaker,
+      prosodyEnergy: chunk.prosodyEnergy,
+      prosodyPauseRatio: chunk.prosodyPauseRatio,
+      prosodyVoicedMs: chunk.prosodyVoicedMs,
+      prosodySnrDb: chunk.prosodySnrDb,
+      prosodyQualityPass: chunk.prosodyQualityPass,
+      prosodyToneWeightsEnabled: chunk.prosodyToneWeightsEnabled,
+      prosodyConfidencePenalty: chunk.prosodyConfidencePenalty,
+      prosodyClientEnergy: chunk.prosodyClientEnergy,
+      prosodyClientStress: chunk.prosodyClientStress,
+      prosodyClientCertainty: chunk.prosodyClientCertainty,
       text: chunk.text,
       confidence: chunk.confidence,
     }));
@@ -642,6 +663,12 @@ export async function POST(
       prosodyPauseRatio: chunk.prosodyPauseRatio,
       prosodyVoicedMs: chunk.prosodyVoicedMs,
       prosodySnrDb: chunk.prosodySnrDb,
+      prosodyQualityPass: chunk.prosodyQualityPass,
+      prosodyToneWeightsEnabled: chunk.prosodyToneWeightsEnabled,
+      prosodyConfidencePenalty: chunk.prosodyConfidencePenalty,
+      prosodyClientEnergy: chunk.prosodyClientEnergy,
+      prosodyClientStress: chunk.prosodyClientStress,
+      prosodyClientCertainty: chunk.prosodyClientCertainty,
       text: chunk.text,
       confidence: chunk.confidence,
     }));
@@ -660,6 +687,12 @@ export async function POST(
         prosodyPauseRatio: null,
         prosodyVoicedMs: null,
         prosodySnrDb: null,
+        prosodyQualityPass: null,
+        prosodyToneWeightsEnabled: null,
+        prosodyConfidencePenalty: null,
+        prosodyClientEnergy: null,
+        prosodyClientStress: null,
+        prosodyClientCertainty: null,
         text: body.partialText.trim(),
         confidence: 0.55,
       });
@@ -686,6 +719,12 @@ export async function POST(
           prosodyPauseRatio: null,
           prosodyVoicedMs: null,
           prosodySnrDb: null,
+          prosodyQualityPass: null,
+          prosodyToneWeightsEnabled: null,
+          prosodyConfidencePenalty: null,
+          prosodyClientEnergy: null,
+          prosodyClientStress: null,
+          prosodyClientCertainty: null,
         }));
 
     const heuristic = buildHeuristicLiveAnalysis({

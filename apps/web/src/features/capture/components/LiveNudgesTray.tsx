@@ -22,6 +22,7 @@ interface NudgeItem {
 
 interface LiveNudgesTrayProps {
   visible: boolean;
+  enabled: boolean;
   metrics: LiveAnalysisMetrics | null;
   coach: LiveAnalysisCoachPayload | null;
   summary: LiveAnalysisCallSummary | null;
@@ -72,16 +73,6 @@ function riskTone(risk: LiveAnalysisRiskFlag): NudgeTone {
   }
 }
 
-function timeAgoLabel(timestampMs: number): string {
-  const deltaSec = Math.max(0, Math.floor((Date.now() - timestampMs) / 1000));
-  if (deltaSec < 20) return "Just now";
-  if (deltaSec < 60) return `${String(deltaSec)} sec ago`;
-  const deltaMin = Math.floor(deltaSec / 60);
-  if (deltaMin < 60) return `${String(deltaMin)} min ago`;
-  const deltaHrs = Math.floor(deltaMin / 60);
-  return `${String(deltaHrs)} hr ago`;
-}
-
 function toneClasses(tone: NudgeTone): {
   border: string;
   label: string;
@@ -107,6 +98,7 @@ function toneClasses(tone: NudgeTone): {
 
 export function LiveNudgesTray({
   visible,
+  enabled,
   metrics,
   coach,
   summary,
@@ -247,7 +239,7 @@ export function LiveNudgesTray({
     return ordered;
   }, [coach, insights, metrics, summary]);
 
-  if (!visible) return null;
+  if (!visible || !enabled) return null;
 
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-16 z-30 px-3">
@@ -284,9 +276,6 @@ export function LiveNudgesTray({
                     className={`rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${tone.label}`}
                   >
                     {item.label}
-                  </span>
-                  <span className="text-[11px] text-gray-500">
-                    {timeAgoLabel(item.timestampMs)}
                   </span>
                 </div>
                 <p className="text-sm font-semibold text-gray-900">

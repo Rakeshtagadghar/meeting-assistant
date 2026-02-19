@@ -18,7 +18,8 @@ import type {
 } from "../live-analysis/types";
 
 const ANALYSIS_INTERVAL_MS = 15_000;
-const LOW_SPEECH_INTERVAL_MS = 30_000;
+const DEFAULT_CONTEXT_WINDOW_MS = 30_000;
+const WARMUP_CONTEXT_WINDOW_MS = 60_000;
 const DEFAULT_MAX_DELTA_UTTERANCES = 12;
 const HIGH_SPEECH_MAX_DELTA_UTTERANCES = 8;
 const HIGH_SPEECH_WORDS_THRESHOLD = 120;
@@ -99,6 +100,9 @@ export function useLiveAnalysis({
     light: false,
     deep: false,
   });
+  const enabledRef = useRef(enabled);
+  const requestVersionRef = useRef(0);
+  const warmupPendingRef = useRef(false);
 
   const sessionActive = useMemo(() => {
     return windowState === "listening" || windowState === "paused";
@@ -124,11 +128,19 @@ export function useLiveAnalysis({
     };
   }, []);
 
+  useEffect(() => {
+    enabledRef.current = enabled;
+  }, [enabled]);
+
   const sendRequest = useCallback(
-    async (mode: LiveAnalysisMode) => {
+    async (
+      mode: LiveAnalysisMode,
+      contextWindowMs = DEFAULT_CONTEXT_WINDOW_MS,
+    ) => {
       if (!sessionId || !enabled) return;
       if (!sessionActive && windowState !== "processing") return;
       if (inFlightRef.current[mode]) return;
+      const requestVersion = requestVersionRef.current;
 
       inFlightRef.current[mode] = true;
       if (streamStatus === "idle" || streamStatus === "error") {
@@ -141,7 +153,7 @@ export function useLiveAnalysis({
         const effectiveMode: LiveAnalysisMode =
           now < degradeToLightUntilRef.current ? "light" : mode;
         const latestChunkTs = finalChunks[finalChunks.length - 1]?.tEndMs ?? 0;
-        const windowStartTs = latestChunkTs - 30_000;
+        const windowStartTs = latestChunkTs - contextWindowMs;
         const recentChunks = finalChunks.filter(
           (chunk) => chunk.tEndMs >= windowStartTs,
         );
@@ -181,6 +193,12 @@ export function useLiveAnalysis({
                 prosodyPauseRatio: chunk.prosodyPauseRatio,
                 prosodyVoicedMs: chunk.prosodyVoicedMs,
                 prosodySnrDb: chunk.prosodySnrDb,
+                prosodyQualityPass: chunk.prosodyQualityPass,
+                prosodyToneWeightsEnabled: chunk.prosodyToneWeightsEnabled,
+                prosodyConfidencePenalty: chunk.prosodyConfidencePenalty,
+                prosodyClientEnergy: chunk.prosodyClientEnergy,
+                prosodyClientStress: chunk.prosodyClientStress,
+                prosodyClientCertainty: chunk.prosodyClientCertainty,
                 text: chunk.text,
                 confidence: chunk.confidence,
               })),
@@ -197,6 +215,12 @@ export function useLiveAnalysis({
         }
 
         const data = (await response.json()) as LiveAnalysisResponse;
+        if (
+          requestVersion !== requestVersionRef.current ||
+          !enabledRef.current
+        ) {
+          return;
+        }
         if (data.metrics) setMetrics(data.metrics);
         if (data.coach) setCoach(data.coach);
         if (data.summary) setSummary(data.summary);
@@ -207,6 +231,12 @@ export function useLiveAnalysis({
         setStreamStatus("live");
         setLatencyMs(Math.round(performance.now() - startedAt));
       } catch {
+        if (
+          requestVersion !== requestVersionRef.current ||
+          !enabledRef.current
+        ) {
+          return;
+        }
         failureCountRef.current += 1;
         setStreamStatus(
           failureCountRef.current > MAX_FAILURES_BEFORE_ERROR
@@ -234,7 +264,13 @@ export function useLiveAnalysis({
 
   useEffect(() => {
     if (!enabled) {
+      requestVersionRef.current += 1;
+      warmupPendingRef.current = false;
       setStreamStatus("idle");
+      setMetrics(null);
+      setCoach(null);
+      setSummary(null);
+      setInsights([]);
       setLatencyMs(null);
       return;
     }
@@ -246,36 +282,34 @@ export function useLiveAnalysis({
       return;
     }
 
-    const latestChunkTs = finalChunks[finalChunks.length - 1]?.tEndMs ?? 0;
-    const recentSpeechChunks = finalChunks.filter(
-      (chunk) => chunk.tEndMs >= latestChunkTs - 30_000,
-    );
-    const recentWords = recentSpeechChunks.reduce(
-      (sum, chunk) => sum + chunk.text.trim().split(/\s+/).length,
-      0,
-    );
-    const cadenceMs =
-      recentWords < 40 ? LOW_SPEECH_INTERVAL_MS : ANALYSIS_INTERVAL_MS;
+    const contextWindowMs = warmupPendingRef.current
+      ? WARMUP_CONTEXT_WINDOW_MS
+      : DEFAULT_CONTEXT_WINDOW_MS;
+    warmupPendingRef.current = false;
 
-    void sendRequest("deep");
+    void sendRequest("deep", contextWindowMs);
     const deepTimer = setInterval(() => {
       void sendRequest("deep");
-    }, cadenceMs);
+    }, ANALYSIS_INTERVAL_MS);
 
     return () => {
       clearInterval(deepTimer);
     };
-  }, [
-    enabled,
-    sessionId,
-    sessionActive,
-    sendRequest,
-    windowState,
-    finalChunks,
-  ]);
+  }, [enabled, sessionId, sessionActive, sendRequest, windowState]);
+
+  useEffect(() => {
+    if (enabled) {
+      warmupPendingRef.current = true;
+      return;
+    }
+    requestVersionRef.current += 1;
+    inFlightRef.current.light = false;
+    inFlightRef.current.deep = false;
+  }, [enabled]);
 
   useEffect(() => {
     if (windowState === "idle") {
+      requestVersionRef.current += 1;
       setStreamStatus("idle");
       failureCountRef.current = 0;
       degradeToLightUntilRef.current = 0;
@@ -292,11 +326,13 @@ export function useLiveAnalysis({
     setUsedSuggestionIds(new Set<string>());
     setSuggestionRatings({});
     setLatencyMs(null);
+    requestVersionRef.current += 1;
+    warmupPendingRef.current = enabled;
     failureCountRef.current = 0;
     degradeToLightUntilRef.current = 0;
     inFlightRef.current.light = false;
     inFlightRef.current.deep = false;
-  }, [sessionId]);
+  }, [enabled, sessionId]);
 
   const copySuggestion = useCallback(async (text: string): Promise<boolean> => {
     try {

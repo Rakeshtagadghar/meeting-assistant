@@ -39,6 +39,12 @@ interface NormalizedUtterance {
   prosodyPauseRatio?: number | null;
   prosodyVoicedMs?: number | null;
   prosodySnrDb?: number | null;
+  prosodyQualityPass?: boolean | null;
+  prosodyToneWeightsEnabled?: boolean | null;
+  prosodyConfidencePenalty?: number | null;
+  prosodyClientEnergy?: number | null;
+  prosodyClientStress?: number | null;
+  prosodyClientCertainty?: number | null;
   text: string;
   confidence: number;
   words: number;
@@ -234,6 +240,10 @@ const STOP_WORDS = new Set([
   "my",
   "us",
 ]);
+
+function isClientLikeRole(role: LiveAnalysisSpeakerRole): boolean {
+  return role === "CLIENT" || role === "MIXED";
+}
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -435,6 +445,12 @@ function dedupeAndNormalize(
       prosodyPauseRatio: chunk.prosodyPauseRatio ?? null,
       prosodyVoicedMs: chunk.prosodyVoicedMs ?? null,
       prosodySnrDb: chunk.prosodySnrDb ?? null,
+      prosodyQualityPass: chunk.prosodyQualityPass ?? null,
+      prosodyToneWeightsEnabled: chunk.prosodyToneWeightsEnabled ?? null,
+      prosodyConfidencePenalty: chunk.prosodyConfidencePenalty ?? null,
+      prosodyClientEnergy: chunk.prosodyClientEnergy ?? null,
+      prosodyClientStress: chunk.prosodyClientStress ?? null,
+      prosodyClientCertainty: chunk.prosodyClientCertainty ?? null,
       text,
       confidence,
       words,
@@ -973,6 +989,7 @@ function computeInsights(
   stakeholderSignals: StakeholderSignals,
   clientValence: number,
   clientEngagement: number,
+  hasMixedRoles: boolean,
 ): LiveAnalysisInsight[] {
   const insights: LiveAnalysisInsight[] = [];
 
@@ -1054,6 +1071,21 @@ function computeInsights(
     });
   }
 
+  if (hasMixedRoles) {
+    insights.push({
+      meetingId,
+      insightId: makeId("role-confidence", "mixed", 1),
+      timestampMs: nowMs,
+      type: "risk",
+      severity: "medium",
+      title: "Speaker-role confidence reduced",
+      detail:
+        "Mic-only or overlapping speech created MIXED speaker roles; treat sentiment as lower confidence.",
+      confidence: 0.62,
+      evidenceSnippets: evidence,
+    });
+  }
+
   return insights.slice(0, 10).map((insight) => ({
     ...insight,
     confidence: Number(clamp(insight.confidence, 0, 1).toFixed(2)),
@@ -1084,7 +1116,7 @@ function computeQuestionFollowUps(
 
   for (let i = 0; i < utterances.length; i++) {
     const current = utterances[i];
-    if (!current || current.speakerRole !== "CLIENT") continue;
+    if (!current || !isClientLikeRole(current.speakerRole)) continue;
     if (!current.text.includes("?")) continue;
 
     const nextTurns = utterances.slice(i + 1, i + 7);
@@ -1253,12 +1285,15 @@ export function buildHeuristicLiveAnalysis({
     utterances[0]?.tStartMs ?? now - 120_000,
   );
   const inWindow = utterances.filter((chunk) => chunk.tEndMs >= windowStart);
-  const clientUtterances = inWindow.filter(
-    (chunk) => chunk.speakerRole === "CLIENT",
+  const clientUtterances = inWindow.filter((chunk) =>
+    isClientLikeRole(chunk.speakerRole),
   );
   const salesUtterances = inWindow.filter(
     (chunk) => chunk.speakerRole === "SALES",
   );
+  const mixedRoleCount = inWindow.filter(
+    (chunk) => chunk.speakerRole === "MIXED",
+  ).length;
 
   const clientText = clientUtterances.map((chunk) => chunk.text).join(" ");
   const clientWords = clientUtterances.reduce(
@@ -1398,33 +1433,101 @@ export function buildHeuristicLiveAnalysis({
     ) / Math.max(1, clientProsodyFrames.length);
 
   const hasProsodyFrames = clientProsodyFrames.length >= 2;
-  const prosodyQualityPass =
+  const defaultProsodyQualityPass =
     useHeuristics &&
     hasProsodyFrames &&
     avgProsodyVoicedMs >= 800 &&
     avgProsodySnrDb >= 10 &&
     averageAsrConfidence >= 0.55;
-  const toneConfidence = prosodyQualityPass
-    ? clamp(0.62 + Math.min(0.3, clientProsodyFrames.length * 0.05), 0, 1)
-    : clamp(0.2 + Math.min(0.18, clientUtterances.length * 0.02), 0, 0.5);
+  const qualitySignals = clientUtterances
+    .map((chunk) => chunk.prosodyQualityPass)
+    .filter((value): value is boolean => typeof value === "boolean");
+  const toneWeightSignals = clientUtterances
+    .map((chunk) => chunk.prosodyToneWeightsEnabled)
+    .filter((value): value is boolean => typeof value === "boolean");
+  const confidencePenaltySignals = clientUtterances
+    .map((chunk) => chunk.prosodyConfidencePenalty)
+    .filter((value): value is number => typeof value === "number");
+  const suppliedClientEnergyValues = clientUtterances
+    .map((chunk) => chunk.prosodyClientEnergy)
+    .filter((value): value is number => typeof value === "number");
+  const suppliedClientStressValues = clientUtterances
+    .map((chunk) => chunk.prosodyClientStress)
+    .filter((value): value is number => typeof value === "number");
+  const suppliedClientCertaintyValues = clientUtterances
+    .map((chunk) => chunk.prosodyClientCertainty)
+    .filter((value): value is number => typeof value === "number");
 
-  const clientEnergy = prosodyQualityPass
-    ? clamp(avgProsodyEnergy, 0, 1)
-    : Number((lexicalClientEnergy * 0.75).toFixed(2));
-  const clientStress = prosodyQualityPass
+  const qualityPassShare =
+    qualitySignals.length > 0
+      ? qualitySignals.filter(Boolean).length / qualitySignals.length
+      : null;
+  const toneWeightEnabledShare =
+    toneWeightSignals.length > 0
+      ? toneWeightSignals.filter(Boolean).length / toneWeightSignals.length
+      : null;
+  const prosodyPenaltyFromMetadata =
+    confidencePenaltySignals.reduce((sum, value) => sum + value, 0) /
+    Math.max(1, confidencePenaltySignals.length);
+  const metadataQualityPass =
+    qualityPassShare === null ? null : qualityPassShare >= 0.6;
+  const metadataToneWeightsEnabled =
+    toneWeightEnabledShare === null ? null : toneWeightEnabledShare >= 0.6;
+
+  const toneWeightsEnabled =
+    defaultProsodyQualityPass &&
+    (metadataQualityPass ?? true) &&
+    (metadataToneWeightsEnabled ?? true);
+  const prosodyConfidencePenalty = toneWeightsEnabled
+    ? 0
+    : clamp(
+        confidencePenaltySignals.length > 0 ? prosodyPenaltyFromMetadata : 0.12,
+        0.08,
+        0.35,
+      );
+  const toneConfidence = toneWeightsEnabled
+    ? clamp(0.62 + Math.min(0.3, clientProsodyFrames.length * 0.05), 0, 1)
+    : clamp(0.2 + Math.min(0.12, clientUtterances.length * 0.015), 0, 0.45);
+
+  const suppliedClientEnergy =
+    suppliedClientEnergyValues.reduce((sum, value) => sum + value, 0) /
+    Math.max(1, suppliedClientEnergyValues.length);
+  const suppliedClientStress =
+    suppliedClientStressValues.reduce((sum, value) => sum + value, 0) /
+    Math.max(1, suppliedClientStressValues.length);
+  const suppliedClientCertainty =
+    suppliedClientCertaintyValues.reduce((sum, value) => sum + value, 0) /
+    Math.max(1, suppliedClientCertaintyValues.length);
+  const hasSuppliedToneFeatures =
+    suppliedClientEnergyValues.length > 0 &&
+    suppliedClientStressValues.length > 0 &&
+    suppliedClientCertaintyValues.length > 0;
+
+  const clientEnergy = toneWeightsEnabled
     ? clamp(
-        avgProsodyPauseRatio * 0.45 +
-          avgProsodyEnergy * 0.35 +
-          clamp((20 - avgProsodySnrDb) / 20, 0, 1) * 0.2,
+        hasSuppliedToneFeatures ? suppliedClientEnergy : avgProsodyEnergy,
+        0,
+        1,
+      )
+    : Number((lexicalClientEnergy * 0.75).toFixed(2));
+  const clientStress = toneWeightsEnabled
+    ? clamp(
+        hasSuppliedToneFeatures
+          ? suppliedClientStress
+          : avgProsodyPauseRatio * 0.45 +
+              avgProsodyEnergy * 0.35 +
+              clamp((20 - avgProsodySnrDb) / 20, 0, 1) * 0.2,
         0,
         1,
       )
     : Number((lexicalClientStress * 0.85).toFixed(2));
-  const clientCertainty = prosodyQualityPass
+  const clientCertainty = toneWeightsEnabled
     ? clamp(
-        (1 - avgProsodyPauseRatio) * 0.55 +
-          avgProsodyEnergy * 0.25 +
-          lexicalClientCertainty * 0.2,
+        hasSuppliedToneFeatures
+          ? suppliedClientCertainty
+          : (1 - avgProsodyPauseRatio) * 0.55 +
+              avgProsodyEnergy * 0.25 +
+              lexicalClientCertainty * 0.2,
         0,
         1,
       )
@@ -1432,12 +1535,12 @@ export function buildHeuristicLiveAnalysis({
 
   const toneValence = clamp(clientCertainty - clientStress - 0.1, -1, 1);
   const clientValence = clamp(
-    prosodyQualityPass ? textValence * 0.75 + toneValence * 0.25 : textValence,
+    toneWeightsEnabled ? textValence * 0.75 + toneValence * 0.25 : textValence,
     -1,
     1,
   );
   const clientEngagement = clamp(
-    prosodyQualityPass
+    toneWeightsEnabled
       ? dynamicsEngagement * 0.6 + clientEnergy * 0.4
       : dynamicsEngagement,
     0,
@@ -1457,13 +1560,22 @@ export function buildHeuristicLiveAnalysis({
   );
 
   const completeness = clamp(inWindow.length / 8, 0, 1);
+  const mixedRolePenalty =
+    mixedRoleCount === 0
+      ? 1
+      : clamp(1 - Math.min(0.25, mixedRoleCount * 0.06), 0.75, 1);
   const overallConfidence = Number(
-    clamp((averageAsrConfidence + completeness) / 2, 0, 1).toFixed(2),
+    clamp(
+      ((averageAsrConfidence + completeness) / 2) * mixedRolePenalty -
+        prosodyConfidencePenalty,
+      0,
+      1,
+    ).toFixed(2),
   );
 
   const evidence = buildEvidence(
     inWindow,
-    (chunk) => chunk.speakerRole === "CLIENT",
+    (chunk) => isClientLikeRole(chunk.speakerRole),
     2,
   );
 
@@ -1485,6 +1597,7 @@ export function buildHeuristicLiveAnalysis({
     stakeholderSignals,
     clientValence,
     clientEngagement,
+    mixedRoleCount > 0,
   );
   const metrics: LiveAnalysisMetrics = {
     meetingId,

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useSession, signIn, signOut } from "next-auth/react";
 import { useState, useEffect } from "react";
@@ -38,11 +39,18 @@ export function Navbar() {
         aria-label="Global"
       >
         <div className="flex lg:flex-1" data-hero-stagger>
-          <Link
-            href="/"
-            className="landing-section-title -m-1.5 p-1.5 text-xl font-bold landing-gradient-title"
-          >
-            Golden Minutes
+          <Link href="/" className="-m-1.5 flex items-center gap-2 p-1.5">
+            <Image
+              src="/logo2.svg"
+              alt="Golden Minutes"
+              width={170}
+              height={36}
+              className="h-9 w-auto"
+              priority
+            />
+            <span className="landing-section-title text-xl font-bold landing-gradient-title">
+              Golden Minutes
+            </span>
           </Link>
         </div>
 
@@ -128,11 +136,17 @@ export function Navbar() {
           />
           <div className="fixed inset-y-0 right-0 z-50 w-full overflow-y-auto bg-white px-6 py-6 sm:max-w-sm">
             <div className="flex items-center justify-between">
-              <Link
-                href="/"
-                className="landing-section-title -m-1.5 p-1.5 text-xl font-bold landing-gradient-title"
-              >
-                Golden Minutes
+              <Link href="/" className="-m-1.5 flex items-center gap-2 p-1.5">
+                <Image
+                  src="/logo2.svg"
+                  alt="Golden Minutes"
+                  width={170}
+                  height={36}
+                  className="h-9 w-auto"
+                />
+                <span className="landing-section-title text-xl font-bold landing-gradient-title">
+                  Golden Minutes
+                </span>
               </Link>
               <button
                 type="button"

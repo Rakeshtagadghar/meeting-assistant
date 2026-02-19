@@ -161,7 +161,69 @@ export function validateCreateTranscriptChunkInput(
     errors.push("confidence must be between 0 and 1");
   }
 
+  validateOptionalZeroToOne(input.prosodyEnergy, "prosodyEnergy", errors);
+  validateOptionalZeroToOne(
+    input.prosodyPauseRatio,
+    "prosodyPauseRatio",
+    errors,
+  );
+  validateOptionalNonNegative(input.prosodyVoicedMs, "prosodyVoicedMs", errors);
+  validateOptionalFinite(input.prosodySnrDb, "prosodySnrDb", errors);
+  validateOptionalZeroToOne(
+    input.prosodyConfidencePenalty,
+    "prosodyConfidencePenalty",
+    errors,
+  );
+  validateOptionalZeroToOne(
+    input.prosodyClientEnergy,
+    "prosodyClientEnergy",
+    errors,
+  );
+  validateOptionalZeroToOne(
+    input.prosodyClientStress,
+    "prosodyClientStress",
+    errors,
+  );
+  validateOptionalZeroToOne(
+    input.prosodyClientCertainty,
+    "prosodyClientCertainty",
+    errors,
+  );
+
   return { valid: errors.length === 0, errors };
+}
+
+function validateOptionalZeroToOne(
+  value: number | null | undefined,
+  fieldName: string,
+  errors: string[],
+): void {
+  if (value === null || value === undefined) return;
+  if (!Number.isFinite(value) || value < 0 || value > 1) {
+    errors.push(`${fieldName} must be between 0 and 1`);
+  }
+}
+
+function validateOptionalNonNegative(
+  value: number | null | undefined,
+  fieldName: string,
+  errors: string[],
+): void {
+  if (value === null || value === undefined) return;
+  if (!Number.isFinite(value) || value < 0) {
+    errors.push(`${fieldName} must be a non-negative number`);
+  }
+}
+
+function validateOptionalFinite(
+  value: number | null | undefined,
+  fieldName: string,
+  errors: string[],
+): void {
+  if (value === null || value === undefined) return;
+  if (!Number.isFinite(value)) {
+    errors.push(`${fieldName} must be a finite number`);
+  }
 }
 
 export function validateCreateProcessingJobInput(

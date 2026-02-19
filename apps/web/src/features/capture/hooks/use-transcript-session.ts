@@ -13,12 +13,18 @@ export interface TranscriptSessionChunk {
   tStartMs: number;
   tEndMs: number;
   speaker: string | null;
-  speakerRole: "SALES" | "CLIENT" | "UNKNOWN";
+  speakerRole: "SALES" | "CLIENT" | "UNKNOWN" | "MIXED";
   audioSource: "microphone" | "systemAudio" | "tabAudio";
   prosodyEnergy: number | null;
   prosodyPauseRatio: number | null;
   prosodyVoicedMs: number | null;
   prosodySnrDb: number | null;
+  prosodyQualityPass: boolean | null;
+  prosodyToneWeightsEnabled: boolean | null;
+  prosodyConfidencePenalty: number | null;
+  prosodyClientEnergy: number | null;
+  prosodyClientStress: number | null;
+  prosodyClientCertainty: number | null;
   text: string;
   confidence: number | null;
   isFinal: boolean;
@@ -151,11 +157,11 @@ function resolveRoleAndSource(
   state: DiarizationState,
   speaker: string,
   captureSystemAudio: boolean,
-  hintedRole?: "SALES" | "CLIENT" | "UNKNOWN",
+  hintedRole?: "SALES" | "CLIENT" | "UNKNOWN" | "MIXED",
   hintedSource?: "microphone" | "systemAudio" | "tabAudio",
   speakerRoleOverride?: "SALES" | "CLIENT",
 ): {
-  speakerRole: "SALES" | "CLIENT";
+  speakerRole: "SALES" | "CLIENT" | "MIXED";
   audioSource: "microphone" | "systemAudio";
 } {
   if (speakerRoleOverride === "SALES") {
@@ -186,6 +192,12 @@ function resolveRoleAndSource(
       audioSource: captureSystemAudio ? "systemAudio" : "microphone",
     };
   }
+  if (hintedRole === "MIXED") {
+    return {
+      speakerRole: "MIXED",
+      audioSource: "microphone",
+    };
+  }
 
   if (!state.primarySpeaker) {
     state.primarySpeaker = speaker;
@@ -198,10 +210,24 @@ function resolveRoleAndSource(
     };
   }
 
+  if (!captureSystemAudio) {
+    return {
+      speakerRole: "MIXED",
+      audioSource: "microphone",
+    };
+  }
+
   return {
     speakerRole: "CLIENT",
     audioSource: captureSystemAudio ? "systemAudio" : "microphone",
   };
+}
+
+function defaultCaptureSystemAudio(): boolean {
+  if (typeof navigator === "undefined") return true;
+  const ua = navigator.userAgent.toLowerCase();
+  const isMobile = /android|iphone|ipad|ipod|mobile/.test(ua);
+  return !isMobile;
 }
 
 async function apiCreateNote(title: string): Promise<string> {
@@ -265,6 +291,16 @@ async function apiSaveChunks(
     tStartMs: number;
     tEndMs: number;
     speaker: string | null;
+    prosodyEnergy: number | null;
+    prosodyPauseRatio: number | null;
+    prosodyVoicedMs: number | null;
+    prosodySnrDb: number | null;
+    prosodyQualityPass: boolean | null;
+    prosodyToneWeightsEnabled: boolean | null;
+    prosodyConfidencePenalty: number | null;
+    prosodyClientEnergy: number | null;
+    prosodyClientStress: number | null;
+    prosodyClientCertainty: number | null;
     text: string;
     confidence: number | null;
   }>,
@@ -295,7 +331,9 @@ export function useTranscriptSession(
   const [showConsentModal, setShowConsentModal] = useState(false);
   const [micLevel, setMicLevel] = useState(0);
   const [language, setLanguage] = useState("auto");
-  const [captureSystemAudio, setCaptureSystemAudio] = useState(true);
+  const [captureSystemAudio, setCaptureSystemAudio] = useState(
+    defaultCaptureSystemAudio,
+  );
   const [speakerRoleOverrides, setSpeakerRoleOverrides] = useState<
     Record<string, "SALES" | "CLIENT">
   >({});
@@ -345,6 +383,16 @@ export function useTranscriptSession(
           tStartMs: c.tStartMs,
           tEndMs: c.tEndMs,
           speaker: c.speaker,
+          prosodyEnergy: c.prosodyEnergy,
+          prosodyPauseRatio: c.prosodyPauseRatio,
+          prosodyVoicedMs: c.prosodyVoicedMs,
+          prosodySnrDb: c.prosodySnrDb,
+          prosodyQualityPass: c.prosodyQualityPass,
+          prosodyToneWeightsEnabled: c.prosodyToneWeightsEnabled,
+          prosodyConfidencePenalty: c.prosodyConfidencePenalty,
+          prosodyClientEnergy: c.prosodyClientEnergy,
+          prosodyClientStress: c.prosodyClientStress,
+          prosodyClientCertainty: c.prosodyClientCertainty,
           text: c.text,
           confidence: c.confidence,
         })),
@@ -421,6 +469,12 @@ export function useTranscriptSession(
             prosodyPauseRatio: event.prosodyPauseRatio ?? null,
             prosodyVoicedMs: event.prosodyVoicedMs ?? null,
             prosodySnrDb: event.prosodySnrDb ?? null,
+            prosodyQualityPass: event.prosodyQualityPass ?? null,
+            prosodyToneWeightsEnabled: event.prosodyToneWeightsEnabled ?? null,
+            prosodyConfidencePenalty: event.prosodyConfidencePenalty ?? null,
+            prosodyClientEnergy: event.prosodyClientEnergy ?? null,
+            prosodyClientStress: event.prosodyClientStress ?? null,
+            prosodyClientCertainty: event.prosodyClientCertainty ?? null,
             text: normalizedText,
             confidence: event.confidence,
             isFinal: true,
@@ -634,6 +688,12 @@ export function useTranscriptSession(
               prosodyPauseRatio: null,
               prosodyVoicedMs: null,
               prosodySnrDb: null,
+              prosodyQualityPass: null,
+              prosodyToneWeightsEnabled: null,
+              prosodyConfidencePenalty: null,
+              prosodyClientEnergy: null,
+              prosodyClientStress: null,
+              prosodyClientCertainty: null,
               text: normalizedPartial,
               confidence: 1, // Assume high confidence since user accepted it by stopping
               isFinal: true,

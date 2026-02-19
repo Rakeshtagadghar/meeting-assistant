@@ -78,6 +78,21 @@ export async function POST(
         tStartMs: (c["tStartMs"] as number) ?? 0,
         tEndMs: (c["tEndMs"] as number) ?? 0,
         speaker: (c["speaker"] as string | null) ?? null,
+        prosodyEnergy: (c["prosodyEnergy"] as number | null) ?? null,
+        prosodyPauseRatio: (c["prosodyPauseRatio"] as number | null) ?? null,
+        prosodyVoicedMs: (c["prosodyVoicedMs"] as number | null) ?? null,
+        prosodySnrDb: (c["prosodySnrDb"] as number | null) ?? null,
+        prosodyQualityPass: (c["prosodyQualityPass"] as boolean | null) ?? null,
+        prosodyToneWeightsEnabled:
+          (c["prosodyToneWeightsEnabled"] as boolean | null) ?? null,
+        prosodyConfidencePenalty:
+          (c["prosodyConfidencePenalty"] as number | null) ?? null,
+        prosodyClientEnergy:
+          (c["prosodyClientEnergy"] as number | null) ?? null,
+        prosodyClientStress:
+          (c["prosodyClientStress"] as number | null) ?? null,
+        prosodyClientCertainty:
+          (c["prosodyClientCertainty"] as number | null) ?? null,
         text: (c["text"] as string) ?? "",
         confidence: (c["confidence"] as number | null) ?? null,
       };
@@ -101,6 +116,16 @@ export async function POST(
         tStartMs: c.tStartMs,
         tEndMs: c.tEndMs,
         speaker: c.speaker,
+        prosodyEnergy: c.prosodyEnergy ?? null,
+        prosodyPauseRatio: c.prosodyPauseRatio ?? null,
+        prosodyVoicedMs: c.prosodyVoicedMs ?? null,
+        prosodySnrDb: c.prosodySnrDb ?? null,
+        prosodyQualityPass: c.prosodyQualityPass ?? null,
+        prosodyToneWeightsEnabled: c.prosodyToneWeightsEnabled ?? null,
+        prosodyConfidencePenalty: c.prosodyConfidencePenalty ?? null,
+        prosodyClientEnergy: c.prosodyClientEnergy ?? null,
+        prosodyClientStress: c.prosodyClientStress ?? null,
+        prosodyClientCertainty: c.prosodyClientCertainty ?? null,
         text: c.text,
         confidence: c.confidence,
       })),

@@ -128,4 +128,95 @@ describe("buildHeuristicLiveAnalysis", () => {
     expect(titles).toContain("Potential skeptic identified");
     expect(result.coach.nextQuestions.length).toBeGreaterThan(0);
   });
+
+  it("applies prosody tone-weight disable and confidence penalty from chunk metadata", () => {
+    const baseChunks = [
+      {
+        id: "p1",
+        sequence: 1,
+        tStartMs: 0,
+        tEndMs: 1_300,
+        speaker: "Rep",
+        speakerRole: "SALES" as const,
+        text: "Could you share how the team feels about current workflows?",
+        confidence: 0.95,
+      },
+      {
+        id: "p2",
+        sequence: 2,
+        tStartMs: 1_500,
+        tEndMs: 4_200,
+        speaker: "Buyer",
+        speakerRole: "CLIENT" as const,
+        text: "The process is okay and we are exploring options.",
+        confidence: 0.9,
+        prosodyEnergy: 0.65,
+        prosodyPauseRatio: 0.2,
+        prosodyVoicedMs: 1_200,
+        prosodySnrDb: 16,
+      },
+      {
+        id: "p3",
+        sequence: 3,
+        tStartMs: 4_400,
+        tEndMs: 6_900,
+        speaker: "Buyer",
+        speakerRole: "CLIENT" as const,
+        text: "If rollout is simple we can move quickly.",
+        confidence: 0.9,
+        prosodyEnergy: 0.7,
+        prosodyPauseRatio: 0.18,
+        prosodyVoicedMs: 1_400,
+        prosodySnrDb: 17,
+      },
+    ];
+
+    const toneEnabled = buildHeuristicLiveAnalysis({
+      meetingId: "meeting-4",
+      sensitivity: 50,
+      coachingAggressiveness: 40,
+      chunks: baseChunks.map((chunk) =>
+        chunk.speakerRole === "CLIENT"
+          ? {
+              ...chunk,
+              prosodyQualityPass: true,
+              prosodyToneWeightsEnabled: true,
+              prosodyConfidencePenalty: 0,
+              prosodyClientEnergy: 0.82,
+              prosodyClientStress: 0.22,
+              prosodyClientCertainty: 0.86,
+            }
+          : chunk,
+      ),
+    });
+
+    const toneDisabled = buildHeuristicLiveAnalysis({
+      meetingId: "meeting-4",
+      sensitivity: 50,
+      coachingAggressiveness: 40,
+      chunks: baseChunks.map((chunk) =>
+        chunk.speakerRole === "CLIENT"
+          ? {
+              ...chunk,
+              prosodyQualityPass: false,
+              prosodyToneWeightsEnabled: false,
+              prosodyConfidencePenalty: 0.2,
+              prosodyClientEnergy: 0.82,
+              prosodyClientStress: 0.22,
+              prosodyClientCertainty: 0.86,
+            }
+          : chunk,
+      ),
+    });
+
+    expect(toneEnabled.metrics.toneConfidence ?? 0).toBeGreaterThan(
+      toneDisabled.metrics.toneConfidence ?? 0,
+    );
+    expect(toneEnabled.metrics.clientEngagement).toBeGreaterThan(
+      toneDisabled.metrics.clientEngagement,
+    );
+    expect(toneDisabled.metrics.clientEngagementConfidence).toBeLessThan(
+      toneEnabled.metrics.clientEngagementConfidence,
+    );
+  });
 });

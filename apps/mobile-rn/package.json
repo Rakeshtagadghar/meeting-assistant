@@ -1,0 +1,26 @@
+{
+  "name": "@ainotes/mobile-rn",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist coverage .turbo"
+  },
+  "dependencies": {
+    "@ainotes/audio-core": "workspace:*",
+    "@ainotes/event-protocol": "workspace:*",
+    "@ainotes/live-analysis-core": "workspace:*",
+    "@ainotes/shared-types": "workspace:*",
+    "@ainotes/validation-schemas": "workspace:*"
+  },
+  "devDependencies": {
+    "@ainotes/config": "workspace:*",
+    "eslint": "^9.18.0",
+    "typescript": "^5.7.3"
+  }
+}

@@ -39,7 +39,7 @@ export const LIVE_ANALYSIS_TOPICS = [
 
 export type LiveAnalysisTopic = (typeof LIVE_ANALYSIS_TOPICS)[number];
 
-export type LiveAnalysisSpeakerRole = "SALES" | "CLIENT" | "UNKNOWN";
+export type LiveAnalysisSpeakerRole = "SALES" | "CLIENT" | "UNKNOWN" | "MIXED";
 export type LiveAnalysisAudioSource = "microphone" | "systemAudio" | "tabAudio";
 
 export interface LiveAnalysisChunkInput {
@@ -54,6 +54,12 @@ export interface LiveAnalysisChunkInput {
   prosodyPauseRatio?: number | null;
   prosodyVoicedMs?: number | null;
   prosodySnrDb?: number | null;
+  prosodyQualityPass?: boolean | null;
+  prosodyToneWeightsEnabled?: boolean | null;
+  prosodyConfidencePenalty?: number | null;
+  prosodyClientEnergy?: number | null;
+  prosodyClientStress?: number | null;
+  prosodyClientCertainty?: number | null;
   text: string;
   confidence: number | null;
 }

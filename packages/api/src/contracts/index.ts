@@ -213,6 +213,16 @@ export interface SaveChunksRequest {
     readonly tStartMs: number;
     readonly tEndMs: number;
     readonly speaker: string | null;
+    readonly prosodyEnergy?: number | null;
+    readonly prosodyPauseRatio?: number | null;
+    readonly prosodyVoicedMs?: number | null;
+    readonly prosodySnrDb?: number | null;
+    readonly prosodyQualityPass?: boolean | null;
+    readonly prosodyToneWeightsEnabled?: boolean | null;
+    readonly prosodyConfidencePenalty?: number | null;
+    readonly prosodyClientEnergy?: number | null;
+    readonly prosodyClientStress?: number | null;
+    readonly prosodyClientCertainty?: number | null;
     readonly text: string;
     readonly confidence: number | null;
   }>;

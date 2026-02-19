@@ -29,17 +29,33 @@ function normalizeLanguage(input?: string): string | undefined {
 }
 
 function normalizeModelForSpeechToText(modelId: string): string {
-  if (modelId === "scribe_v2_realtime") {
-    return "scribe_v2";
+  const normalized = modelId.trim();
+  if (
+    normalized === "scribe_v2_realtime" ||
+    normalized === "scribe-v2-realtime"
+  ) {
+    return "scribe-v2";
   }
-  return modelId;
+  if (normalized === "scribe_v2") {
+    return "scribe-v2";
+  }
+  if (normalized === "scribe_v1_experimental") {
+    return "scribe-v1-experimental";
+  }
+  if (normalized === "scribe_v1") {
+    return "scribe-v1";
+  }
+  return normalized;
 }
 
 function buildModelCandidates(configuredModelId: string): string[] {
   const candidates = [
     normalizeModelForSpeechToText(configuredModelId),
+    "scribe-v2",
     "scribe_v2",
+    "scribe-v1-experimental",
     "scribe_v1_experimental",
+    "scribe-v1",
     "scribe_v1",
   ];
   return [...new Set(candidates)];

@@ -421,337 +421,365 @@ export function LiveAnalysisPanel({
             </div>
           </div>
         </section>
+        {enabled ? (
+          <>
+            <section className="rounded-xl border border-warm-200/70 bg-white p-3">
+              <h4 className="text-xs font-semibold uppercase tracking-wide text-warm-500">
+                Meters
+              </h4>
+              {metrics ? (
+                <>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    <div className="rounded-lg bg-warm-50 p-2">
+                      <p className="text-[10px] text-warm-500">
+                        Client Sentiment
+                      </p>
+                      <p
+                        className={`text-sm font-semibold ${metricColor((metrics.clientValence + 1) / 2)}`}
+                      >
+                        {metrics.clientValence.toFixed(2)}
+                      </p>
+                      <p className="text-[10px] text-warm-500">
+                        Confidence{" "}
+                        {formatConfidence(metrics.clientValenceConfidence)}
+                      </p>
+                    </div>
+                    <div className="rounded-lg bg-warm-50 p-2">
+                      <p className="text-[10px] text-warm-500">Engagement</p>
+                      <p
+                        className={`text-sm font-semibold ${metricColor(metrics.clientEngagement)}`}
+                      >
+                        {(metrics.clientEngagement * 100).toFixed(0)}%
+                      </p>
+                      <p className="text-[10px] text-warm-500">
+                        Confidence{" "}
+                        {formatConfidence(metrics.clientEngagementConfidence)}
+                      </p>
+                    </div>
+                    <div className="rounded-lg bg-warm-50 p-2">
+                      <p className="text-[10px] text-warm-500">Energy (Tone)</p>
+                      <p
+                        className={`text-sm font-semibold ${metricColor(metrics.clientEnergy)}`}
+                      >
+                        {(metrics.clientEnergy * 100).toFixed(0)}%
+                      </p>
+                      <p className="text-[10px] text-warm-500">
+                        Stress {(metrics.clientStress * 100).toFixed(0)}% |
+                        Certainty {(metrics.clientCertainty * 100).toFixed(0)}%
+                      </p>
+                    </div>
+                    <div className="rounded-lg bg-warm-50 p-2">
+                      <p className="text-[10px] text-warm-500">Call Health</p>
+                      <p
+                        className={`text-sm font-semibold ${metricColor(metrics.callHealth / 100)}`}
+                      >
+                        {metrics.callHealth.toFixed(0)}
+                      </p>
+                      <p className="text-[10px] text-warm-500">
+                        Confidence{" "}
+                        {formatConfidence(metrics.callHealthConfidence)}
+                      </p>
+                    </div>
+                  </div>
 
-        <section className="rounded-xl border border-warm-200/70 bg-white p-3">
-          <h4 className="text-xs font-semibold uppercase tracking-wide text-warm-500">
-            Meters
-          </h4>
-          {metrics ? (
-            <>
-              <div className="mt-2 grid grid-cols-2 gap-2">
-                <div className="rounded-lg bg-warm-50 p-2">
-                  <p className="text-[10px] text-warm-500">Client Sentiment</p>
-                  <p
-                    className={`text-sm font-semibold ${metricColor((metrics.clientValence + 1) / 2)}`}
-                  >
-                    {metrics.clientValence.toFixed(2)}
-                  </p>
-                  <p className="text-[10px] text-warm-500">
-                    Confidence{" "}
-                    {formatConfidence(metrics.clientValenceConfidence)}
-                  </p>
-                </div>
-                <div className="rounded-lg bg-warm-50 p-2">
-                  <p className="text-[10px] text-warm-500">Engagement</p>
-                  <p
-                    className={`text-sm font-semibold ${metricColor(metrics.clientEngagement)}`}
-                  >
-                    {(metrics.clientEngagement * 100).toFixed(0)}%
-                  </p>
-                  <p className="text-[10px] text-warm-500">
-                    Confidence{" "}
-                    {formatConfidence(metrics.clientEngagementConfidence)}
-                  </p>
-                </div>
-                <div className="rounded-lg bg-warm-50 p-2">
-                  <p className="text-[10px] text-warm-500">Energy (Tone)</p>
-                  <p
-                    className={`text-sm font-semibold ${metricColor(metrics.clientEnergy)}`}
-                  >
-                    {(metrics.clientEnergy * 100).toFixed(0)}%
-                  </p>
-                  <p className="text-[10px] text-warm-500">
-                    Stress {(metrics.clientStress * 100).toFixed(0)}% |
-                    Certainty {(metrics.clientCertainty * 100).toFixed(0)}%
-                  </p>
-                </div>
-                <div className="rounded-lg bg-warm-50 p-2">
-                  <p className="text-[10px] text-warm-500">Call Health</p>
-                  <p
-                    className={`text-sm font-semibold ${metricColor(metrics.callHealth / 100)}`}
-                  >
-                    {metrics.callHealth.toFixed(0)}
-                  </p>
-                  <p className="text-[10px] text-warm-500">
-                    Confidence {formatConfidence(metrics.callHealthConfidence)}
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-2 flex items-center justify-between gap-2">
-                <p className="text-[10px] text-warm-500">
-                  Primary flag: {riskLabel(topRisk)}
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <p className="text-[10px] text-warm-500">
+                      Primary flag: {riskLabel(topRisk)}
+                    </p>
+                    {unresolvedTopic && (
+                      <p className="text-[10px] text-indigo-700">
+                        Suggested topic: {topicLabel(unresolvedTopic)}
+                      </p>
+                    )}
+                  </div>
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {(metrics.riskFlags.length > 0
+                      ? metrics.riskFlags
+                      : ["none"]
+                    ).map((flag) => (
+                      <span
+                        key={flag}
+                        className={`rounded-full px-2 py-0.5 text-[10px] ${
+                          flag === "none"
+                            ? "bg-green-100 text-green-700"
+                            : "bg-amber-100 text-amber-700"
+                        }`}
+                      >
+                        {flag}
+                      </span>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <p className="mt-2 text-xs text-warm-500">
+                  Metrics will appear after transcript data arrives.
                 </p>
-                {unresolvedTopic && (
-                  <p className="text-[10px] text-indigo-700">
-                    Suggested topic: {topicLabel(unresolvedTopic)}
-                  </p>
+              )}
+            </section>
+
+            <section className="rounded-xl border border-warm-200/70 bg-white p-3">
+              <div className="mb-2 flex items-center justify-between">
+                <h4 className="text-xs font-semibold uppercase tracking-wide text-warm-500">
+                  Coach
+                </h4>
+                {copyToast && (
+                  <span className="text-[10px] text-green-600">Copied</span>
                 )}
               </div>
-              <div className="mt-1 flex flex-wrap gap-1">
-                {(metrics.riskFlags.length > 0
-                  ? metrics.riskFlags
-                  : ["none"]
-                ).map((flag) => (
-                  <span
-                    key={flag}
-                    className={`rounded-full px-2 py-0.5 text-[10px] ${
-                      flag === "none"
-                        ? "bg-green-100 text-green-700"
-                        : "bg-amber-100 text-amber-700"
-                    }`}
-                  >
-                    {flag}
-                  </span>
-                ))}
-              </div>
-            </>
-          ) : (
-            <p className="mt-2 text-xs text-warm-500">
-              Metrics will appear after transcript data arrives.
-            </p>
-          )}
-        </section>
 
-        <section className="rounded-xl border border-warm-200/70 bg-white p-3">
-          <div className="mb-2 flex items-center justify-between">
-            <h4 className="text-xs font-semibold uppercase tracking-wide text-warm-500">
-              Coach
-            </h4>
-            {copyToast && (
-              <span className="text-[10px] text-green-600">Copied</span>
-            )}
-          </div>
-
-          {coach ? (
-            <div className="space-y-2">
-              <div>
-                <p className="mb-1 text-[11px] font-medium text-gray-700">
-                  Say this next
-                </p>
-                <div className="space-y-1.5">
-                  {coach.nextBestSay.map((item) => (
-                    <SuggestionItem
-                      key={item.suggestionId}
-                      id={item.suggestionId}
-                      text={item.text}
-                      confidence={item.confidence}
-                      used={usedSuggestionIds.has(item.suggestionId)}
-                      rating={suggestionRatings[item.suggestionId]}
-                      onCopy={() => handleCopy(item.text)}
-                      onMarkUsed={() => onMarkSuggestionUsed(item.suggestionId)}
-                      onRate={(rating) =>
-                        onRateSuggestion(item.suggestionId, rating)
-                      }
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <p className="mb-1 text-[11px] font-medium text-gray-700">
-                  Ask next
-                </p>
-                <div className="space-y-1.5">
-                  {coach.nextQuestions.map((item) => (
-                    <SuggestionItem
-                      key={item.questionId}
-                      id={item.questionId}
-                      text={item.text}
-                      confidence={item.confidence}
-                      used={usedSuggestionIds.has(item.questionId)}
-                      rating={suggestionRatings[item.questionId]}
-                      onCopy={() => handleCopy(item.text)}
-                      onMarkUsed={() => onMarkSuggestionUsed(item.questionId)}
-                      onRate={(rating) =>
-                        onRateSuggestion(item.questionId, rating)
-                      }
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <p className="mb-1 text-[11px] font-medium text-gray-700">
-                  Do / Don't
-                </p>
-                <div className="space-y-1.5">
-                  {coach.doDont.map((item) => (
-                    <SuggestionItem
-                      key={item.id}
-                      id={item.id}
-                      text={`${item.type.toUpperCase()}: ${item.text}`}
-                      confidence={item.confidence}
-                      used={usedSuggestionIds.has(item.id)}
-                      rating={suggestionRatings[item.id]}
-                      onCopy={() => handleCopy(item.text)}
-                      onMarkUsed={() => onMarkSuggestionUsed(item.id)}
-                      onRate={(rating) => onRateSuggestion(item.id, rating)}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <p className="mb-1 text-[11px] font-medium text-gray-700">
-                  Pain points detected
-                </p>
-                <div className="space-y-1.5">
-                  {painPoints.length > 0 ? (
-                    painPoints.map((item) => (
-                      <div
-                        key={item.key}
-                        className="rounded-lg border border-warm-200/70 bg-warm-50 p-2"
-                      >
-                        <p className="text-[11px] font-medium text-gray-700">
-                          {item.title}
-                        </p>
-                        <p className="mt-0.5 text-[11px] text-gray-600">
-                          {item.detail}
-                        </p>
-                        <p className="mt-1 text-[10px] text-warm-500">
-                          Confidence {formatConfidence(item.confidence)}
-                        </p>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-xs text-warm-500">
-                      No strong pain points detected yet.
+              {coach ? (
+                <div className="space-y-2">
+                  <div>
+                    <p className="mb-1 text-[11px] font-medium text-gray-700">
+                      Say this next
                     </p>
-                  )}
-                </div>
-              </div>
-            </div>
-          ) : (
-            <p className="text-xs text-warm-500">
-              Coaching appears as analysis confidence increases.
-            </p>
-          )}
-        </section>
-
-        <section className="rounded-xl border border-warm-200/70 bg-white p-3">
-          <h4 className="text-xs font-semibold uppercase tracking-wide text-warm-500">
-            Insights Timeline
-          </h4>
-          {timelineItems.length > 0 ? (
-            <div className="mt-2 space-y-2">
-              {timelineItems.map((insight) => (
-                <div
-                  key={insight.insightId}
-                  className="rounded-lg border border-warm-200/70 bg-warm-50 p-2"
-                >
-                  <div className="flex items-center justify-between">
-                    <span
-                      className={`rounded px-1.5 py-0.5 text-[10px] ${severityTone(insight.severity)}`}
-                    >
-                      {insight.severity}
-                    </span>
-                    <span className="text-[10px] text-warm-500">
-                      {insightLabel(insight.type)}
-                    </span>
-                  </div>
-                  <p className="mt-1 text-xs font-medium text-gray-800">
-                    {insight.title}
-                  </p>
-                  <p className="mt-1 text-[11px] text-gray-600">
-                    {insight.detail}
-                  </p>
-                  <p className="mt-1 text-[10px] text-warm-500">
-                    Confidence {formatConfidence(insight.confidence)}
-                  </p>
-                  {insight.evidenceSnippets.length > 0 && (
-                    <p className="mt-1 text-[10px] text-warm-500">
-                      Evidence: "{insight.evidenceSnippets[0]?.text}"
-                    </p>
-                  )}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="mt-2 text-xs text-warm-500">
-              No timeline events yet.
-            </p>
-          )}
-        </section>
-
-        <section className="rounded-xl border border-warm-200/70 bg-white p-3">
-          <h4 className="text-xs font-semibold uppercase tracking-wide text-warm-500">
-            Talk Dynamics
-          </h4>
-          {metrics ? (
-            <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
-              <p>Sales Talk %: {metrics.talkDynamics.talkRatioSalesPct}%</p>
-              <p>Client Talk %: {metrics.talkDynamics.talkRatioClientPct}%</p>
-              <p>Interruptions: {metrics.talkDynamics.interruptionsCount}</p>
-              <p>Sales Pace: {metrics.talkDynamics.paceWpmSales} wpm</p>
-              <p>Client Pace: {metrics.talkDynamics.paceWpmClient} wpm</p>
-            </div>
-          ) : (
-            <p className="mt-2 text-xs text-warm-500">Waiting for metrics...</p>
-          )}
-        </section>
-
-        <section className="rounded-xl border border-warm-200/70 bg-white p-3">
-          <h4 className="text-xs font-semibold uppercase tracking-wide text-warm-500">
-            Topic Coverage
-          </h4>
-          {metrics ? (
-            <>
-              <div className="mb-2 flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => setTopicOverrides({})}
-                  className="text-[10px] text-indigo-700 hover:underline"
-                >
-                  Reset manual overrides
-                </button>
-              </div>
-              <div className="grid grid-cols-1 gap-1">
-                {LIVE_ANALYSIS_TOPICS.map((topic) => {
-                  const autoChecked =
-                    metrics.topicCoverage.checkedTopics.includes(topic);
-                  const checked = topicOverrides[topic] ?? autoChecked;
-                  const confidence =
-                    metrics.topicCoverage.confidenceByTopic[topic] ?? 0;
-                  return (
-                    <div
-                      key={topic}
-                      className="flex items-center justify-between rounded bg-warm-50 px-2 py-1 text-xs"
-                    >
-                      <span
-                        className={checked ? "text-green-700" : "text-gray-600"}
-                      >
-                        {checked ? "x " : "o "}
-                        {topicLabel(topic)}
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] text-warm-500">
-                          {Math.round(confidence * 100)}%
-                        </span>
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={(event) =>
-                            setTopicOverrides((current) => ({
-                              ...current,
-                              [topic]: event.target.checked,
-                            }))
+                    <div className="space-y-1.5">
+                      {coach.nextBestSay.map((item) => (
+                        <SuggestionItem
+                          key={item.suggestionId}
+                          id={item.suggestionId}
+                          text={item.text}
+                          confidence={item.confidence}
+                          used={usedSuggestionIds.has(item.suggestionId)}
+                          rating={suggestionRatings[item.suggestionId]}
+                          onCopy={() => handleCopy(item.text)}
+                          onMarkUsed={() =>
+                            onMarkSuggestionUsed(item.suggestionId)
                           }
-                          className="h-3.5 w-3.5 rounded border-warm-300 text-indigo-600"
-                          aria-label={`Toggle ${topicLabel(topic)} topic`}
+                          onRate={(rating) =>
+                            onRateSuggestion(item.suggestionId, rating)
+                          }
                         />
-                      </div>
+                      ))}
                     </div>
-                  );
-                })}
-              </div>
-            </>
-          ) : (
+                  </div>
+
+                  <div>
+                    <p className="mb-1 text-[11px] font-medium text-gray-700">
+                      Ask next
+                    </p>
+                    <div className="space-y-1.5">
+                      {coach.nextQuestions.map((item) => (
+                        <SuggestionItem
+                          key={item.questionId}
+                          id={item.questionId}
+                          text={item.text}
+                          confidence={item.confidence}
+                          used={usedSuggestionIds.has(item.questionId)}
+                          rating={suggestionRatings[item.questionId]}
+                          onCopy={() => handleCopy(item.text)}
+                          onMarkUsed={() =>
+                            onMarkSuggestionUsed(item.questionId)
+                          }
+                          onRate={(rating) =>
+                            onRateSuggestion(item.questionId, rating)
+                          }
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="mb-1 text-[11px] font-medium text-gray-700">
+                      Do / Don't
+                    </p>
+                    <div className="space-y-1.5">
+                      {coach.doDont.map((item) => (
+                        <SuggestionItem
+                          key={item.id}
+                          id={item.id}
+                          text={`${item.type.toUpperCase()}: ${item.text}`}
+                          confidence={item.confidence}
+                          used={usedSuggestionIds.has(item.id)}
+                          rating={suggestionRatings[item.id]}
+                          onCopy={() => handleCopy(item.text)}
+                          onMarkUsed={() => onMarkSuggestionUsed(item.id)}
+                          onRate={(rating) => onRateSuggestion(item.id, rating)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="mb-1 text-[11px] font-medium text-gray-700">
+                      Pain points detected
+                    </p>
+                    <div className="space-y-1.5">
+                      {painPoints.length > 0 ? (
+                        painPoints.map((item) => (
+                          <div
+                            key={item.key}
+                            className="rounded-lg border border-warm-200/70 bg-warm-50 p-2"
+                          >
+                            <p className="text-[11px] font-medium text-gray-700">
+                              {item.title}
+                            </p>
+                            <p className="mt-0.5 text-[11px] text-gray-600">
+                              {item.detail}
+                            </p>
+                            <p className="mt-1 text-[10px] text-warm-500">
+                              Confidence {formatConfidence(item.confidence)}
+                            </p>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-xs text-warm-500">
+                          No strong pain points detected yet.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-warm-500">
+                  Coaching appears as analysis confidence increases.
+                </p>
+              )}
+            </section>
+
+            <section className="rounded-xl border border-warm-200/70 bg-white p-3">
+              <h4 className="text-xs font-semibold uppercase tracking-wide text-warm-500">
+                Insights Timeline
+              </h4>
+              {timelineItems.length > 0 ? (
+                <div className="mt-2 space-y-2">
+                  {timelineItems.map((insight) => (
+                    <div
+                      key={insight.insightId}
+                      className="rounded-lg border border-warm-200/70 bg-warm-50 p-2"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span
+                          className={`rounded px-1.5 py-0.5 text-[10px] ${severityTone(insight.severity)}`}
+                        >
+                          {insight.severity}
+                        </span>
+                        <span className="text-[10px] text-warm-500">
+                          {insightLabel(insight.type)}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs font-medium text-gray-800">
+                        {insight.title}
+                      </p>
+                      <p className="mt-1 text-[11px] text-gray-600">
+                        {insight.detail}
+                      </p>
+                      <p className="mt-1 text-[10px] text-warm-500">
+                        Confidence {formatConfidence(insight.confidence)}
+                      </p>
+                      {insight.evidenceSnippets.length > 0 && (
+                        <p className="mt-1 text-[10px] text-warm-500">
+                          Evidence: "{insight.evidenceSnippets[0]?.text}"
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-2 text-xs text-warm-500">
+                  No timeline events yet.
+                </p>
+              )}
+            </section>
+
+            <section className="rounded-xl border border-warm-200/70 bg-white p-3">
+              <h4 className="text-xs font-semibold uppercase tracking-wide text-warm-500">
+                Talk Dynamics
+              </h4>
+              {metrics ? (
+                <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                  <p>Sales Talk %: {metrics.talkDynamics.talkRatioSalesPct}%</p>
+                  <p>
+                    Client Talk %: {metrics.talkDynamics.talkRatioClientPct}%
+                  </p>
+                  <p>
+                    Interruptions: {metrics.talkDynamics.interruptionsCount}
+                  </p>
+                  <p>Sales Pace: {metrics.talkDynamics.paceWpmSales} wpm</p>
+                  <p>Client Pace: {metrics.talkDynamics.paceWpmClient} wpm</p>
+                </div>
+              ) : (
+                <p className="mt-2 text-xs text-warm-500">
+                  Waiting for metrics...
+                </p>
+              )}
+            </section>
+
+            <section className="rounded-xl border border-warm-200/70 bg-white p-3">
+              <h4 className="text-xs font-semibold uppercase tracking-wide text-warm-500">
+                Topic Coverage
+              </h4>
+              {metrics ? (
+                <>
+                  <div className="mb-2 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => setTopicOverrides({})}
+                      className="text-[10px] text-indigo-700 hover:underline"
+                    >
+                      Reset manual overrides
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-1 gap-1">
+                    {LIVE_ANALYSIS_TOPICS.map((topic) => {
+                      const autoChecked =
+                        metrics.topicCoverage.checkedTopics.includes(topic);
+                      const checked = topicOverrides[topic] ?? autoChecked;
+                      const confidence =
+                        metrics.topicCoverage.confidenceByTopic[topic] ?? 0;
+                      return (
+                        <div
+                          key={topic}
+                          className="flex items-center justify-between rounded bg-warm-50 px-2 py-1 text-xs"
+                        >
+                          <span
+                            className={
+                              checked ? "text-green-700" : "text-gray-600"
+                            }
+                          >
+                            {checked ? "x " : "o "}
+                            {topicLabel(topic)}
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] text-warm-500">
+                              {Math.round(confidence * 100)}%
+                            </span>
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={(event) =>
+                                setTopicOverrides((current) => ({
+                                  ...current,
+                                  [topic]: event.target.checked,
+                                }))
+                              }
+                              className="h-3.5 w-3.5 rounded border-warm-300 text-indigo-600"
+                              aria-label={`Toggle ${topicLabel(topic)} topic`}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              ) : (
+                <p className="mt-2 text-xs text-warm-500">
+                  Topic coverage appears once analysis starts.
+                </p>
+              )}
+            </section>
+          </>
+        ) : (
+          <section className="rounded-xl border border-warm-200/70 bg-white p-3">
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-warm-500">
+              Analysis Disabled
+            </h4>
             <p className="mt-2 text-xs text-warm-500">
-              Topic coverage appears once analysis starts.
+              Transcript capture continues. Enable Live Analysis to show
+              metrics, coaching, and nudges.
             </p>
-          )}
-        </section>
+          </section>
+        )}
       </div>
     </aside>
   );

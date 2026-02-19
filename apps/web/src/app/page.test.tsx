@@ -26,9 +26,10 @@ vi.mock("next/link", () => ({
 describe("HomePage", () => {
   it("renders the brand link", () => {
     render(<HomePage />);
-    const links = screen.queryAllByRole("link");
-    const brandLink = links.find((l) => l.textContent === "Golden Minutes");
-    expect(brandLink).toBeInTheDocument();
+    const brandLinks = screen.getAllByRole("link", {
+      name: /golden minutes/i,
+    });
+    expect(brandLinks.length).toBeGreaterThan(0);
   });
 
   it("renders the main content area", () => {

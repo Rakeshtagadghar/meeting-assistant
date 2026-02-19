@@ -10,6 +10,16 @@ export interface CreateTranscriptChunkData {
   tStartMs: number;
   tEndMs: number;
   speaker: string | null;
+  prosodyEnergy: number | null;
+  prosodyPauseRatio: number | null;
+  prosodyVoicedMs: number | null;
+  prosodySnrDb: number | null;
+  prosodyQualityPass: boolean | null;
+  prosodyToneWeightsEnabled: boolean | null;
+  prosodyConfidencePenalty: number | null;
+  prosodyClientEnergy: number | null;
+  prosodyClientStress: number | null;
+  prosodyClientCertainty: number | null;
   text: string;
   confidence: number | null;
 }
@@ -38,6 +48,16 @@ function toDomainTranscriptChunk(row: PrismaTranscriptChunk): TranscriptChunk {
     tStartMs: row.tStartMs,
     tEndMs: row.tEndMs,
     speaker: row.speaker,
+    prosodyEnergy: row.prosodyEnergy,
+    prosodyPauseRatio: row.prosodyPauseRatio,
+    prosodyVoicedMs: row.prosodyVoicedMs,
+    prosodySnrDb: row.prosodySnrDb,
+    prosodyQualityPass: row.prosodyQualityPass,
+    prosodyToneWeightsEnabled: row.prosodyToneWeightsEnabled,
+    prosodyConfidencePenalty: row.prosodyConfidencePenalty,
+    prosodyClientEnergy: row.prosodyClientEnergy,
+    prosodyClientStress: row.prosodyClientStress,
+    prosodyClientCertainty: row.prosodyClientCertainty,
     text: row.text,
     confidence: row.confidence,
     createdAt: row.createdAt.toISOString() as ISODateString,
@@ -56,6 +76,16 @@ export function createTranscriptChunksRepository(
           tStartMs: data.tStartMs,
           tEndMs: data.tEndMs,
           speaker: data.speaker,
+          prosodyEnergy: data.prosodyEnergy,
+          prosodyPauseRatio: data.prosodyPauseRatio,
+          prosodyVoicedMs: data.prosodyVoicedMs,
+          prosodySnrDb: data.prosodySnrDb,
+          prosodyQualityPass: data.prosodyQualityPass,
+          prosodyToneWeightsEnabled: data.prosodyToneWeightsEnabled,
+          prosodyConfidencePenalty: data.prosodyConfidencePenalty,
+          prosodyClientEnergy: data.prosodyClientEnergy,
+          prosodyClientStress: data.prosodyClientStress,
+          prosodyClientCertainty: data.prosodyClientCertainty,
           text: data.text,
           confidence: data.confidence,
         },
@@ -71,6 +101,16 @@ export function createTranscriptChunksRepository(
           tStartMs: c.tStartMs,
           tEndMs: c.tEndMs,
           speaker: c.speaker,
+          prosodyEnergy: c.prosodyEnergy,
+          prosodyPauseRatio: c.prosodyPauseRatio,
+          prosodyVoicedMs: c.prosodyVoicedMs,
+          prosodySnrDb: c.prosodySnrDb,
+          prosodyQualityPass: c.prosodyQualityPass,
+          prosodyToneWeightsEnabled: c.prosodyToneWeightsEnabled,
+          prosodyConfidencePenalty: c.prosodyConfidencePenalty,
+          prosodyClientEnergy: c.prosodyClientEnergy,
+          prosodyClientStress: c.prosodyClientStress,
+          prosodyClientCertainty: c.prosodyClientCertainty,
           text: c.text,
           confidence: c.confidence,
         })),

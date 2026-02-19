@@ -531,6 +531,7 @@ function QuickNotePageContent() {
           windowState === "paused" ||
           windowState === "processing"
         }
+        enabled={liveAnalysis.enabled}
         metrics={liveAnalysis.metrics}
         coach={liveAnalysis.coach}
         summary={liveAnalysis.summary}

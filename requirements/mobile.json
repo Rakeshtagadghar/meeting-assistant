@@ -1,0 +1,456 @@
+{
+  "project": "AI Notes",
+  "feature": "live-analysis-multiplatform",
+  "version": "3.1.0",
+  "date": "2026-02-18",
+  "decision": {
+    "desktop": "tauri",
+    "web": "nextjs_or_existing_web",
+    "mobile": {
+      "framework": "react_native_bare",
+      "expo": false,
+      "reasoning": [
+        "Better control over realtime audio capture and buffering",
+        "Easier integration of native audio + foreground service (Android)",
+        "Direct AVAudioSession control (iOS)",
+        "Matches a production-grade realtime pipeline better than managed constraints"
+      ],
+      "tradeoffs": [
+        "You must maintain ios/ and android/ projects",
+        "More CI complexity (Xcode/Gradle)",
+        "More native setup work for permissions/background modes"
+      ]
+    }
+  },
+
+  "repoArchitecture": {
+    "monorepo": {
+      "tooling": "turborepo",
+      "packageManager": "pnpm",
+      "apps": ["apps/web", "apps/desktop-tauri", "apps/mobile-rn"],
+      "packages": [
+        "packages/shared-types",
+        "packages/event-protocol",
+        "packages/validation-schemas",
+        "packages/audio-core",
+        "packages/live-analysis-core",
+        "packages/ui-kit"
+      ],
+      "constraints": {
+        "typescriptEverywhere": true,
+        "singleEventProtocolSourceOfTruth": true
+      }
+    },
+    "mobileApp": {
+      "name": "apps/mobile-rn",
+      "type": "react-native-bare",
+      "platformFolders": ["ios", "android"],
+      "buildSystems": ["xcode", "gradle"],
+      "sharedImportsFromMonorepo": [
+        "packages/event-protocol",
+        "packages/validation-schemas",
+        "packages/live-analysis-core",
+        "packages/shared-types"
+      ]
+    }
+  },
+
+  "coreBehavior": {
+    "toggleGating": {
+      "stateKey": "liveAnalysisEnabled",
+      "default": false,
+      "hardRules": [
+        "If liveAnalysisEnabled=false: only transcription runs; no AI analysis calls; no live metrics/coaching UI.",
+        "If liveAnalysisEnabled=true: analysis loop runs every 15s; UI shows metrics, tone, pain points, coaching.",
+        "Transcript must always be shown and stored regardless of toggle state."
+      ],
+      "midMeetingToggle": {
+        "enableWarmup": { "enabled": true, "useLastCommittedWindowSec": 60 },
+        "disableCleanup": {
+          "cancelScheduledJobs": true,
+          "dropInFlightResults": true
+        }
+      }
+    }
+  },
+
+  "platformSupport": {
+    "web": {
+      "audioCapture": {
+        "sources": ["microphone", "tabAudioOptional"],
+        "constraints": [
+          "Other-app audio (Teams/Zoom) capture is inconsistent; desktop recommended for full two-side capture."
+        ]
+      }
+    },
+    "desktop": {
+      "framework": "tauri",
+      "audioCapture": {
+        "sources": ["microphone", "systemAudioLoopback"],
+        "preferredRoleSeparation": { "mic": "SALES", "system": "CLIENT" }
+      }
+    },
+    "android": {
+      "framework": "react_native_bare",
+      "audioCapture": {
+        "sources": ["microphone"],
+        "permissions": ["RECORD_AUDIO"],
+        "background": {
+          "mvpPolicy": "foregroundOnly",
+          "phase2Policy": "foregroundServiceOptional",
+          "notes": [
+            "Background realtime streaming is sensitive on Android; consider a foreground service in P1/P2."
+          ]
+        }
+      }
+    },
+    "ios": {
+      "framework": "react_native_bare",
+      "audioCapture": {
+        "sources": ["microphone"],
+        "permissions": ["NSMicrophoneUsageDescription"],
+        "audioSession": {
+          "category": "PlayAndRecord",
+          "mode": "VoiceChat",
+          "options": ["AllowBluetooth", "DefaultToSpeaker"],
+          "interruptionHandling": true
+        },
+        "background": {
+          "mvpPolicy": "foregroundOnly",
+          "notes": [
+            "Keep streaming in foreground for MVP; background audio modes can be added later if needed."
+          ]
+        }
+      }
+    }
+  },
+
+  "audioRealtimeSpec": {
+    "audioFormat": {
+      "sampleRateHz": 16000,
+      "channels": 1,
+      "encoding": "pcm_s16le",
+      "frameMs": 20,
+      "packetMs": 1000
+    },
+    "clientAudioPipeline": {
+      "steps": [
+        "capture",
+        "vad",
+        "chunk",
+        "optionalProsody",
+        "sendToBackendWS"
+      ],
+      "vad": {
+        "enabled": true,
+        "minSpeechMs": 250,
+        "finalizeOnSilenceMs": 800,
+        "dropSilenceChunks": true
+      },
+      "chunking": {
+        "packetMs": 1000,
+        "maxBufferedMs": 5000,
+        "backpressurePolicy": "dropOldestPartialsKeepFinals"
+      }
+    },
+    "prosody": {
+      "enabled": true,
+      "computeLocation": "clientPreferred_serverFallback",
+      "windowSec": 6,
+      "strideSec": 2,
+      "features": [
+        "rmsEnergy",
+        "pitchF0Mean",
+        "pitchF0Variance",
+        "speechRateProxy",
+        "pauseRatio",
+        "fillerWordRate"
+      ],
+      "qualityGates": {
+        "minVoicedMs": 800,
+        "minSNRDb": 10,
+        "ifFail": "disableToneWeightsReduceConfidence"
+      },
+      "outputs": ["clientEnergy", "clientStress", "clientCertainty"]
+    },
+    "transport": {
+      "primary": "websocket",
+      "fallback": "sse",
+      "reconnect": {
+        "enabled": true,
+        "maxRetries": 12,
+        "backoffMs": [250, 500, 1000, 2000, 4000, 8000],
+        "resume": { "useLastAckedSeq": true, "dedupeByUtteranceId": true }
+      }
+    }
+  },
+
+  "asrProvider": {
+    "primary": {
+      "name": "elevenlabs",
+      "model": "scribe-v2-realtime",
+      "integration": "backend_proxy",
+      "events": ["partial", "committed"],
+      "keyManagement": "serverOnly"
+    },
+    "fallback": {
+      "name": "local_whisper_or_server_asr",
+      "trigger": ["quotaExceeded", "providerDown", "offlineMode"]
+    },
+    "normalization": {
+      "utteranceIdStrategy": "providerUtteranceIdOrHash(tsStart,tsEnd,speaker,source)",
+      "dedupe": {
+        "key": "utteranceId",
+        "partialReplace": true,
+        "finalImmutable": true
+      }
+    }
+  },
+
+  "speakerRoleHandling": {
+    "roles": ["SALES", "CLIENT", "UNKNOWN", "MIXED"],
+    "preferred": "roleBySource",
+    "desktopRules": [
+      { "sourceId": "mic", "role": "SALES" },
+      { "sourceId": "system", "role": "CLIENT" }
+    ],
+    "webRules": [
+      { "sourceId": "mic", "role": "SALES" },
+      { "sourceId": "tabAudio", "role": "CLIENT_OR_MIXED" }
+    ],
+    "mobileRules": [
+      {
+        "sourceId": "mic",
+        "role": "MIXED_OR_SALES",
+        "notes": "Mobile is mic-only for MVP; mark reduced confidence."
+      }
+    ],
+    "fallback": {
+      "mode": "speakerClusteringPlusUserMapping",
+      "maxSpeakers": 2,
+      "userMappingPrompt": "Select which speaker is you (Sales).",
+      "persistForMeeting": true
+    },
+    "analysisRule": {
+      "sentimentTarget": "CLIENT",
+      "ifRoleUnknownOrMixed": "computeMixedButLowerConfidenceAndShowWarning"
+    }
+  },
+
+  "analysis": {
+    "enabledWhen": "liveAnalysisEnabled==true",
+    "cadenceSec": 15,
+    "inputs": {
+      "useCommittedOnly": true,
+      "deltaWindowSec": 15,
+      "contextWindowSec": 120,
+      "includeProsody": true,
+      "includeTalkDynamics": true,
+      "includeTopicCoverage": true
+    },
+    "meetingMemory": {
+      "enabled": true,
+      "refreshEverySec": 60,
+      "maxChars": 2500,
+      "fields": [
+        "summary",
+        "painPoints",
+        "objections",
+        "constraints",
+        "budgetSignals",
+        "timelineSignals",
+        "decisionMakerSignals",
+        "competitorMentions",
+        "securityConcerns",
+        "nextSteps",
+        "promisesMade"
+      ]
+    },
+    "metrics": {
+      "clientValence": { "range": [-1, 1], "confidenceRange": [0, 1] },
+      "clientEngagement": { "range": [0, 1], "confidenceRange": [0, 1] },
+      "toneSignals": {
+        "keys": ["clientEnergy", "clientStress", "clientCertainty"],
+        "range": [0, 1]
+      },
+      "callHealth": { "range": [0, 100], "confidenceRange": [0, 1] },
+      "riskFlags": {
+        "types": [
+          "priceObjection",
+          "timingObjection",
+          "trustConcern",
+          "featureGap",
+          "securityConcern",
+          "integrationConcern",
+          "competitorMention",
+          "confusion",
+          "frustration",
+          "lowEngagement",
+          "scopeMismatch"
+        ]
+      },
+      "painPoints": { "maxItems": 5 },
+      "talkDynamics": {
+        "fields": [
+          "talkRatioSalesPct",
+          "talkRatioClientPct",
+          "interruptionsCount",
+          "paceWpmSales",
+          "paceWpmClient"
+        ]
+      },
+      "topicCoverage": {
+        "topics": [
+          "needProblem",
+          "budget",
+          "timeline",
+          "decisionMaker",
+          "alternativesCompetitors",
+          "technicalFit",
+          "securityCompliance",
+          "procurement",
+          "nextSteps"
+        ]
+      }
+    },
+    "fusion": {
+      "clientValence": {
+        "textWeight": 0.75,
+        "toneWeight": 0.25,
+        "toneAppliesOnlyIf": "prosodyQualityPass"
+      },
+      "clientEngagement": {
+        "dynamicsWeight": 0.6,
+        "toneWeight": 0.4,
+        "toneAppliesOnlyIf": "prosodyQualityPass"
+      }
+    },
+    "coachOutputs": {
+      "nextBestSay": { "maxItems": 3, "mustIncludeEvidence": true },
+      "nextQuestions": { "maxItems": 3, "mustIncludeEvidence": true },
+      "doDont": { "maxItems": 4, "mustIncludeEvidence": true }
+    },
+    "uiUpdatePolicy": {
+      "cooldownSec": 8,
+      "minConfidence": 0.55,
+      "smoothing": { "type": "ema", "alpha": 0.35 }
+    }
+  },
+
+  "aiIntegration": {
+    "enabledWhen": "liveAnalysisEnabled==true",
+    "mode": "serverOrchestrated",
+    "privacyMode": {
+      "enabled": true,
+      "behavior": {
+        "sendAudio": false,
+        "sendTranscript": true,
+        "sendProsody": true,
+        "redactPII": true
+      }
+    },
+    "promptPolicy": {
+      "strictJsonOutput": true,
+      "rules": [
+        "Use only provided transcript and meeting memory; do not invent details.",
+        "Avoid manipulative/deceptive tactics; provide ethical coaching.",
+        "Always include evidence utterance IDs for claims (pain points, objections, suggestions).",
+        "If unsure, lower confidence and suggest clarifying questions."
+      ]
+    }
+  },
+
+  "mobileImplementation": {
+    "reactNativeBare": {
+      "requirements": {
+        "audioCapture": {
+          "mustSupport": [
+            "16kHz mono PCM",
+            "chunked streaming",
+            "permission prompts"
+          ],
+          "androidNotes": [
+            "Optionally add foreground service for long calls (P1/P2)."
+          ],
+          "iosNotes": ["Configure AVAudioSession for reliable mic capture."]
+        },
+        "realtimeTransport": {
+          "mustSupport": ["websocket reconnect", "ack/resume", "backpressure"],
+          "offlineBehavior": "stopStreamingAndShowStatus"
+        },
+        "ui": {
+          "mustSupport": [
+            "Transcript screen",
+            "Live Analysis screen",
+            "Toggle gating behavior identical to web/desktop",
+            "All user-facing screens available in web/desktop must also exist on mobile (with platform-appropriate layout adaptations, without feature loss)",
+            "Auth routes and flows (sign-in, callback handling, session restore, sign-out)"
+          ],
+          "screenParity": {
+            "required": true,
+            "referencePlatforms": ["web", "desktop"],
+            "policy": "noScreenLeftBehind",
+            "requiredScreens": [
+              "Landing",
+              "Notes",
+              "Meeting",
+              "Chat",
+              "Settings"
+            ],
+            "notes": [
+              "Interaction patterns can be mobile-native, but workflows and outcomes must remain functionally equivalent to web/desktop."
+            ]
+          },
+          "auth": {
+            "required": true,
+            "mustSupport": [
+              "Sign-in route/screen",
+              "Auth callback/deep-link route",
+              "Session restore on app start",
+              "Sign-out action",
+              "Unauthenticated route guard for protected screens"
+            ]
+          }
+        }
+      },
+      "phases": [
+        {
+          "phase": "MVP",
+          "scope": [
+            "Mic capture only",
+            "Realtime transcript display + store",
+            "Live Analysis toggle gating + 15s analysis loop when enabled",
+            "No background streaming (foreground only)"
+          ]
+        },
+        {
+          "phase": "P1",
+          "scope": [
+            "Prosody capture on-device + send features",
+            "Android optional foreground service",
+            "Improved resilience to interruptions and route changes (Bluetooth)"
+          ]
+        }
+      ]
+    }
+  },
+
+  "canWeUseTauriForMobile": {
+    "answer": "yes_possible",
+    "recommendedForThisUseCase": "not_for_v1",
+    "reason": [
+      "Tauri v2 can target mobile, but advanced realtime audio capture and OS background behavior may require more native/plugin work than bare RN."
+    ]
+  },
+
+  "acceptanceCriteria": [
+    "Mobile (bare RN) captures mic and streams to backend; transcript shows and saves always.",
+    "Live Analysis panels and AI calls happen only when toggle is enabled.",
+    "When toggle is OFF: no analysis events emitted; transcript continues normally.",
+    "15s cadence analysis is stable (no jitter) and includes evidence snippets.",
+    "Prosody is used only when quality gates pass; otherwise confidence drops and tone weights disabled.",
+    "Mobile includes all user-facing screens/workflows available on web/desktop, adapted for mobile UX without feature loss.",
+    "Mobile includes Landing, Notes, Meeting, Chat, and Settings screens with functional parity to web/desktop.",
+    "Mobile auth routes support sign-in, callback handling, session restore, and sign-out with guards on protected routes."
+  ]
+}

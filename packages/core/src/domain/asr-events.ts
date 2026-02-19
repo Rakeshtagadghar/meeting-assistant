@@ -27,12 +27,18 @@ export interface ASRFinalEvent {
   readonly tStartMs: number;
   readonly tEndMs: number;
   readonly speaker: string | null;
-  readonly speakerRole?: "SALES" | "CLIENT" | "UNKNOWN";
+  readonly speakerRole?: "SALES" | "CLIENT" | "UNKNOWN" | "MIXED";
   readonly audioSource?: "microphone" | "systemAudio" | "tabAudio";
   readonly prosodyEnergy?: number;
   readonly prosodyPauseRatio?: number;
   readonly prosodyVoicedMs?: number;
   readonly prosodySnrDb?: number;
+  readonly prosodyQualityPass?: boolean;
+  readonly prosodyToneWeightsEnabled?: boolean;
+  readonly prosodyConfidencePenalty?: number;
+  readonly prosodyClientEnergy?: number;
+  readonly prosodyClientStress?: number;
+  readonly prosodyClientCertainty?: number;
   readonly confidence: number | null;
   readonly sequence: number;
 }
@@ -63,7 +69,7 @@ export interface ASROptions {
 
 export interface ASRProvider {
   readonly name: string;
-  readonly platform: "web" | "desktop";
+  readonly platform: "web" | "desktop" | "mobile";
 
   initialize(
     modelId: string,
