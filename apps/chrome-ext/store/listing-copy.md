@@ -1,9 +1,11 @@
 # Chrome Web Store / Edge Add-ons Listing
 
 ## Extension Name
+
 Golden Minutes
 
 ## Short Description (132 chars max)
+
 Detects meetings in your browser, records audio with consent, and transcribes via Golden Minutes. Privacy-first, no auto-recording.
 
 ## Detailed Description
@@ -48,24 +50,31 @@ Golden Minutes automatically detects when you join a meeting on Google Meet, Mic
 Works with Chrome and Microsoft Edge.
 
 ## Category
+
 Productivity
 
 ## Language
+
 English (UK)
 
 ## Permission Justifications
 
 ### storage
+
 Required to persist user preferences (prompt mode, blocked sites, platform toggles) and authentication state locally in the browser. No data is synced externally.
 
 ### notifications
+
 Required to display meeting detection prompts as system notifications, allowing users to choose whether to start recording. Users can switch to in-page overlay mode in settings.
 
 ### tabs
+
 Required to detect when the user navigates to a supported meeting platform (Google Meet, Teams, Zoom, Webex) by monitoring tab URL changes. No browsing history is collected or stored.
 
 ### offscreen
+
 Required by Chrome Manifest V3 to capture microphone audio. The offscreen document requests microphone access only when the user explicitly clicks "Start Recording".
 
 ### Host Permissions
-Limited to meeting platform URLs (meet.google.com, teams.microsoft.com, *.zoom.us, *.webex.com). Used for meeting page detection and optional in-page overlay display. No content is read from these pages.
+
+Limited to meeting platform URLs (meet.google.com, teams.microsoft.com, _.zoom.us, _.webex.com). Used for meeting page detection and optional in-page overlay display. No content is read from these pages.

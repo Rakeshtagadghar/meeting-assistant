@@ -42,12 +42,12 @@ The Extension makes **no network requests by default**. Network requests occur o
 
 ## Permissions
 
-| Permission | Purpose |
-|------------|---------|
-| `storage` | Save your preferences and authentication locally |
-| `notifications` | Show meeting detection prompts as system notifications |
-| `tabs` | Detect when you navigate to a meeting page |
-| `offscreen` | Capture microphone audio in an offscreen document (required by Manifest V3) |
+| Permission      | Purpose                                                                     |
+| --------------- | --------------------------------------------------------------------------- |
+| `storage`       | Save your preferences and authentication locally                            |
+| `notifications` | Show meeting detection prompts as system notifications                      |
+| `tabs`          | Detect when you navigate to a meeting page                                  |
+| `offscreen`     | Capture microphone audio in an offscreen document (required by Manifest V3) |
 
 **Host permissions** (meeting platform URLs) are used solely for meeting page detection and in-page overlay display.
 

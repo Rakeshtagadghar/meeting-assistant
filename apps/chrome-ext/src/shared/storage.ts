@@ -4,7 +4,7 @@ import type {
   AuthState,
   RecordingState,
 } from "./types";
-import { STORAGE_KEYS, DEFAULT_SETTINGS } from "./constants";
+import { STORAGE_KEYS } from "./constants";
 import { mergeSettings } from "./settings-validator";
 import { EMPTY_COOLDOWN_STATE } from "./cooldown";
 
@@ -14,9 +14,7 @@ export async function getSettings(): Promise<Settings> {
   return mergeSettings(raw ?? {});
 }
 
-export async function saveSettings(
-  partial: Partial<Settings>,
-): Promise<void> {
+export async function saveSettings(partial: Partial<Settings>): Promise<void> {
   const current = await getSettings();
   const merged = mergeSettings({ ...current, ...partial });
   await chrome.storage.local.set({ [STORAGE_KEYS.settings]: merged });
@@ -30,9 +28,7 @@ export async function getCooldownState(): Promise<CooldownState> {
   );
 }
 
-export async function saveCooldownState(
-  state: CooldownState,
-): Promise<void> {
+export async function saveCooldownState(state: CooldownState): Promise<void> {
   await chrome.storage.local.set({ [STORAGE_KEYS.cooldownState]: state });
 }
 
@@ -67,9 +63,7 @@ export async function getRecordingState(): Promise<RecordingState> {
   );
 }
 
-export async function saveRecordingState(
-  state: RecordingState,
-): Promise<void> {
+export async function saveRecordingState(state: RecordingState): Promise<void> {
   await chrome.storage.local.set({ [STORAGE_KEYS.recordingState]: state });
 }
 
