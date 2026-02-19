@@ -1,0 +1,622 @@
+{
+  "specVersion": "1.0.0",
+  "project": {
+    "name": "Golden Minutes Chrome Extension",
+    "goal": "When a meeting starts (or a meeting tab is detected), prompt the user to start Golden Minutes meeting capture with explicit consent. If consent is not granted, do nothing beyond optional reminders.",
+    "nonGoals": [
+      "Capturing system audio inside the browser extension (not possible reliably; handled by desktop app / web app).",
+      "Bypassing user permission prompts for mic/camera.",
+      "Auto-starting without user action/consent."
+    ]
+  },
+  "repo": {
+    "monorepo": "turborepo",
+    "packageManager": "pnpm",
+    "apps": [
+      {
+        "name": "apps/chrome-ext",
+        "type": "chrome-extension",
+        "tech": [
+          "Manifest V3",
+          "TypeScript",
+          "React (optional UI for popup/options)",
+          "Vite (recommended) or Webpack",
+          "Tailwind or MUI (lightweight subset recommended)"
+        ],
+        "entrypoints": [
+          "background service worker",
+          "content scripts (meeting page detection + lightweight overlay)",
+          "popup UI",
+          "options page"
+        ]
+      }
+    ],
+    "sharedPackages": [
+      {
+        "name": "packages/shared",
+        "purpose": "Shared types/constants across web/desktop/extension (meeting event schema, URL patterns, consent status)."
+      },
+      {
+        "name": "packages/ui",
+        "purpose": "Optional shared UI primitives (buttons, modal styles) used by extension popup/options."
+      }
+    ],
+    "buildAndCI": {
+      "dev": [
+        "pnpm -C apps/chrome-ext dev (watch build)",
+        "Chrome: Load unpacked from apps/chrome-ext/dist"
+      ],
+      "prod": [
+        "pnpm -C apps/chrome-ext build",
+        "zip dist for Chrome Web Store upload"
+      ],
+      "ciChecks": [
+        "typecheck",
+        "lint",
+        "unit tests",
+        "manifest validation",
+        "bundle size budget"
+      ]
+    }
+  },
+  "extension": {
+    "manifest": {
+      "manifest_version": 3,
+      "name": "Golden Minutes",
+      "description": "Start Golden Minutes when meetings begin — with explicit consent.",
+      "version": "0.1.0",
+      "action": {
+        "default_title": "Golden Minutes",
+        "default_popup": "popup.html"
+      },
+      "background": {
+        "service_worker": "background.js",
+        "type": "module"
+      },
+      "options_page": "options.html",
+      "icons": {
+        "16": "icons/16.png",
+        "32": "icons/32.png",
+        "48": "icons/48.png",
+        "128": "icons/128.png"
+      }
+    },
+    "permissions": {
+      "required": ["storage", "notifications", "tabs"],
+      "optional": ["alarms", "identity"],
+      "hostPermissions": [
+        "https://meet.google.com/*",
+        "https://teams.microsoft.com/*",
+        "https://*.zoom.us/*",
+        "https://zoom.us/*",
+        "https://webex.com/*",
+        "https://*.webex.com/*"
+      ],
+      "rationale": {
+        "storage": "Persist user preferences, consent state, and allowlists/denylists.",
+        "notifications": "Prompt user when meeting starts or when tab is detected.",
+        "tabs": "Detect active meeting tabs and react to tab updates.",
+        "alarms": "Debounced re-checks for meeting state (optional).",
+        "identity": "Optional sign-in for syncing preferences (if you choose).",
+        "hostPermissions": "Detect meeting pages and show inline overlay / prompts."
+      }
+    }
+  },
+  "meetingDetection": {
+    "approach": "Multi-signal detection with user-controlled rules. Trigger prompt only when confidence >= threshold and user has not suppressed prompts.",
+    "signals": [
+      {
+        "name": "Meeting URL patterns",
+        "description": "Detect meeting platforms by URL + path format.",
+        "rules": [
+          {
+            "platform": "google_meet",
+            "match": {
+              "urlPrefix": "https://meet.google.com/",
+              "pathRegex": "^[a-z]{3}-[a-z]{4}-[a-z]{3}"
+            },
+            "confidence": 0.9
+          },
+          {
+            "platform": "ms_teams",
+            "match": {
+              "urlContains": [
+                "teams.microsoft.com",
+                "/l/meetup-join/",
+                "/meeting"
+              ]
+            },
+            "confidence": 0.8
+          },
+          {
+            "platform": "zoom_web",
+            "match": {
+              "urlContains": ["zoom.us/wc/", "zoom.us/j/"]
+            },
+            "confidence": 0.8
+          },
+          {
+            "platform": "webex",
+            "match": {
+              "urlContains": ["webex.com", "/meet/"]
+            },
+            "confidence": 0.7
+          }
+        ]
+      },
+      {
+        "name": "DOM hints (content script)",
+        "description": "Check for meeting UI markers (Join/Leave buttons, meeting timer, participant panel).",
+        "privacy": "Only local DOM inspection; do not read chat or participant names unless user enables advanced mode."
+      },
+      {
+        "name": "Calendar deep link (optional)",
+        "description": "If user clicks a meeting link from Google Calendar, treat it as meeting start intent.",
+        "requires": "No calendar API needed; inferred from tab navigation context."
+      },
+      {
+        "name": "Audio activity (NOT captured)",
+        "description": "Do not capture audio. If desired, use Web Audio only after explicit permission and only as a heuristic (optional).",
+        "default": "disabled"
+      }
+    ],
+    "debounceAndCooldown": {
+      "debounceMs": 1500,
+      "cooldownMs": 600000,
+      "rules": [
+        "Do not re-prompt within cooldown for the same meeting URL/session",
+        "If user clicks 'Not now', snooze for snoozeMs",
+        "If user clicks 'Never for this site', add to denylist"
+      ],
+      "snoozeMs": 1800000
+    },
+    "states": [
+      "IDLE",
+      "MEETING_CANDIDATE",
+      "PROMPT_SHOWN",
+      "USER_ACCEPTED",
+      "USER_DECLINED",
+      "RUNNING",
+      "ENDED"
+    ]
+  },
+  "consentAndPrivacy": {
+    "principles": [
+      "Explicit user action required to start anything that records or transcribes.",
+      "No sensitive content collection by default (no chat messages, no participants, no meeting title) unless user opts in.",
+      "Data minimization: store only what is needed for UX (cooldowns, preferences).",
+      "Clear disclosure text in prompt and options."
+    ],
+    "consentModel": {
+      "levels": [
+        {
+          "level": "prompt_only",
+          "description": "Only show prompts; no data collected."
+        },
+        {
+          "level": "deep_link_only",
+          "description": "Open Golden Minutes web/desktop app with meeting URL and a timestamp after user confirms."
+        },
+        {
+          "level": "metadata_opt_in",
+          "description": "User can opt-in to send meeting metadata (platform + meeting URL hash + start time) to Golden Minutes to prefill meeting."
+        }
+      ],
+      "defaultLevel": "deep_link_only",
+      "requiredDisclosures": [
+        "This extension does not record audio by itself.",
+        "Golden Minutes may ask for microphone permission in the web app if you choose to start.",
+        "You can disable prompts per site or globally anytime."
+      ]
+    },
+    "dataHandling": {
+      "localStorageKeys": [
+        "gm_ext_settings",
+        "gm_ext_consent_state",
+        "gm_ext_denylist",
+        "gm_ext_allowlist",
+        "gm_ext_recent_sessions"
+      ],
+      "recentSessions": {
+        "store": "hashed meeting identifiers (non-reversible hash of meeting URL + salt)",
+        "retentionDays": 7
+      },
+      "network": {
+        "default": "none",
+        "optional": [
+          {
+            "name": "prefill endpoint",
+            "when": "Only after user clicks Start",
+            "payload": "platform, meetingUrl (or hashed), timestamp, user preference flags",
+            "auth": "Re-use existing Golden Minutes auth via web session or short-lived token deep link"
+          }
+        ]
+      }
+    }
+  },
+  "userExperience": {
+    "promptModes": [
+      {
+        "mode": "Chrome notification",
+        "description": "System notification with Start / Not now / Never for this site.",
+        "pros": "Works even if tab not focused",
+        "cons": "Less branded"
+      },
+      {
+        "mode": "Inline overlay (content script)",
+        "description": "A small, beautiful banner/modal inside the meeting page.",
+        "pros": "Highly branded, contextual",
+        "cons": "May be blocked by CSP on some sites; must degrade gracefully"
+      }
+    ],
+    "defaultPromptMode": "Chrome notification",
+    "overlayDesign": {
+      "style": "Minimal, premium, privacy-first",
+      "layout": {
+        "position": "top-right",
+        "maxWidth": 360,
+        "rounded": "16px",
+        "shadow": "soft",
+        "spacing": "12px"
+      },
+      "content": [
+        "Title: 'Meeting detected'",
+        "Subtitle: 'Start Golden Minutes with consent'",
+        "Primary CTA: 'Start'",
+        "Secondary: 'Not now'",
+        "Tertiary: 'Disable for this site'",
+        "Footnote: 'No recording happens until you confirm.'"
+      ],
+      "accessibility": {
+        "keyboardNavigable": true,
+        "ariaLabels": true,
+        "colorContrastAA": true,
+        "prefersReducedMotion": true
+      }
+    },
+    "popup": {
+      "sections": [
+        {
+          "name": "Status",
+          "fields": [
+            "Current tab: meeting detected yes/no",
+            "Platform",
+            "Last prompt time",
+            "Quick toggle: Enable prompts"
+          ],
+          "actions": ["Start now", "Snooze 30 min", "Open settings"]
+        },
+        {
+          "name": "Shortcuts",
+          "actions": [
+            "Open Golden Minutes Web",
+            "Open Golden Minutes Desktop (deep link)"
+          ]
+        }
+      ]
+    },
+    "optionsPage": {
+      "sections": [
+        {
+          "name": "Prompt behavior",
+          "fields": [
+            {
+              "key": "enabled",
+              "type": "toggle",
+              "default": true
+            },
+            {
+              "key": "promptMode",
+              "type": "select",
+              "options": ["notification", "overlay"],
+              "default": "notification"
+            },
+            {
+              "key": "cooldownMinutes",
+              "type": "number",
+              "min": 1,
+              "max": 180,
+              "default": 10
+            },
+            {
+              "key": "snoozeMinutes",
+              "type": "number",
+              "min": 5,
+              "max": 240,
+              "default": 30
+            }
+          ]
+        },
+        {
+          "name": "Sites & platforms",
+          "fields": [
+            {
+              "key": "platformToggles",
+              "type": "multiToggle",
+              "items": ["google_meet", "ms_teams", "zoom_web", "webex"],
+              "default": {
+                "google_meet": true,
+                "ms_teams": true,
+                "zoom_web": true,
+                "webex": true
+              }
+            },
+            {
+              "key": "denylist",
+              "type": "list",
+              "itemType": "hostname",
+              "default": []
+            },
+            {
+              "key": "allowlist",
+              "type": "list",
+              "itemType": "hostname",
+              "default": []
+            }
+          ]
+        },
+        {
+          "name": "Privacy",
+          "fields": [
+            {
+              "key": "shareMetadata",
+              "type": "toggle",
+              "default": false,
+              "description": "If enabled, send basic meeting metadata to Golden Minutes after you click Start."
+            },
+            {
+              "key": "storeRecentSessions",
+              "type": "toggle",
+              "default": true
+            },
+            {
+              "key": "retentionDays",
+              "type": "number",
+              "min": 1,
+              "max": 30,
+              "default": 7
+            }
+          ]
+        },
+        {
+          "name": "Integrations",
+          "fields": [
+            {
+              "key": "openTarget",
+              "type": "select",
+              "options": ["web", "desktop"],
+              "default": "desktop",
+              "description": "Where Start opens Golden Minutes."
+            },
+            {
+              "key": "desktopDeepLinkScheme",
+              "type": "text",
+              "default": "goldenminutes://start"
+            },
+            {
+              "key": "webStartUrl",
+              "type": "text",
+              "default": "https://www.goldenminutes.co.uk/start"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "deepLinking": {
+    "desktop": {
+      "supported": true,
+      "assumption": "Tauri desktop app registers a custom protocol handler",
+      "scheme": "goldenminutes://",
+      "routes": [
+        {
+          "path": "start",
+          "query": [
+            "platform",
+            "meetingUrl",
+            "ts",
+            "source=chrome_ext",
+            "consent=1"
+          ],
+          "example": "goldenminutes://start?platform=google_meet&meetingUrl=<encoded>&ts=<epoch>&source=chrome_ext&consent=1"
+        }
+      ],
+      "fallback": {
+        "ifNotInstalled": "Open webStartUrl with same query params",
+        "detection": "Cannot reliably detect installation; provide user setting and show a helpful toast if deep link fails."
+      }
+    },
+    "web": {
+      "startUrl": "https://www.goldenminutes.co.uk/start",
+      "query": [
+        "platform",
+        "meetingUrl",
+        "ts",
+        "source=chrome_ext",
+        "consent=1"
+      ]
+    }
+  },
+  "architecture": {
+    "modules": [
+      {
+        "name": "background",
+        "responsibilities": [
+          "Track tab updates (onUpdated, onActivated)",
+          "Run meeting detection classifier (URL + heuristics)",
+          "Enforce cooldowns/snoozes/denylist",
+          "Trigger notifications",
+          "Handle notification button clicks (Start/Not now/Never)"
+        ]
+      },
+      {
+        "name": "contentScript",
+        "responsibilities": [
+          "Optional DOM detection",
+          "Render overlay prompt (if enabled)",
+          "Send events to background via runtime messaging"
+        ]
+      },
+      {
+        "name": "popupUI",
+        "responsibilities": [
+          "Quick status + actions",
+          "Toggle enable/disable",
+          "Open options"
+        ]
+      },
+      {
+        "name": "optionsUI",
+        "responsibilities": [
+          "Full settings management",
+          "Privacy disclosures",
+          "Export/import settings (optional)"
+        ]
+      },
+      {
+        "name": "shared",
+        "responsibilities": [
+          "Types: MeetingDetectedEvent, StartRequest, Settings",
+          "URL pattern library",
+          "Hashing utilities"
+        ]
+      }
+    ],
+    "messagingContracts": [
+      {
+        "type": "MEETING_CANDIDATE",
+        "from": "background|contentScript",
+        "to": "background",
+        "payload": {
+          "platform": "google_meet|ms_teams|zoom_web|webex|unknown",
+          "tabId": "number",
+          "url": "string",
+          "confidence": "number",
+          "signals": "string[]",
+          "ts": "number"
+        }
+      },
+      {
+        "type": "SHOW_PROMPT",
+        "from": "background",
+        "to": "contentScript",
+        "payload": {
+          "mode": "overlay",
+          "platform": "string",
+          "ts": "number"
+        }
+      },
+      {
+        "type": "USER_DECISION",
+        "from": "contentScript|background",
+        "to": "background",
+        "payload": {
+          "decision": "start|snooze|deny_site|dismiss",
+          "tabId": "number",
+          "url": "string",
+          "ts": "number"
+        }
+      },
+      {
+        "type": "OPEN_GOLDEN_MINUTES",
+        "from": "background",
+        "to": "background",
+        "payload": {
+          "target": "desktop|web",
+          "platform": "string",
+          "meetingUrl": "string",
+          "ts": "number"
+        }
+      }
+    ]
+  },
+  "productRequirements": {
+    "mustHave": [
+      "Detect meeting pages reliably (URL-first, DOM optional).",
+      "Prompt user with explicit consent controls.",
+      "Cooldown + snooze + denylist per site.",
+      "Deep link to Golden Minutes web or desktop with meeting context.",
+      "Options page with privacy-first defaults.",
+      "Polished UI/branding consistent with Golden Minutes."
+    ],
+    "shouldHave": [
+      "Per-platform toggles and custom URL pattern editor (advanced).",
+      "Inline overlay prompt mode with graceful fallback.",
+      "Export/import settings JSON.",
+      "Basic analytics (local counters only) to tune false positives (opt-in)."
+    ],
+    "niceToHave": [
+      "i18n support (en-GB first).",
+      "Keyboard shortcut to “Start Golden Minutes now”.",
+      "One-click ‘Always prompt on this domain’ allowlist.",
+      "Sync settings via Chrome sync storage (optional)."
+    ]
+  },
+  "quality": {
+    "performance": [
+      "No heavy work in content scripts; keep DOM checks minimal and debounced.",
+      "Avoid continuous polling; rely on tab events + short alarms when needed."
+    ],
+    "reliability": [
+      "Handle service worker suspension; persist state in storage.",
+      "Graceful fallback when overlay injection fails (CSP).",
+      "Avoid duplicate prompts using session hashing + cooldown."
+    ],
+    "security": [
+      "No secrets in extension code.",
+      "Validate and encode meetingUrl in deep links.",
+      "Use least-privilege permissions; request optional permissions only when needed."
+    ],
+    "compliance": [
+      "Clear disclosures and user control for consent and data usage.",
+      "Default: no network calls; only on explicit Start."
+    ]
+  },
+  "testing": {
+    "unit": [
+      "URL classifier tests per platform",
+      "Cooldown/snooze logic tests",
+      "Settings validation"
+    ],
+    "integration": [
+      "Tab lifecycle: open meeting -> prompt -> start -> cooldown",
+      "Denylist behavior",
+      "Overlay injection fallback behavior"
+    ],
+    "manualQA": [
+      "Google Meet join/leave flows",
+      "Teams meeting join flows",
+      "Zoom web join flows",
+      "Multiple meeting tabs",
+      "Incognito mode behavior (document limitations)"
+    ]
+  },
+  "deliverables": {
+    "assets": [
+      "Extension icons (16/32/48/128)",
+      "Popup UI",
+      "Options page UI",
+      "Overlay prompt UI (optional)",
+      "Privacy policy text draft",
+      "Chrome Web Store listing copy"
+    ],
+    "docs": [
+      "How to run locally in Turborepo",
+      "How to load unpacked in Chrome",
+      "How deep links integrate with desktop/web",
+      "Consent and privacy model"
+    ]
+  },
+  "openQuestionsAndAssumptions": {
+    "assumptions": [
+      "Golden Minutes desktop app can register a custom URL protocol handler (Tauri).",
+      "Golden Minutes web has a /start route capable of pre-filling meeting context from query params.",
+      "User is okay with meeting detection based on URL/DOM locally with no content extraction."
+    ],
+    "configurable": [
+      "List of supported meeting platforms",
+      "Confidence threshold for prompt",
+      "Whether overlay prompt is enabled"
+    ]
+  }
+}
