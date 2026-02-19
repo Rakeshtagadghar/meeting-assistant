@@ -9,12 +9,29 @@ interface Props {
   expiresAt: number;
 }
 
-export function ExtensionAuthClient({
-  token,
-  email,
-  extId,
-  expiresAt,
-}: Props) {
+type ExtensionMessage = {
+  type: "GM_AUTH_TOKEN";
+  token: string;
+  email: string | null;
+  expiresAt: number;
+};
+
+type ExtensionResponse = {
+  success?: boolean;
+};
+
+type ChromeRuntime = {
+  sendMessage: (
+    extensionId: string,
+    message: ExtensionMessage,
+  ) => Promise<ExtensionResponse | undefined>;
+};
+
+type ChromeApi = {
+  runtime?: ChromeRuntime;
+};
+
+export function ExtensionAuthClient({ token, email, extId, expiresAt }: Props) {
   const [status, setStatus] = useState<"sending" | "success" | "error">(
     "sending",
   );
@@ -22,7 +39,13 @@ export function ExtensionAuthClient({
   useEffect(() => {
     async function sendToExtension() {
       try {
-        const response = await chrome.runtime.sendMessage(extId, {
+        const runtime = (globalThis as { chrome?: ChromeApi }).chrome?.runtime;
+        if (!runtime?.sendMessage) {
+          setStatus("error");
+          return;
+        }
+
+        const response = await runtime.sendMessage(extId, {
           type: "GM_AUTH_TOKEN",
           token,
           email,
