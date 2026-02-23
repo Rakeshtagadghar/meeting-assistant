@@ -213,7 +213,7 @@ function QuickNotePageContent() {
     setSpeakerAliases({});
   };
 
-  const showLiveAnalysisPanel = windowState !== "idle" || liveAnalysis.enabled;
+  const showLiveAnalysisPanel = false;
 
   return (
     <div className="flex h-screen flex-col bg-bg-secondary">
@@ -336,7 +336,7 @@ function QuickNotePageContent() {
                         Diarization Mapping
                       </p>
                       <span className="text-[10px] text-gray-500">
-                        Rename and map Sales/Client
+                        Rename and map Me/Client
                       </span>
                     </div>
                     <div className="grid gap-2 sm:grid-cols-2">
@@ -369,7 +369,7 @@ function QuickNotePageContent() {
                             className="mt-1 w-full rounded-md border border-warm-200 bg-white px-2 py-1.5 text-xs text-gray-700 focus:border-indigo-400 focus:outline-none"
                           >
                             <option value="AUTO">Role: Auto</option>
-                            <option value="SALES">Role: Sales</option>
+                            <option value="SALES">Role: Me</option>
                             <option value="CLIENT">Role: Client</option>
                           </select>
                         </div>
@@ -526,11 +526,7 @@ function QuickNotePageContent() {
       </div>
 
       <LiveNudgesTray
-        visible={
-          windowState === "listening" ||
-          windowState === "paused" ||
-          windowState === "processing"
-        }
+        visible={false}
         metrics={liveAnalysis.metrics}
         coach={liveAnalysis.coach}
         summary={liveAnalysis.summary}
