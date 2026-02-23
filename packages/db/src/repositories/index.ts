@@ -14,3 +14,5 @@ export { createTranscriptChunksRepository } from "./transcript-chunks.repo";
 export type { TranscriptChunksRepository } from "./transcript-chunks.repo";
 export { createUserIntegrationsRepository } from "./user-integrations.repo";
 export type { UserIntegrationsRepository } from "./user-integrations.repo";
+export { createSummaryArtifactsRepository } from "./summary-artifacts.repo";
+export type { SummaryArtifactsRepository } from "./summary-artifacts.repo";

@@ -1,0 +1,492 @@
+{
+  "meta": {
+    "project": "Golden Minutes",
+    "specType": "DELTA_SPEC",
+    "basedOn": "CHAT_NOTES_001 (already implemented)",
+    "newGoal": "Add LangChain-powered Summary generation (templated, grounded, section-level regen, versioning) without rewriting existing chat RAG.",
+    "guidingRule": "Chat RAG remains custom; LangChain is introduced for multi-step orchestration + summary pipelines."
+  },
+  "compatibility": {
+    "keepExisting": [
+      "/api/chat SSE contract",
+      "scope selector UX",
+      "citations panel UX",
+      "pgvector tables note_chunks/chunk_embeddings",
+      "chunk metadata schema",
+      "observability metrics (extend only)"
+    ],
+    "newEndpoints": "No new apis, check if they already exist for summary generation or if they can be added as internal service methods without external exposure.",
+    "noBreakingChanges": true
+  },
+  "phase_1_5_langchain_summary": {
+    "feature": {
+      "id": "SUMMARY_LANGCHAIN_001",
+      "name": "Summary Generator (LangChain Orchestrated)",
+      "goal": "Generate high-quality, grounded meeting summaries with template sections, citations, section-by-section regeneration, and version history.",
+      "scope": ["web_app", "desktop_app"],
+      "langchain_required": true,
+      "why_langchain_now": [
+        "You already have retrieval + citations; summary needs reliable multi-step orchestration",
+        "Section-level regen and validation is easier with structured chains",
+        "Future toolcalling can plug in cleanly later"
+      ]
+    },
+    "ux": {
+      "entryPoints": [
+        {
+          "route": "/app/meeting/:id",
+          "button": "Generate Summary"
+        },
+        {
+          "route": "/app/chat",
+          "mode": "Summarize",
+          "button": "Create Summary Artifact"
+        }
+      ],
+      "summaryPage": {
+        "route": "/app/meeting/:id/summary",
+        "layout": {
+          "left": "Template selector + version history",
+          "center": "Sectioned editor (accordion)",
+          "right": "Evidence drawer (citations -> transcript/note chunk preview)"
+        },
+        "sectionControls": [
+          "Regenerate section",
+          "Edit manually",
+          "Lock section"
+        ],
+        "versioningUX": ["View v1/v2 diff (optional)", "Restore version"],
+        "exportControls": [
+          "Export to Notion",
+          "Export PDF (optional)",
+          "Copy markdown"
+        ]
+      }
+    },
+    "data_model_additions": {
+      "newEntities": [
+        {
+          "name": "SummaryArtifact",
+          "fields": {
+            "id": "uuid",
+            "meetingSessionId": "uuid",
+            "templateId": "string",
+            "version": "number",
+            "status": "generating|ready|failed",
+            "sections": "SummarySection[]",
+            "citationsIndex": "object",
+            "createdAt": "isoDate",
+            "updatedAt": "isoDate"
+          }
+        },
+        {
+          "name": "SummarySection",
+          "fields": {
+            "key": "string",
+            "title": "string",
+            "content_markdown": "string",
+            "citations": "Citation[]",
+            "sectionVersion": "number",
+            "locked": "boolean",
+            "userEdited": "boolean",
+            "regenCount": "number",
+            "lastRegeneratedAt": "isoDate|null"
+          }
+        },
+        {
+          "name": "Citation",
+          "fields": {
+            "citation_id": "string",
+            "sourceType": "note|transcript|ai_summary",
+            "noteId_optional": "uuid|null",
+            "meetingSessionId_optional": "uuid|null",
+            "chunkId": "uuid",
+            "title": "string",
+            "snippet": "string",
+            "time_range_optional": "tStartMs..tEndMs",
+            "score": "number"
+          }
+        }
+      ],
+      "storage": {
+        "postgresTables": [
+          "summary_artifacts",
+          "summary_sections",
+          "summary_section_versions (optional)",
+          "summary_exports (optional)"
+        ],
+        "indexes": [
+          "summary_artifacts(meetingSessionId, version)",
+          "summary_sections(summaryArtifactId, key)"
+        ]
+      }
+    },
+    "templates": {
+      "templatesAreFirstClass": true,
+      "templateStore": "db + seeded defaults",
+      "seededSummaryTemplates": [
+        {
+          "id": "t_sum_classic_minutes",
+          "name": "Classic Minutes",
+          "sections": [
+            {
+              "key": "overview",
+              "title": "Overview",
+              "format": "freeform",
+              "required": true,
+              "instructions": "1-2 short paragraphs describing purpose and outcomes. Must be evidence-grounded."
+            },
+            {
+              "key": "decisions",
+              "title": "Decisions",
+              "format": "bullets",
+              "required": true,
+              "instructions": "List decisions. Each bullet must include citations.",
+              "maxItems": 12
+            },
+            {
+              "key": "action_items",
+              "title": "Action Items",
+              "format": "checklist",
+              "required": true,
+              "instructions": "Checklist. Include owner/due date only if explicitly present. Never guess."
+            },
+            {
+              "key": "risks_open_questions",
+              "title": "Risks & Open Questions",
+              "format": "bullets",
+              "required": false,
+              "instructions": "Capture risks and unresolved points raised."
+            },
+            {
+              "key": "next_steps",
+              "title": "Next Steps",
+              "format": "bullets",
+              "required": false,
+              "instructions": "What should happen next based on the meeting content."
+            }
+          ]
+        },
+        {
+          "id": "t_sum_sales_call",
+          "name": "Sales Call Summary",
+          "sections": [
+            {
+              "key": "customer_context",
+              "title": "Customer Context",
+              "format": "bullets",
+              "required": true,
+              "instructions": "Customer background and current situation."
+            },
+            {
+              "key": "pain_points",
+              "title": "Pain Points",
+              "format": "bullets",
+              "required": true,
+              "instructions": "Top pains with citations and quotes if available."
+            },
+            {
+              "key": "objections",
+              "title": "Objections",
+              "format": "bullets",
+              "required": false,
+              "instructions": "Objections raised and how they were addressed."
+            },
+            {
+              "key": "next_steps",
+              "title": "Next Steps",
+              "format": "checklist",
+              "required": true,
+              "instructions": "Follow-ups agreed. Do not invent owners/dates."
+            }
+          ]
+        }
+      ]
+    },
+    "langchain_architecture": {
+      "runtime": "Node/TypeScript",
+      "packages": [
+        "@langchain/core",
+        "@langchain/community",
+        "@langchain/openai (or provider adapter)",
+        "@langchain/langgraph (optional)"
+      ],
+      "providerAbstraction": {
+        "llmProviders": ["Groq", "OpenAI", "Anthropic", "AzureOpenAI"],
+        "embeddingProviders": ["existing embedding choice (keep current)"],
+        "rule": "Do not change embeddings/indexing in Phase 1.5 unless necessary."
+      },
+      "chains": [
+        {
+          "id": "LC_SUMMARY_ORCHESTRATOR",
+          "type": "RunnableSequence",
+          "purpose": "Generates a full SummaryArtifact from meeting context with strict grounding and section outputs.",
+          "steps": [
+            "loadTemplate",
+            "loadMeetingSources (transcript + notes + prior summaries if allowed)",
+            "buildEvidencePool (retrieval per section + global retrieval)",
+            "generateSections (parallelizable)",
+            "validateEachSection (citations required)",
+            "assembleArtifact",
+            "persistArtifactVersion"
+          ],
+          "inputs": {
+            "meetingSessionId": "uuid",
+            "templateId": "string",
+            "scope": "all_meeting_sources|transcript_only|notes_only",
+            "lockedSectionKeys": "string[]",
+            "budget": {
+              "maxTokens": 12000,
+              "maxChunks": 30
+            }
+          },
+          "outputs": {
+            "summaryArtifactId": "uuid",
+            "version": "number",
+            "sections": "SummarySection[]"
+          }
+        },
+        {
+          "id": "LC_SECTION_REGEN",
+          "type": "RunnableSequence",
+          "purpose": "Regenerates a single section only (no rewrite of other sections).",
+          "steps": [
+            "loadTemplateSection",
+            "retrieveEvidenceForSection",
+            "generateSection",
+            "validateSection",
+            "persistSectionVersion"
+          ],
+          "inputs": {
+            "summaryArtifactId": "uuid",
+            "sectionKey": "string",
+            "meetingSessionId": "uuid",
+            "scope": "all_meeting_sources|transcript_only|notes_only"
+          },
+          "outputs": {
+            "updatedSection": "SummarySection"
+          }
+        }
+      ],
+      "retrieval_integration": {
+        "reuseExistingRetriever": true,
+        "implementation": {
+          "optionA": "Call your existing /api/chat/search internally for retrieval (fastest integration).",
+          "optionB": "Direct DB retrieval (pgvector + optional BM25) as a shared library used by chat + summary."
+        },
+        "sectionAwareRetrieval": {
+          "enabled": true,
+          "strategy": "per-section query builder (e.g., decisions/action items/risks) + global context",
+          "k": 10,
+          "rerankTopN": 5,
+          "dedupe": true
+        }
+      },
+      "validators": [
+        {
+          "id": "CITATION_ENFORCER",
+          "rule": "Decisions, dates, numbers, action items MUST have citations or be omitted.",
+          "failureBehavior": "retry once with stricter retrieval; if still fails, return section with 'Evidence not found' note."
+        },
+        {
+          "id": "NO_GUESSING_OWNER_DATES",
+          "rule": "If owner/due date not explicitly present, omit the fields.",
+          "failureBehavior": "strip invalid fields + add warning"
+        }
+      ]
+    },
+    "prompts": {
+      "system_summary": "You generate meeting summaries ONLY from the provided evidence snippets. Never invent facts. Every decision/action item must include citations referencing snippet ids.",
+      "section_prompt_contract": {
+        "input": {
+          "templateSection": "TemplateSection",
+          "evidenceSnippets": "Array<{id:string, title:string, sourceType:string, text:string, timeRange?:string}>",
+          "meetingMeta": "object"
+        },
+        "output_json_schema": {
+          "type": "object",
+          "properties": {
+            "content_markdown": {
+              "type": "string"
+            },
+            "citations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "citation_id": {
+                    "type": "string"
+                  },
+                  "chunkId": {
+                    "type": "string"
+                  },
+                  "snippet": {
+                    "type": "string"
+                  },
+                  "time_range_optional": {
+                    "type": "string"
+                  },
+                  "score": {
+                    "type": "number"
+                  }
+                },
+                "required": ["citation_id", "chunkId", "snippet"]
+              }
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": ["content_markdown", "citations"]
+        }
+      }
+    },
+    "api_contracts_new": {
+      "generate_summary": {
+        "method": "POST",
+        "path": "/api/summary/generate",
+        "body": {
+          "meetingSessionId": "uuid",
+          "templateId": "string",
+          "scope": "all_meeting_sources|transcript_only|notes_only",
+          "mode": "batch|incremental_optional"
+        },
+        "returns": {
+          "summaryArtifactId": "uuid",
+          "version": "number",
+          "sections": "array",
+          "status": "ready|generating|failed"
+        }
+      },
+      "regenerate_section": {
+        "method": "POST",
+        "path": "/api/summary/regenerate-section",
+        "body": {
+          "summaryArtifactId": "uuid",
+          "meetingSessionId": "uuid",
+          "sectionKey": "string"
+        },
+        "returns": {
+          "updatedSection": "object"
+        }
+      },
+      "export_notion": {
+        "method": "POST",
+        "path": "/api/summary/export/notion",
+        "body": {
+          "summaryArtifactId": "uuid",
+          "includeCitations": "boolean"
+        },
+        "returns": {
+          "notionBlocks": "array"
+        }
+      }
+    },
+    "observability_extensions": {
+      "metrics_add": [
+        "summary_generate_count",
+        "summary_generate_latency_ms",
+        "summary_section_regen_count",
+        "summary_citation_missing_rate",
+        "summary_version_count_per_meeting"
+      ],
+      "logging": {
+        "store_prompts": false,
+        "store_evidence_chunk_ids": true,
+        "store_section_validation_failures": true
+      }
+    },
+    "tdd_suite_additions": {
+      "unit_tests": [
+        {
+          "id": "SUM_UT_001",
+          "name": "Section generator outputs valid JSON per schema",
+          "assert": [
+            "content_markdown exists",
+            "citations array exists",
+            "no invalid fields"
+          ]
+        },
+        {
+          "id": "SUM_UT_002",
+          "name": "Citation enforcer fails when decisions have no citations",
+          "assert": ["validator rejects uncited decisions"]
+        },
+        {
+          "id": "SUM_UT_003",
+          "name": "Locked section is not regenerated",
+          "assert": ["locked sections remain identical across versions"]
+        }
+      ],
+      "integration_tests": [
+        {
+          "id": "SUM_IT_001",
+          "name": "Generate summary artifact from seeded transcript",
+          "setup": "seed transcript chunks with known decisions/actions",
+          "assert": [
+            "sections include expected decisions",
+            "citations length > 0"
+          ]
+        },
+        {
+          "id": "SUM_IT_002",
+          "name": "Regenerate only action_items section",
+          "assert": [
+            "only action_items sectionVersion increments",
+            "other sections unchanged"
+          ]
+        }
+      ],
+      "e2e_tests": [
+        {
+          "id": "SUM_E2E_001",
+          "name": "User generates summary and opens evidence drawer from citation",
+          "steps": [
+            "Open /app/meeting/:id/summary",
+            "Select template 'Classic Minutes'",
+            "Click Generate Summary",
+            "Click a citation in Decisions section",
+            "Evidence drawer shows snippet and timestamp"
+          ]
+        }
+      ]
+    }
+  },
+  "phase_2_optional_langchain_toolcalling": {
+    "feature": {
+      "id": "TOOLS_LANGCHAIN_001",
+      "name": "Confirm-to-Act Tools Router (LangChain optional)",
+      "goal": "Deterministic tool suggestions + safe execution with explicit confirmation.",
+      "status": "optional",
+      "rule": "No autonomous agents"
+    },
+    "design": {
+      "approach": "LangChain tool calling OR keep your existing JSON router",
+      "confirmationUI": "always required for side-effects",
+      "tools": [
+        "create_note",
+        "append_to_note",
+        "create_action_items",
+        "send_to_notion",
+        "export_pdf",
+        "share_email_draft"
+      ],
+      "acceptance_tests": [
+        "Assistant can propose tool call but cannot execute without user confirmation",
+        "Tool outputs are persisted and auditable",
+        "No tool call happens when user only asked informational question"
+      ]
+    }
+  },
+  "migration_plan": {
+    "step_1": "Introduce summary tables + seed templates",
+    "step_2": "Implement LangChain summary orchestrator as internal service module (server-only)",
+    "step_3": "Wire /api/summary/generate + regenerate-section + export/notion",
+    "step_4": "Add summary UI screen + section regen + evidence drawer reuse",
+    "step_5": "Add validators + eval harness for groundedness",
+    "step_6": "Optionally refactor retrieval into shared library used by both chat + summary"
+  }
+}

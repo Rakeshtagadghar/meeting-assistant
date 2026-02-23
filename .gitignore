@@ -44,3 +44,6 @@ nul
 # apps/desktop/src-tauri/binaries/ (committed - needed for Tauri build)
 apps/desktop/src-tauri/models/
 apps/desktop/src-tauri/target/
+out.txt
+build-out.txt
+build-logs.txt

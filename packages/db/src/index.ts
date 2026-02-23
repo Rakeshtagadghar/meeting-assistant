@@ -15,4 +15,6 @@ export { createTranscriptChunksRepository } from "./repositories/transcript-chun
 export type { TranscriptChunksRepository } from "./repositories/transcript-chunks.repo";
 export { createUserIntegrationsRepository } from "./repositories/user-integrations.repo";
 export type { UserIntegrationsRepository } from "./repositories/user-integrations.repo";
+export { createSummaryArtifactsRepository } from "./repositories/summary-artifacts.repo";
+export type { SummaryArtifactsRepository } from "./repositories/summary-artifacts.repo";
 export type { PrismaClient } from "@prisma/client";

@@ -282,6 +282,79 @@ export interface NoteArtifact {
   readonly updatedAt: ISODateString;
 }
 
+// ─── Summary Artifact types (LangChain) ───
+
+export const SummaryArtifactStatus = {
+  GENERATING: "GENERATING",
+  READY: "READY",
+  FAILED: "FAILED",
+} as const;
+export type SummaryArtifactStatus =
+  (typeof SummaryArtifactStatus)[keyof typeof SummaryArtifactStatus];
+
+export interface Citation {
+  readonly citationId: string;
+  readonly sourceType: "note" | "transcript" | "ai_summary";
+  readonly noteId: UUID | null;
+  readonly meetingSessionId: UUID | null;
+  readonly chunkId: string;
+  readonly title: string;
+  readonly snippet: string;
+  readonly timeRange: string | null;
+  readonly score: number;
+}
+
+export interface SummarySectionData {
+  readonly id: UUID;
+  readonly summaryArtifactId: UUID;
+  readonly key: string;
+  readonly title: string;
+  readonly contentMarkdown: string;
+  readonly citations: readonly Citation[];
+  readonly sectionVersion: number;
+  readonly locked: boolean;
+  readonly userEdited: boolean;
+  readonly regenCount: number;
+  readonly lastRegeneratedAt: ISODateString | null;
+  readonly order: number;
+  readonly warnings: readonly string[];
+  readonly createdAt: ISODateString;
+  readonly updatedAt: ISODateString;
+}
+
+export interface SummaryArtifactData {
+  readonly id: UUID;
+  readonly noteId: UUID;
+  readonly meetingSessionId: UUID | null;
+  readonly templateId: UUID | null;
+  readonly version: number;
+  readonly status: SummaryArtifactStatus;
+  readonly citationsIndex: JsonValue;
+  readonly modelInfo: JsonValue;
+  readonly scope: string;
+  readonly sections: readonly SummarySectionData[];
+  readonly createdAt: ISODateString;
+  readonly updatedAt: ISODateString;
+}
+
+export interface CreateSummaryArtifactInput {
+  readonly noteId: UUID;
+  readonly meetingSessionId?: UUID | null;
+  readonly templateId?: UUID | null;
+  readonly scope?: string;
+  readonly modelInfo?: JsonValue;
+  readonly sections: readonly CreateSummarySectionInput[];
+}
+
+export interface CreateSummarySectionInput {
+  readonly key: string;
+  readonly title: string;
+  readonly contentMarkdown: string;
+  readonly citations: readonly Citation[];
+  readonly order: number;
+  readonly warnings?: readonly string[];
+}
+
 // ─── Input DTOs ───
 
 export interface CreateNoteInput {

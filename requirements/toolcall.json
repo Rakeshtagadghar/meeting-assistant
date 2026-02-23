@@ -1,0 +1,842 @@
+{
+  "meta": {
+    "project": "Golden Minutes",
+    "phase": "Phase 2",
+    "feature": "Toolcalling (Confirm-to-Act)",
+    "goal": "Turn chat answers into safe, user-approved actions (create/append notes, action items, exports, Notion/Slack, email drafts) while keeping the assistant deterministic and auditable.",
+    "nonGoals": [
+      "Autonomous agents that execute without confirmation",
+      "Background scheduling or sending emails directly",
+      "Cross-tenant or cross-workspace actions"
+    ],
+    "principles": [
+      "Confirm before side-effects",
+      "Explain what will happen + preview changes",
+      "Evidence-backed actions (citations)",
+      "Idempotent execution",
+      "Audit everything"
+    ]
+  },
+  "epics": [
+    {
+      "id": "TC_E1",
+      "name": "Tool Router + Confirm-to-Act UX",
+      "description": "Detect when a user intent requires a tool, propose a structured action card, and execute only after confirmation.",
+      "userStories": [
+        {
+          "id": "TC_E1_S1",
+          "title": "Propose tool actions as preview cards",
+          "acceptanceTests": [
+            "Given the user asks to 'create a note from this', assistant returns a tool proposal card with a preview (title/body) and citations.",
+            "Tool proposal includes: toolName, rationale, inputs (editable), expected outcome, and risk level.",
+            "No tool is executed until user clicks Confirm."
+          ]
+        },
+        {
+          "id": "TC_E1_S2",
+          "title": "Edit inputs before running tool",
+          "acceptanceTests": [
+            "User can edit note title/body, owners/due dates, Notion destination, Slack channel, etc. before confirming.",
+            "Edits update the final tool input payload and are saved as part of the audit trail."
+          ]
+        },
+        {
+          "id": "TC_E1_S3",
+          "title": "Cancel or revise action",
+          "acceptanceTests": [
+            "User can cancel a proposal; nothing is executed and UI shows 'Cancelled'.",
+            "User can ask 'change the title' and the assistant updates the draft without executing."
+          ]
+        },
+        {
+          "id": "TC_E1_S4",
+          "title": "Idempotent confirmation",
+          "acceptanceTests": [
+            "Confirming twice does not create duplicates; server uses idempotencyKey.",
+            "If a request fails mid-way, user can safely retry without duplicates."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "TC_E2",
+      "name": "Tool Catalog + Schemas",
+      "description": "Define a stable tool interface: schemas, permission gates, and outputs that the UI can render consistently.",
+      "userStories": [
+        {
+          "id": "TC_E2_S1",
+          "title": "Each tool has strict JSON schema validation",
+          "acceptanceTests": [
+            "Tool input validated with JSON schema on server; invalid payload returns validation errors for UI display.",
+            "Assistant never sends free-form tool payloads; always structured."
+          ]
+        },
+        {
+          "id": "TC_E2_S2",
+          "title": "Tools return renderable outputs",
+          "acceptanceTests": [
+            "Each tool returns a UI-friendly result: ids, URLs, block previews, or created objects.",
+            "Tool results include a summary message and references for audit."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "TC_E3",
+      "name": "Permission & Safety Gates",
+      "description": "Prevent accidental/unsafe side effects with per-tool gating, scopes, and user confirmation.",
+      "userStories": [
+        {
+          "id": "TC_E3_S1",
+          "title": "Per-tool permission checks (auth + workspace + sharing)",
+          "acceptanceTests": [
+            "User can only act on notes/meetings they have access to.",
+            "Shared-with-me notes follow their permissions (read-only cannot be appended)."
+          ]
+        },
+        {
+          "id": "TC_E3_S2",
+          "title": "Sensitive actions require extra confirmation",
+          "acceptanceTests": [
+            "Exports/shares show a warning and explicit consent step (double confirm).",
+            "Notion/Slack integrations require connected account and explicit destination selection."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "TC_E4",
+      "name": "Observability + Audit Trail",
+      "description": "Track every proposed and executed action, inputs, outputs, and user confirmation.",
+      "userStories": [
+        {
+          "id": "TC_E4_S1",
+          "title": "Audit trail for proposals and executions",
+          "acceptanceTests": [
+            "Every tool proposal stored with toolName, draft inputs, citations, and rationale.",
+            "Every execution stored with confirmed inputs, idempotencyKey, result payload, and timestamps."
+          ]
+        }
+      ]
+    }
+  ],
+  "toolcalling_policy": {
+    "modes": {
+      "default": "suggest_only",
+      "explicit_action": "confirm_to_act"
+    },
+    "rules": [
+      "Never execute a side-effect tool without explicit user confirmation.",
+      "If the user intent is ambiguous, ask a clarifying question instead of proposing tools.",
+      "Tool proposals must include citations if derived from notes/transcript.",
+      "Never guess owners/dates/recipients; require user input or omit.",
+      "All tool payloads must be JSON-schema-valid."
+    ],
+    "tool_types": {
+      "read_only": {
+        "description": "Safe operations with no side effects.",
+        "confirmation_required": false,
+        "examples": ["search_notes_advanced", "get_note", "list_templates"]
+      },
+      "side_effect": {
+        "description": "Creates/modifies/exports/shares content.",
+        "confirmation_required": true,
+        "examples": [
+          "create_note",
+          "append_to_note",
+          "create_action_items",
+          "send_to_notion",
+          "send_to_slack",
+          "export_pdf"
+        ]
+      }
+    }
+  },
+  "tools_catalog": [
+    {
+      "name": "create_note",
+      "type": "side_effect",
+      "description": "Create a new note from chat answer or selected content.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 140
+          },
+          "body_markdown": {
+            "type": "string",
+            "minLength": 1
+          },
+          "folderId_optional": {
+            "type": ["string", "null"]
+          },
+          "tags_optional": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "source_refs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/schemas/CitationRef"
+            }
+          }
+        },
+        "required": ["title", "body_markdown"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "noteId": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": ["noteId"]
+      },
+      "acceptanceTests": [
+        "Creates note and returns noteId; UI shows 'Open note' link.",
+        "Stores source_refs in note metadata if enabled."
+      ]
+    },
+    {
+      "name": "append_to_note",
+      "type": "side_effect",
+      "description": "Append markdown to an existing note.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "noteId": {
+            "type": "string"
+          },
+          "append_markdown": {
+            "type": "string",
+            "minLength": 1
+          },
+          "mode": {
+            "type": "string",
+            "enum": ["append_end", "insert_after_heading"]
+          },
+          "heading_optional": {
+            "type": ["string", "null"]
+          },
+          "source_refs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/schemas/CitationRef"
+            }
+          }
+        },
+        "required": ["noteId", "append_markdown", "mode"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "noteVersion": {
+            "type": "number"
+          }
+        },
+        "required": ["ok"]
+      },
+      "acceptanceTests": [
+        "Append updates note; returns ok=true.",
+        "Reject if note is read-only to user."
+      ]
+    },
+    {
+      "name": "create_action_items",
+      "type": "side_effect",
+      "description": "Create structured action items (and optionally a checklist note section).",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "meetingSessionId": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "title": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "owner_optional": {
+                  "type": ["string", "null"]
+                },
+                "dueDate_optional": {
+                  "type": ["string", "null"]
+                },
+                "priority_optional": {
+                  "type": ["string", "null"],
+                  "enum": ["low", "medium", "high", null]
+                },
+                "evidence": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/schemas/CitationRef"
+                  },
+                  "minItems": 1
+                }
+              },
+              "required": ["title", "evidence"]
+            }
+          }
+        },
+        "required": ["meetingSessionId", "items"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "actionItemIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": ["actionItemIds"]
+      },
+      "acceptanceTests": [
+        "Owners/dates are omitted unless explicit; server rejects guessed fields if flagged.",
+        "Returns created ids; UI renders editable checklist cards."
+      ]
+    },
+    {
+      "name": "export_pdf",
+      "type": "side_effect",
+      "description": "Export a note or summary artifact to PDF.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "sourceType": {
+            "type": "string",
+            "enum": ["note", "summaryArtifact"]
+          },
+          "sourceId": {
+            "type": "string"
+          },
+          "template_optional": {
+            "type": ["string", "null"]
+          }
+        },
+        "required": ["sourceType", "sourceId"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "downloadUrl": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string"
+          }
+        },
+        "required": ["downloadUrl"]
+      },
+      "acceptanceTests": [
+        "Returns signed download URL; UI shows 'Download PDF'.",
+        "Export logs do not contain raw content."
+      ]
+    },
+    {
+      "name": "send_to_notion",
+      "type": "side_effect",
+      "description": "Export content to Notion as blocks/page (requires user connected Notion).",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "sourceType": {
+            "type": "string",
+            "enum": ["note", "summaryArtifact", "chatAnswer"]
+          },
+          "sourceId_optional": {
+            "type": ["string", "null"]
+          },
+          "notion": {
+            "type": "object",
+            "properties": {
+              "parentType": {
+                "type": "string",
+                "enum": ["page", "database"]
+              },
+              "parentId": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "properties_optional": {
+                "type": "object"
+              }
+            },
+            "required": ["parentType", "parentId", "title"]
+          },
+          "includeCitations": {
+            "type": "boolean"
+          }
+        },
+        "required": ["notion"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "notionPageId": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": ["notionPageId"]
+      },
+      "acceptanceTests": [
+        "If Notion not connected, tool proposal becomes 'Connect Notion' CTA instead of execute.",
+        "Destination must be selected by user; never guessed."
+      ]
+    },
+    {
+      "name": "send_to_slack",
+      "type": "side_effect",
+      "description": "Post a summary or key points to Slack (requires connection).",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "channelId": {
+            "type": "string"
+          },
+          "message_markdown": {
+            "type": "string"
+          },
+          "threadTs_optional": {
+            "type": ["string", "null"]
+          }
+        },
+        "required": ["channelId", "message_markdown"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "ts": {
+            "type": "string"
+          }
+        },
+        "required": ["ok"]
+      },
+      "acceptanceTests": [
+        "If Slack not connected, show connect CTA.",
+        "Channel must be chosen by user."
+      ]
+    },
+    {
+      "name": "share_email_draft",
+      "type": "side_effect",
+      "description": "Generate a mailto or Gmail compose URL with a draft email (no sending).",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "to_optional": {
+            "type": ["string", "null"]
+          },
+          "cc_optional": {
+            "type": ["string", "null"]
+          },
+          "subject": {
+            "type": "string"
+          },
+          "body_plaintext": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string",
+            "enum": ["mailto", "gmail"]
+          }
+        },
+        "required": ["subject", "body_plaintext", "provider"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "composeUrl": {
+            "type": "string"
+          }
+        },
+        "required": ["composeUrl"]
+      },
+      "acceptanceTests": [
+        "Never sends email; only returns compose URL.",
+        "Recipients must be provided by user or omitted."
+      ]
+    },
+    {
+      "name": "search_notes_advanced",
+      "type": "read_only",
+      "description": "Advanced search across notes/chunks with filters; supports UI browse and citations.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "filters": {
+            "type": "object"
+          },
+          "k": {
+            "type": "number"
+          }
+        },
+        "required": ["query"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/schemas/SearchResult"
+            }
+          }
+        },
+        "required": ["results"]
+      },
+      "acceptanceTests": [
+        "Returns ranked results with snippet + metadata + chunk ids."
+      ]
+    }
+  ],
+  "schemas": {
+    "CitationRef": {
+      "type": "object",
+      "properties": {
+        "chunkId": {
+          "type": "string"
+        },
+        "noteId_optional": {
+          "type": ["string", "null"]
+        },
+        "meetingSessionId_optional": {
+          "type": ["string", "null"]
+        },
+        "title": {
+          "type": "string"
+        },
+        "snippet": {
+          "type": "string"
+        },
+        "time_range_optional": {
+          "type": ["string", "null"]
+        }
+      },
+      "required": ["chunkId", "title", "snippet"]
+    },
+    "SearchResult": {
+      "type": "object",
+      "properties": {
+        "chunkId": {
+          "type": "string"
+        },
+        "noteId_optional": {
+          "type": ["string", "null"]
+        },
+        "meetingSessionId_optional": {
+          "type": ["string", "null"]
+        },
+        "sourceType": {
+          "type": "string",
+          "enum": ["note", "transcript", "summary"]
+        },
+        "title": {
+          "type": "string"
+        },
+        "snippet": {
+          "type": "string"
+        },
+        "score": {
+          "type": "number"
+        }
+      },
+      "required": ["chunkId", "sourceType", "title", "snippet", "score"]
+    }
+  },
+  "tool_router_design": {
+    "approach": "deterministic router (no agent) with optional LangChain tool calling",
+    "stages": [
+      {
+        "name": "intent_detection",
+        "method": "lightweight classifier prompt OR rules",
+        "outputs": ["information_only", "propose_tool", "ask_clarifying"]
+      },
+      {
+        "name": "proposal_builder",
+        "method": "LLM creates tool proposal JSON + preview content + citations",
+        "constraints": [
+          "No side effects",
+          "Must be schema-valid",
+          "Must include rationale and evidence refs"
+        ]
+      },
+      {
+        "name": "confirmation_gate",
+        "method": "UI confirm card",
+        "requirements": [
+          "Shows diffs/previews",
+          "Edits allowed",
+          "Cancel allowed",
+          "Returns idempotencyKey"
+        ]
+      },
+      {
+        "name": "executor",
+        "method": "server executes tool after permission checks + schema validation",
+        "requirements": [
+          "Idempotency enforced",
+          "Audit trail written",
+          "Return UI-friendly result"
+        ]
+      }
+    ],
+    "proposal_contract": {
+      "type": "object",
+      "properties": {
+        "proposalId": {
+          "type": "string"
+        },
+        "toolName": {
+          "type": "string"
+        },
+        "rationale": {
+          "type": "string"
+        },
+        "riskLevel": {
+          "type": "string",
+          "enum": ["low", "medium", "high"]
+        },
+        "inputDraft": {
+          "type": "object"
+        },
+        "preview": {
+          "type": "object"
+        },
+        "citations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/schemas/CitationRef"
+          }
+        },
+        "requiresConfirmation": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "proposalId",
+        "toolName",
+        "inputDraft",
+        "requiresConfirmation"
+      ]
+    }
+  },
+  "api_contracts_phase_2": {
+    "propose_tool": {
+      "method": "POST",
+      "path": "/api/chat/tool/propose",
+      "body": {
+        "conversationId": "uuid_optional",
+        "message": "string",
+        "scope": "string",
+        "filters": "object",
+        "mode": "auto|qa|summarize|action_items|email_draft",
+        "contextHints_optional": "object"
+      },
+      "returns": {
+        "proposal": "#/tool_router_design/proposal_contract",
+        "assistantMessage_optional": "string"
+      }
+    },
+    "confirm_tool": {
+      "method": "POST",
+      "path": "/api/chat/tool/confirm",
+      "body": {
+        "proposalId": "string",
+        "toolName": "string",
+        "finalInput": "object",
+        "idempotencyKey": "string"
+      },
+      "returns": {
+        "toolResult": "object",
+        "renderHint": "note|action_items|export|notion|slack|email"
+      }
+    },
+    "list_tools": {
+      "method": "GET",
+      "path": "/api/tools",
+      "returns": {
+        "tools": "array",
+        "schemas": "object"
+      }
+    }
+  },
+  "ui_requirements": {
+    "toolProposalCard": {
+      "mustShow": [
+        "What I will do",
+        "Preview (editable)",
+        "Evidence (citations)",
+        "Permissions/integrations required",
+        "Confirm and Cancel buttons"
+      ],
+      "editors": {
+        "note_editor": ["title", "markdown_body", "folder", "tags"],
+        "action_items_editor": ["title", "owner", "dueDate", "priority"],
+        "notion_editor": ["destination", "title", "includeCitations"],
+        "slack_editor": ["channel", "message"],
+        "email_editor": ["to", "cc", "subject", "body"]
+      }
+    },
+    "postExecution": {
+      "mustShow": [
+        "Success/failure state",
+        "Undo if supported (optional)",
+        "Open link (note/notion/slack/pdf)",
+        "Execution details (collapsed): toolName, timestamps"
+      ]
+    }
+  },
+  "permissions_and_integrations": {
+    "requirements": [
+      "Notion: user must have connected workspace; store tokens securely; allow selecting destination page/database.",
+      "Slack: user must have connected workspace; list channels; require explicit channel selection.",
+      "Email: do not send; only create compose URL."
+    ],
+    "serverSideChecks": [
+      "workspace membership",
+      "resource ownership or shared access level",
+      "rate limits per user",
+      "tool-specific scopes"
+    ]
+  },
+  "audit_and_storage": {
+    "tables": [
+      {
+        "name": "tool_proposals",
+        "fields": {
+          "proposalId": "string",
+          "userId": "string",
+          "conversationId": "string|null",
+          "toolName": "string",
+          "draftInput": "jsonb",
+          "citations": "jsonb",
+          "status": "proposed|confirmed|cancelled|expired",
+          "createdAt": "isoDate"
+        }
+      },
+      {
+        "name": "tool_executions",
+        "fields": {
+          "executionId": "string",
+          "proposalId": "string",
+          "toolName": "string",
+          "finalInput": "jsonb",
+          "result": "jsonb",
+          "idempotencyKey": "string",
+          "status": "success|failed",
+          "error_optional": "string|null",
+          "createdAt": "isoDate"
+        }
+      }
+    ]
+  },
+  "testing_tdd_phase_2": {
+    "unit_tests": [
+      {
+        "id": "TC_UT_001",
+        "name": "Router chooses propose_tool for actionable intents",
+        "assert": [
+          "'export this' triggers export_pdf proposal",
+          "'summarize' does not auto-propose side effects"
+        ]
+      },
+      {
+        "id": "TC_UT_002",
+        "name": "Server schema validation rejects invalid tool input",
+        "assert": ["missing required fields returns 400 + field errors"]
+      },
+      {
+        "id": "TC_UT_003",
+        "name": "Idempotency prevents duplicates",
+        "assert": ["same idempotencyKey returns same execution result"]
+      }
+    ],
+    "integration_tests": [
+      {
+        "id": "TC_IT_001",
+        "name": "Propose -> confirm -> create_note",
+        "assert": [
+          "proposal saved",
+          "note created",
+          "execution logged",
+          "result contains noteId"
+        ]
+      },
+      {
+        "id": "TC_IT_002",
+        "name": "Propose send_to_notion without connection shows CTA",
+        "assert": [
+          "proposal includes 'requiresIntegration' metadata",
+          "no execution allowed"
+        ]
+      }
+    ],
+    "e2e_tests": [
+      {
+        "id": "TC_E2E_001",
+        "name": "User confirms append_to_note from chat",
+        "steps": [
+          "Ask question and get answer",
+          "Click 'Save to note'",
+          "Edit title/body in proposal card",
+          "Confirm",
+          "See success + open note link"
+        ]
+      }
+    ],
+    "security_tests": [
+      {
+        "id": "TC_SEC_001",
+        "name": "Cannot append to read-only shared note",
+        "assert": [
+          "server returns permission denied",
+          "no execution logged as success"
+        ]
+      }
+    ]
+  },
+  "rollout_plan": {
+    "featureFlags": [
+      "toolcalling_enabled",
+      "notion_enabled",
+      "slack_enabled",
+      "pdf_export_enabled"
+    ],
+    "milestones": [
+      "M1: Tool proposal + confirm framework + create/append note tools",
+      "M2: Action items tool + PDF export",
+      "M3: Notion export",
+      "M4: Slack posting + advanced search tool"
+    ]
+  }
+}

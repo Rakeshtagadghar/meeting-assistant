@@ -11,6 +11,7 @@ export {
   ProcessingJobStatus,
   ArtifactType,
   ArtifactStatus,
+  SummaryArtifactStatus,
 } from "./types";
 
 export type {
@@ -41,6 +42,11 @@ export type {
   CreateTranscriptChunkInput,
   CreateProcessingJobInput,
   CreateArtifactInput,
+  Citation,
+  SummarySectionData,
+  SummaryArtifactData,
+  CreateSummaryArtifactInput,
+  CreateSummarySectionInput,
 } from "./types";
 
 // ─── Note ───

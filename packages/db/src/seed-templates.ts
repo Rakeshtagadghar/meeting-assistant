@@ -118,6 +118,78 @@ const templates = [
       },
     ],
   },
+  {
+    name: "Classic Minutes",
+    meetingContext:
+      "Generate a formal meeting minutes document. Focus on evidence-grounded decisions, action items with owners, and key discussion points. Every claim must be backed by citations from the source material.",
+    sections: [
+      {
+        title: "Overview",
+        hint: "1-2 short paragraphs describing purpose and outcomes. Must be evidence-grounded.",
+        metadata: { key: "overview", format: "freeform", required: true },
+      },
+      {
+        title: "Decisions",
+        hint: "List decisions. Each bullet must include citations.",
+        metadata: {
+          key: "decisions",
+          format: "bullets",
+          required: true,
+          maxItems: 12,
+        },
+      },
+      {
+        title: "Action Items",
+        hint: "Checklist. Include owner/due date only if explicitly present. Never guess.",
+        metadata: { key: "action_items", format: "checklist", required: true },
+      },
+      {
+        title: "Risks & Open Questions",
+        hint: "Capture risks and unresolved points raised.",
+        metadata: {
+          key: "risks_open_questions",
+          format: "bullets",
+          required: false,
+        },
+      },
+      {
+        title: "Next Steps",
+        hint: "What should happen next based on the meeting content.",
+        metadata: { key: "next_steps", format: "bullets", required: false },
+      },
+    ],
+  },
+  {
+    name: "Sales Call Summary",
+    meetingContext:
+      "Generate a sales call summary. Focus on customer context, pain points with citations and quotes, objections, and concrete next steps. Do not invent owners or dates.",
+    sections: [
+      {
+        title: "Customer Context",
+        hint: "Customer background and current situation.",
+        metadata: {
+          key: "customer_context",
+          format: "bullets",
+          required: true,
+        },
+      },
+      {
+        title: "Pain Points",
+        hint: "Top pains with citations and quotes if available.",
+        metadata: { key: "pain_points", format: "bullets", required: true },
+      },
+      {
+        title: "Objections",
+        hint: "Objections raised and how they were addressed.",
+        metadata: { key: "objections", format: "bullets", required: false },
+      },
+      {
+        title: "Next Steps",
+        hint: "Follow-ups agreed. Do not invent owners/dates.",
+        metadata: { key: "next_steps", format: "checklist", required: true },
+      },
+    ],
+  },
 ];
 
 async function seedTemplates() {
@@ -139,6 +211,7 @@ async function seedTemplates() {
               order: i,
               title: s.title,
               hint: s.hint,
+              metadata: "metadata" in s ? (s.metadata as object) : {},
             })),
           },
         },

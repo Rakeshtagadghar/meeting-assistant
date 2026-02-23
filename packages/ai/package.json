@@ -15,7 +15,10 @@
   },
   "dependencies": {
     "@ainotes/config": "workspace:*",
-    "groq-sdk": "^0.25.0"
+    "@langchain/core": "^1.1.27",
+    "@langchain/groq": "^1.1.2",
+    "groq-sdk": "^0.25.0",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
