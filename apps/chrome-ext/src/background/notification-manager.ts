@@ -10,10 +10,7 @@ export interface NotificationCallbacks {
 }
 
 let callbacks: NotificationCallbacks | null = null;
-const notificationData = new Map<
-  string,
-  { tabId: number; url: string }
->();
+const notificationData = new Map<string, { tabId: number; url: string }>();
 
 export function initNotifications(cb: NotificationCallbacks): void {
   callbacks = cb;

@@ -33,9 +33,7 @@ export function PrivacySection({ settings, onChange, onClearData }: Props) {
         >
           <div
             className={`absolute top-0.5 w-[18px] h-[18px] rounded-full bg-white shadow-sm transition-transform duration-200 ${
-              settings.shareMetadata
-                ? "translate-x-[20px]"
-                : "translate-x-0.5"
+              settings.shareMetadata ? "translate-x-[20px]" : "translate-x-0.5"
             }`}
           />
         </button>

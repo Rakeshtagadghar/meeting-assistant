@@ -49,9 +49,9 @@ export const DEFAULT_SETTINGS: Settings = {
   shareMetadata: false,
   storeRecentSessions: true,
   retentionDays: SESSION_RETENTION_DAYS,
-  openTarget: "web",
+  openTarget: "extension",
   desktopDeepLinkScheme: "goldenminutes://start",
-  webStartUrl: "https://www.goldenminutes.co.uk/start",
+  webStartUrl: "https://www.goldenminutes.co.uk/quick-note",
 };
 
 export const DEFAULT_WEB_BASE_URL =

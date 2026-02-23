@@ -11,7 +11,12 @@ export async function checkAuth(): Promise<boolean> {
 
 export function openSignIn(): void {
   const url = buildSignInUrl();
-  chrome.tabs.create({ url });
+  chrome.windows.create({
+    url,
+    type: "popup",
+    width: 520,
+    height: 760,
+  });
 }
 
 export function initAuthListener(): void {
@@ -23,7 +28,12 @@ export function initAuthListener(): void {
 
   chrome.runtime.onMessageExternal.addListener(
     (
-      request: { type?: string; token?: string; email?: string; expiresAt?: number },
+      request: {
+        type?: string;
+        token?: string;
+        email?: string;
+        expiresAt?: number;
+      },
       _sender,
       sendResponse,
     ) => {

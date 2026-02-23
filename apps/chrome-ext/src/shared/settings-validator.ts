@@ -2,9 +2,13 @@ import type { Settings } from "./types";
 import { DEFAULT_SETTINGS } from "./constants";
 
 export function mergeSettings(partial: Partial<Settings>): Settings {
+  const normalizedOpenTarget =
+    partial.openTarget === "web" ? "extension" : partial.openTarget;
+
   return {
     ...DEFAULT_SETTINGS,
     ...partial,
+    openTarget: normalizedOpenTarget ?? DEFAULT_SETTINGS.openTarget,
     platformToggles: {
       ...DEFAULT_SETTINGS.platformToggles,
       ...(partial.platformToggles ?? {}),
@@ -32,8 +36,12 @@ export function validateSettings(settings: Settings): string[] {
   ) {
     errors.push("promptMode must be 'notification' or 'overlay'");
   }
-  if (settings.openTarget !== "web" && settings.openTarget !== "desktop") {
-    errors.push("openTarget must be 'web' or 'desktop'");
+  if (
+    settings.openTarget !== "extension" &&
+    settings.openTarget !== "desktop" &&
+    settings.openTarget !== "web"
+  ) {
+    errors.push("openTarget must be 'extension', 'desktop', or 'web'");
   }
 
   return errors;

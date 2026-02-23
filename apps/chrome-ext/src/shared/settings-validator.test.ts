@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { mergeSettings, validateSettings } from "./settings-validator";
 import { DEFAULT_SETTINGS } from "./constants";
+import type { Settings } from "./types";
 
 describe("mergeSettings", () => {
   it("returns defaults when given empty object", () => {
@@ -26,6 +27,11 @@ describe("mergeSettings", () => {
   it("preserves custom denylist", () => {
     const result = mergeSettings({ denylist: ["example.com"] });
     expect(result.denylist).toEqual(["example.com"]);
+  });
+
+  it("maps legacy web open target to extension", () => {
+    const result = mergeSettings({ openTarget: "web" });
+    expect(result.openTarget).toBe("extension");
   });
 });
 

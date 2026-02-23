@@ -11,7 +11,7 @@ import {
   showMeetingNotification,
   clearMeetingNotification,
 } from "./notification-manager";
-import { buildDeepLink, openDeepLink } from "./deep-linker";
+import { buildDeepLink, openDeepLink, openExtensionPopup } from "./deep-linker";
 import { initAuthListener, checkAuth } from "./auth-manager";
 import { startRecording, stopRecording } from "./recording-manager";
 import {
@@ -126,15 +126,19 @@ async function handleStart(tabId: number, url: string): Promise<void> {
       err,
     );
     const settings = await getSettings();
-    const deepLink = buildDeepLink({
-      target: settings.openTarget,
-      platform: tabState.candidate?.platform ?? "unknown",
-      meetingUrl: url,
-      ts: Date.now(),
-      desktopScheme: settings.desktopDeepLinkScheme,
-      webUrl: settings.webStartUrl,
-    });
-    await openDeepLink(deepLink);
+    if (settings.openTarget === "desktop") {
+      const deepLink = buildDeepLink({
+        target: settings.openTarget,
+        platform: tabState.candidate?.platform ?? "unknown",
+        meetingUrl: url,
+        ts: Date.now(),
+        desktopScheme: settings.desktopDeepLinkScheme,
+        webUrl: settings.webStartUrl,
+      });
+      await openDeepLink(deepLink);
+    } else {
+      await openExtensionPopup();
+    }
     transitionTab(tabId, "deep_link_opened");
   }
 }

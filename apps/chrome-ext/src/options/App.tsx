@@ -34,7 +34,12 @@ export function App() {
   const isAuthed = auth?.token && auth.expiresAt && Date.now() < auth.expiresAt;
 
   const handleSignIn = useCallback(() => {
-    chrome.tabs.create({ url: buildSignInUrl() });
+    chrome.windows.create({
+      url: buildSignInUrl(),
+      type: "popup",
+      width: 520,
+      height: 760,
+    });
   }, []);
 
   const handleSignOut = useCallback(async () => {
@@ -92,13 +97,7 @@ export function App() {
         <div className="flex items-center gap-4 mb-8">
           <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#667eea] to-[#764ba2] flex items-center justify-center shadow-lg shadow-purple-500/20">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-              <circle
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="white"
-                strokeWidth="2"
-              />
+              <circle cx="12" cy="12" r="10" stroke="white" strokeWidth="2" />
               <path
                 d="M12 6v6l4 2"
                 stroke="white"
@@ -108,9 +107,7 @@ export function App() {
             </svg>
           </div>
           <div className="flex-1">
-            <h1 className="text-2xl font-bold text-gray-900">
-              Golden Minutes
-            </h1>
+            <h1 className="text-2xl font-bold text-gray-900">Golden Minutes</h1>
             <p className="text-sm text-gray-500">Extension Settings</p>
           </div>
           {saved && (

@@ -38,10 +38,7 @@ export async function authenticatedFetch(
   }
 
   if (!response.ok) {
-    throw new ApiError(
-      `API error: ${response.status}`,
-      response.status,
-    );
+    throw new ApiError(`API error: ${response.status}`, response.status);
   }
 
   return response;

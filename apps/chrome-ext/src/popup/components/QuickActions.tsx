@@ -7,7 +7,7 @@ interface QuickActionsProps {
   onStopRecording: () => void;
   onSnooze: () => void;
   onOpenSettings: () => void;
-  onOpenWeb: () => void;
+  onOpenExtension: () => void;
 }
 
 export function QuickActions({
@@ -17,7 +17,7 @@ export function QuickActions({
   onStopRecording,
   onSnooze,
   onOpenSettings,
-  onOpenWeb,
+  onOpenExtension,
 }: QuickActionsProps) {
   return (
     <div className="flex flex-col gap-2">
@@ -55,10 +55,10 @@ export function QuickActions({
           Snooze 30m
         </button>
         <button
-          onClick={onOpenWeb}
+          onClick={onOpenExtension}
           className="flex-1 py-2.5 px-3 bg-white/60 backdrop-blur-sm text-gray-600 text-sm font-medium rounded-xl hover:bg-white/80 transition-all duration-200 border border-white/50"
         >
-          Open App
+          Open Extension
         </button>
       </div>
 

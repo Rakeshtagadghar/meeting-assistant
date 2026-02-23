@@ -31,7 +31,9 @@ export function ToggleSwitch({
       <div
         className={clsx(
           "relative w-11 h-6 rounded-full transition-colors duration-200 flex-shrink-0 ml-3",
-          enabled ? "bg-gradient-to-r from-[#667eea] to-[#764ba2]" : "bg-gray-300",
+          enabled
+            ? "bg-gradient-to-r from-[#667eea] to-[#764ba2]"
+            : "bg-gray-300",
         )}
       >
         <div

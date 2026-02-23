@@ -1,4 +1,8 @@
-import type { MeetingCandidate, TabMeetingState, MeetingState } from "@/shared/types";
+import type {
+  MeetingCandidate,
+  TabMeetingState,
+  MeetingState,
+} from "@/shared/types";
 import { classifyUrl, extractHostname } from "@/shared/url-classifier";
 import { hashMeetingUrl } from "@/shared/hash";
 import { shouldPrompt, recordPrompt } from "@/shared/cooldown";

@@ -1,5 +1,9 @@
 import type { RecordingState } from "@/shared/types";
-import { getRecordingState, saveRecordingState, getAuthState } from "@/shared/storage";
+import {
+  getRecordingState,
+  saveRecordingState,
+  getAuthState,
+} from "@/shared/storage";
 import { DEFAULT_WEB_BASE_URL } from "@/shared/constants";
 
 let offscreenCreated = false;

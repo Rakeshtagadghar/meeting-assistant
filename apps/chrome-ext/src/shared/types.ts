@@ -15,7 +15,7 @@ export type MeetingState =
   | "ENDED";
 
 export type PromptMode = "notification" | "overlay";
-export type OpenTarget = "web" | "desktop";
+export type OpenTarget = "extension" | "desktop" | "web";
 export type UserDecision = "start" | "snooze" | "deny_site" | "dismiss";
 
 export interface Settings {

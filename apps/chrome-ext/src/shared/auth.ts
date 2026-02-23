@@ -6,10 +6,7 @@ export function buildSignInUrl(baseUrl?: string): string {
   return `${base}/auth/extension?extId=${encodeURIComponent(extId)}`;
 }
 
-export function buildSessionUrl(
-  sessionId: string,
-  baseUrl?: string,
-): string {
+export function buildSessionUrl(sessionId: string, baseUrl?: string): string {
   const base = baseUrl ?? DEFAULT_WEB_BASE_URL;
   return `${base}/sessions/${encodeURIComponent(sessionId)}`;
 }

@@ -3,19 +3,14 @@ import { SignInGate } from "./components/SignInGate";
 import { StatusCard } from "./components/StatusCard";
 import { QuickActions } from "./components/QuickActions";
 import { ToggleSwitch } from "./components/ToggleSwitch";
-import type {
-  Settings,
-  RecordingState,
-  TabMeetingState,
-} from "@/shared/types";
+import type { Settings, RecordingState, TabMeetingState } from "@/shared/types";
 import {
   getSettings,
   saveSettings,
   isAuthenticated,
   getRecordingState,
 } from "@/shared/storage";
-import { buildSignInUrl, buildSessionUrl } from "@/shared/auth";
-import { DEFAULT_WEB_BASE_URL } from "@/shared/constants";
+import { buildSignInUrl } from "@/shared/auth";
 
 export function App() {
   const [authed, setAuthed] = useState<boolean | null>(null);
@@ -70,7 +65,12 @@ export function App() {
   }, [recording?.isRecording, recording?.startedAt]);
 
   const handleSignIn = useCallback(() => {
-    chrome.tabs.create({ url: buildSignInUrl() });
+    chrome.windows.create({
+      url: buildSignInUrl(),
+      type: "popup",
+      width: 520,
+      height: 760,
+    });
   }, []);
 
   const handleToggle = useCallback(async (enabled: boolean) => {
@@ -132,15 +132,14 @@ export function App() {
     chrome.runtime.openOptionsPage();
   }, []);
 
-  const handleOpenWeb = useCallback(() => {
-    chrome.tabs.create({ url: DEFAULT_WEB_BASE_URL });
+  const handleOpenExtension = useCallback(() => {
+    chrome.windows.create({
+      url: chrome.runtime.getURL("src/options/index.html"),
+      type: "popup",
+      width: 460,
+      height: 760,
+    });
   }, []);
-
-  const handleViewTranscript = useCallback(() => {
-    if (recording?.sessionId) {
-      chrome.tabs.create({ url: buildSessionUrl(recording.sessionId) });
-    }
-  }, [recording?.sessionId]);
 
   if (authed === null) {
     return (
@@ -207,7 +206,6 @@ export function App() {
           platform={tabState?.candidate?.platform ?? null}
           isRecording={isRec}
           recordingDuration={recordingDuration}
-          onViewTranscript={isRec ? handleViewTranscript : undefined}
         />
 
         <QuickActions
@@ -217,7 +215,7 @@ export function App() {
           onStopRecording={handleStopRecording}
           onSnooze={handleSnooze}
           onOpenSettings={handleOpenSettings}
-          onOpenWeb={handleOpenWeb}
+          onOpenExtension={handleOpenExtension}
         />
       </div>
     </div>

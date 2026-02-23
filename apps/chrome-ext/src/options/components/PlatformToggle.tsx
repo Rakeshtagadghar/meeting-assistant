@@ -14,12 +14,7 @@ const PLATFORM_ICONS: Record<string, string> = {
   webex: "W",
 };
 
-export function PlatformToggle({
-  platform,
-  label,
-  enabled,
-  onChange,
-}: Props) {
+export function PlatformToggle({ platform, label, enabled, onChange }: Props) {
   return (
     <div className="flex items-center justify-between py-2">
       <div className="flex items-center gap-3">

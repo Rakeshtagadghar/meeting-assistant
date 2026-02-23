@@ -42,9 +42,7 @@ describe("classifyUrl", () => {
     });
 
     it("detects a /meeting URL with high confidence", () => {
-      const result = classifyUrl(
-        "https://teams.microsoft.com/meeting/abc123",
-      );
+      const result = classifyUrl("https://teams.microsoft.com/meeting/abc123");
       expect(result?.platform).toBe("ms_teams");
       expect(result?.confidence).toBe(0.9);
     });
@@ -94,9 +92,7 @@ describe("classifyUrl", () => {
     });
 
     it("detects subdomain webex URLs", () => {
-      const result = classifyUrl(
-        "https://company.webex.com/meet/john.doe",
-      );
+      const result = classifyUrl("https://company.webex.com/meet/john.doe");
       expect(result?.platform).toBe("webex");
       expect(result?.confidence).toBe(0.8);
     });

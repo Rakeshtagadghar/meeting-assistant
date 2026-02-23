@@ -20,10 +20,7 @@ export function shouldPrompt(
     return { allowed: false, reason: "hostname_denylisted" };
   }
 
-  if (
-    cooldownState.snoozeUntil !== null &&
-    now < cooldownState.snoozeUntil
-  ) {
+  if (cooldownState.snoozeUntil !== null && now < cooldownState.snoozeUntil) {
     return { allowed: false, reason: "snoozed" };
   }
 
