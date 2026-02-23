@@ -5,14 +5,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 import type { ASRProvider } from "@ainotes/core";
 import { Button, ConsentModal } from "@ainotes/ui";
 import { useTranscriptSession } from "@/features/capture/hooks/use-transcript-session";
-import { useLiveAnalysis } from "@/features/capture/hooks/use-live-analysis";
 import { createASRProvider } from "@/features/capture/lib/asr-provider-factory";
 import { TranscriptBubble } from "@/features/capture/components/TranscriptBubble";
 import { TranscriptHeader } from "@/features/capture/components/TranscriptHeader";
 import { TranscriptFooter } from "@/features/capture/components/TranscriptFooter";
 import { EchoCancellationBanner } from "@/features/capture/components/EchoCancellationBanner";
-import { LiveAnalysisPanel } from "@/features/capture/components/LiveAnalysisPanel";
-import { LiveNudgesTray } from "@/features/capture/components/LiveNudgesTray";
 
 function QuickNotePageContent() {
   const router = useRouter();
@@ -69,16 +66,8 @@ function QuickNotePageContent() {
     copyTranscript,
     providerName,
     modelLoadProgress,
-    sessionId,
     noteId,
   } = useTranscriptSession(asrProvider);
-
-  const liveAnalysis = useLiveAnalysis({
-    sessionId,
-    windowState,
-    finalChunks,
-    partialText,
-  });
 
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -213,8 +202,6 @@ function QuickNotePageContent() {
     setSpeakerAliases({});
   };
 
-  const showLiveAnalysisPanel = false;
-
   return (
     <div className="flex h-screen flex-col bg-bg-secondary">
       {/* Header */}
@@ -262,13 +249,7 @@ function QuickNotePageContent() {
       <EchoCancellationBanner show={isDesktop && isWindows} />
 
       <div className="min-h-0 flex-1 overflow-hidden">
-        <div
-          className={`grid h-full min-h-0 ${
-            showLiveAnalysisPanel
-              ? "grid-cols-1 grid-rows-[minmax(0,1fr)_minmax(0,1fr)] md:grid-cols-2 md:grid-rows-1"
-              : "grid-cols-1"
-          }`}
-        >
+        <div className="grid h-full min-h-0 grid-cols-1">
           {/* Main: transcript feed */}
           <div className="min-h-0 overflow-y-auto px-3 py-3">
             {windowState === "idle" && (
@@ -493,45 +474,8 @@ function QuickNotePageContent() {
               </>
             )}
           </div>
-
-          {showLiveAnalysisPanel && (
-            <div className="min-h-0 border-t border-warm-200/70 md:border-l md:border-t-0">
-              <LiveAnalysisPanel
-                isSessionCompleted={windowState === "completed"}
-                enabled={liveAnalysis.enabled}
-                setEnabled={liveAnalysis.setEnabled}
-                privacyMode={liveAnalysis.privacyMode}
-                setPrivacyMode={liveAnalysis.setPrivacyMode}
-                sensitivity={liveAnalysis.sensitivity}
-                setSensitivity={liveAnalysis.setSensitivity}
-                coachingAggressiveness={liveAnalysis.coachingAggressiveness}
-                setCoachingAggressiveness={
-                  liveAnalysis.setCoachingAggressiveness
-                }
-                streamStatus={liveAnalysis.streamStatus}
-                latencyMs={liveAnalysis.latencyMs}
-                metrics={liveAnalysis.metrics}
-                summary={liveAnalysis.summary}
-                coach={liveAnalysis.coach}
-                insights={liveAnalysis.insights}
-                usedSuggestionIds={liveAnalysis.usedSuggestionIds}
-                suggestionRatings={liveAnalysis.suggestionRatings}
-                onCopySuggestion={liveAnalysis.copySuggestion}
-                onMarkSuggestionUsed={liveAnalysis.markSuggestionUsed}
-                onRateSuggestion={liveAnalysis.rateSuggestion}
-              />
-            </div>
-          )}
         </div>
       </div>
-
-      <LiveNudgesTray
-        visible={false}
-        metrics={liveAnalysis.metrics}
-        coach={liveAnalysis.coach}
-        summary={liveAnalysis.summary}
-        insights={liveAnalysis.insights}
-      />
 
       {/* Footer: controls (active states only) */}
       {(windowState === "listening" ||
